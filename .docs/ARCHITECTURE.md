@@ -83,7 +83,7 @@ ghost-viewer/
 
 ## 4. Data Flow
 
-### 主要フロー：NARファイルの読み込みから可視化まで
+### 主要フロー：NARファイルの読み込みから統合会話グラフ表示まで
 
 ```
 ユーザー操作                UI層                        ロジック層                   データストア
@@ -93,16 +93,13 @@ NARファイルを              DropZone                    nar/validator       
                            が File を受け取る          nar/extractor                (仮想ファイルツリー)
                                                        (JSZipで展開)
 
-ファイルツリーで            FileTree                    ─                           fileTreeStore
-.dicファイルを選択   →     コンポーネント         →                           →    selectedFileStore
-                           がクリックイベント発火
+NAR展開完了後              ghostStore                  全 .dic ファイルを検出       parseStore
+全 .dic を一括パース →     acceptFile() 内        →    逐次 Worker パース     →    (統合 ParseResult)
+                                                       同名関数のダイアログ結合
 
-選択された.dicの            ─                           [Web Worker]                parsedDataStore
-解析が開始           →                            →    parsers/yaya|satori   →    (パース結果)
-                                                       sakura-script/tokenizer
-
-ブランチビューアーに        BranchViewer                parsedDataStore             ─
-ノードグラフ表示     ←     (React Flow)           ←    からノード/エッジ生成  ←
+parseResult 更新時         BranchViewer                buildBranchGraph            branchStore
+統合グラフを構築     ←     useEffect が検知       ←    (同名関数マージ済み)   →    (nodes, edges)
+                           → buildGraph() 呼出
 ```
 
 ### Mermaid図
@@ -115,13 +112,12 @@ flowchart LR
     C -->|NG| E[エラー表示]
     D --> F[仮想ファイルツリー構築]
     F --> G[FileTree表示]
-    G -->|.dic選択| H[Web Worker]
-    H --> I[SHIORIパーサー]
-    I --> J[SakuraScriptトークナイザー]
-    J --> K[ブランチノード生成]
-    K --> L[React Flowで描画]
-    G -->|画像選択| M[サーフェスプレビュー]
-    G -->|テキスト選択| N[CodeMirror表示]
+    D --> H[全 .dic 検出]
+    H --> I[逐次 Worker パース]
+    I --> J[統合 DicFunction 構築]
+    J --> K[buildBranchGraph]
+    K --> L[React Flow 統合グラフ描画]
+    G -->|ファイル選択| M[テキスト表示]
 ```
 
 ---
@@ -139,7 +135,7 @@ flowchart LR
 ├─────────────────────────────────────────────────────────┤
 │ ストア層（src/stores/）                                   │
 │  - fileTreeStore: 展開済みファイルツリー、選択状態           │
-│  - parseStore: パース結果（トークン・ノード・エッジ）         │
+│  - parseStore: 全 .dic 統合パース結果（DicFunction[]）       │
 │  - ghostStore: ゴーストメタ情報、SHIORI種別、統計           │
 ├─────────────────────────────────────────────────────────┤
 │ ロジック層（src/lib/）                                    │
