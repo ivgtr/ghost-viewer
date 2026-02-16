@@ -123,6 +123,11 @@ describe("buildBranchGraph", () => {
 		expect(edges[1].id).toBe("FnA-choice-FnB-1");
 	});
 
+	it("ノードの type は branchNode である", () => {
+		const { nodes } = buildBranchGraph([makeFn("OnBoot")]);
+		expect(nodes[0].type).toBe("branchNode");
+	});
+
 	it("ノードの初期位置は { x: 0, y: 0 } である", () => {
 		const { nodes } = buildBranchGraph([makeFn("OnBoot")]);
 		expect(nodes[0].position).toEqual({ x: 0, y: 0 });

@@ -1,8 +1,11 @@
+import { BranchNode } from "@/components/branch-viewer/BranchNode";
 import { useBranchStore } from "@/stores/branch-store";
 import { useParseStore } from "@/stores/parse-store";
 import { Background, Controls, MiniMap, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useEffect } from "react";
+
+const nodeTypes = { branchNode: BranchNode };
 
 export function BranchViewer() {
 	const parseResult = useParseStore((s) => s.parseResult);
@@ -39,7 +42,7 @@ export function BranchViewer() {
 
 	return (
 		<div className="h-full w-full">
-			<ReactFlow nodes={nodes} edges={edges} fitView nodesDraggable={false}>
+			<ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} fitView nodesDraggable={false}>
 				<Background />
 				<Controls />
 				<MiniMap />

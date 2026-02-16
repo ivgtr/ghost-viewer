@@ -18,7 +18,7 @@ export const useBranchStore = createStore<BranchState>(
 	(set) => ({
 		buildGraph: (functions) => {
 			const { nodes, edges } = buildBranchGraph(functions);
-			set({ nodes: layoutGraph(nodes, edges), edges });
+			set({ nodes: layoutGraph(nodes, edges, { nodeWidth: 280, nodeHeight: 140 }), edges });
 		},
 		selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
 	}),

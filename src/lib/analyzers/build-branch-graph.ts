@@ -20,6 +20,7 @@ export function buildBranchGraph(functions: DicFunction[]): {
 
 	const nodes: Node<BranchNodeData>[] = deduped.map((fn) => ({
 		id: fn.name,
+		type: "branchNode",
 		position: { x: 0, y: 0 },
 		data: {
 			label: fn.name,
