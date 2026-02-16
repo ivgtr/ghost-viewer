@@ -11,6 +11,27 @@ export default defineConfig({
 		},
 	},
 	test: {
-		include: ["tests/**/*.test.ts"],
+		include: ["tests/**/*.test.{ts,tsx}"],
+		setupFiles: ["tests/setup.ts"],
+		projects: [
+			{
+				extends: true,
+				test: {
+					name: "unit",
+					include: ["tests/**/*.test.ts"],
+					exclude: ["tests/**/*.test.tsx"],
+					environment: "node",
+				},
+			},
+			{
+				extends: true,
+				test: {
+					name: "component",
+					include: ["tests/components/**/*.test.tsx"],
+					environment: "jsdom",
+					setupFiles: ["tests/setup.ts"],
+				},
+			},
+		],
 	},
 });
