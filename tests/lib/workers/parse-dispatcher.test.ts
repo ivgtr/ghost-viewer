@@ -26,7 +26,26 @@ describe("dispatchParse", () => {
 		expect(result.meta).toBeNull();
 	});
 
-	const stubTypes: ShioriType[] = ["yaya", "kawari", "unknown"];
+	it("yaya で辞書を正しくパースする", () => {
+		const onProgress = vi.fn();
+		const text = 'OnBoot {\n\t"\\0こんにちは\\e"\n}';
+		const input = {
+			fileContent: toArrayBuffer(text),
+			fileName: "yaya.dic",
+			shioriType: "yaya" as const,
+		};
+
+		const result = dispatchParse(input, onProgress);
+
+		expect(result.shioriType).toBe("yaya");
+		expect(result.functions).toHaveLength(1);
+		expect(result.functions[0].name).toBe("OnBoot");
+		expect(result.functions[0].filePath).toBe("yaya.dic");
+		expect(result.functions[0].dialogues).toHaveLength(1);
+		expect(result.meta).toBeNull();
+	});
+
+	const stubTypes: ShioriType[] = ["kawari", "unknown"];
 
 	for (const shioriType of stubTypes) {
 		it(`${shioriType} でスタブ結果を返す`, () => {
@@ -63,12 +82,28 @@ describe("dispatchParse", () => {
 		expect(onProgress).toHaveBeenNthCalledWith(3, 100);
 	});
 
+	it("yaya の onProgress が 0→50→100 で呼ばれる", () => {
+		const onProgress = vi.fn();
+		const input = {
+			fileContent: toArrayBuffer('OnBoot {\n\t"hello"\n}'),
+			fileName: "test.dic",
+			shioriType: "yaya" as const,
+		};
+
+		dispatchParse(input, onProgress);
+
+		expect(onProgress).toHaveBeenCalledTimes(3);
+		expect(onProgress).toHaveBeenNthCalledWith(1, 0);
+		expect(onProgress).toHaveBeenNthCalledWith(2, 50);
+		expect(onProgress).toHaveBeenNthCalledWith(3, 100);
+	});
+
 	it("スタブタイプの onProgress が 0→100 で呼ばれる", () => {
 		const onProgress = vi.fn();
 		const input = {
 			fileContent: new ArrayBuffer(0),
 			fileName: "test.dic",
-			shioriType: "yaya" as const,
+			shioriType: "kawari" as const,
 		};
 
 		dispatchParse(input, onProgress);

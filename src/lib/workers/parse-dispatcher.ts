@@ -1,5 +1,6 @@
 import { decodeWithAutoDetection } from "@/lib/encoding/detect";
 import { parseSatoriDic } from "@/lib/parsers/satori";
+import { parseYayaDic } from "@/lib/parsers/yaya";
 import type { ParseResult, ShioriType } from "@/types";
 
 interface ParseInput {
@@ -22,7 +23,13 @@ export function dispatchParse(
 			onProgress(100);
 			return { shioriType: "satori", functions, meta: null };
 		}
-		case "yaya":
+		case "yaya": {
+			const { text: yayaText } = decodeWithAutoDetection(input.fileContent);
+			onProgress(50);
+			const yayaFunctions = parseYayaDic(yayaText, input.fileName);
+			onProgress(100);
+			return { shioriType: "yaya", functions: yayaFunctions, meta: null };
+		}
 		case "kawari":
 		case "unknown":
 			onProgress(100);
