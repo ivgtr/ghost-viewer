@@ -1,3 +1,4 @@
+import { BranchViewer } from "@/components/branch-viewer/BranchViewer";
 import { DropZone } from "@/components/file-tree/DropZone";
 import { FileTree } from "@/components/file-tree/FileTree";
 import { TextViewer } from "@/components/script-viewer/TextViewer";
@@ -10,10 +11,6 @@ function ResizeHandle() {
 	);
 }
 
-function PanelPlaceholder({ label }: { label: string }) {
-	return <div className="flex h-full items-center justify-center text-zinc-500">{label}</div>;
-}
-
 export function Layout() {
 	const tree = useFileTreeStore((s) => s.tree);
 
@@ -24,11 +21,11 @@ export function Layout() {
 			</Panel>
 			<ResizeHandle />
 			<Panel defaultSize="50%" minSize="20%">
-				<TextViewer />
+				<BranchViewer />
 			</Panel>
 			<ResizeHandle />
 			<Panel defaultSize="30%" minSize="15%">
-				<PanelPlaceholder label="Branch Viewer" />
+				<TextViewer />
 			</Panel>
 		</Group>
 	);
