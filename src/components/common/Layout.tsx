@@ -1,4 +1,6 @@
 import { DropZone } from "@/components/file-tree/DropZone";
+import { FileTree } from "@/components/file-tree/FileTree";
+import { useFileTreeStore } from "@/stores/file-tree-store";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
 function ResizeHandle() {
@@ -12,10 +14,12 @@ function PanelPlaceholder({ label }: { label: string }) {
 }
 
 export function Layout() {
+	const tree = useFileTreeStore((s) => s.tree);
+
 	return (
 		<Group orientation="horizontal" className="h-full">
 			<Panel defaultSize="20%" minSize="10%">
-				<DropZone />
+				{tree.length === 0 ? <DropZone /> : <FileTree />}
 			</Panel>
 			<ResizeHandle />
 			<Panel defaultSize="50%" minSize="20%">
