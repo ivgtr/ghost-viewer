@@ -1,5 +1,5 @@
 import type { FileTreeNode } from "@/types";
-import { useBranchStore } from "./branch-store";
+import { useCatalogStore } from "./catalog-store";
 import { createStore } from "./create-store";
 import { useFileContentStore } from "./file-content-store";
 
@@ -32,7 +32,7 @@ export const useFileTreeStore = createStore<FileTreeState>(
 		selectNode: (nodeId) => {
 			set({ selectedNodeId: nodeId });
 			if (nodeId) {
-				useBranchStore.getState().selectNode(null);
+				useCatalogStore.getState().selectFunction(null);
 				useFileContentStore.getState().decodeFile(nodeId);
 			}
 		},

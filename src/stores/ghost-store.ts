@@ -5,6 +5,7 @@ import { parseDescriptFromBuffer } from "@/lib/parsers/descript";
 import { detectShioriType } from "@/lib/parsers/shiori-detect";
 import { requestParse } from "@/lib/workers/worker-client";
 import type { DicFunction, GhostMeta, GhostStats, ShioriType } from "@/types";
+import { useCatalogStore } from "./catalog-store";
 import { createStore } from "./create-store";
 import { useFileContentStore } from "./file-content-store";
 import { useFileTreeStore } from "./file-tree-store";
@@ -57,6 +58,7 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 		useParseStore.getState().reset();
 		useFileTreeStore.getState().reset();
 		useFileContentStore.getState().reset();
+		useCatalogStore.getState().reset();
 
 		processNarFile(file)
 			.then((extractionResult) => {

@@ -1,9 +1,9 @@
-import { BranchViewer } from "@/components/branch-viewer/BranchViewer";
+import { ConversationCatalog } from "@/components/catalog/ConversationCatalog";
 import { ConversationPreview } from "@/components/conversation-preview/ConversationPreview";
 import { DropZone } from "@/components/file-tree/DropZone";
 import { FileTree } from "@/components/file-tree/FileTree";
 import { TextViewer } from "@/components/script-viewer/TextViewer";
-import { useBranchStore } from "@/stores/branch-store";
+import { useCatalogStore } from "@/stores/catalog-store";
 import { useFileTreeStore } from "@/stores/file-tree-store";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
@@ -15,7 +15,7 @@ function ResizeHandle() {
 
 export function Layout() {
 	const tree = useFileTreeStore((s) => s.tree);
-	const selectedNodeId = useBranchStore((s) => s.selectedNodeId);
+	const selectedFunctionName = useCatalogStore((s) => s.selectedFunctionName);
 
 	return (
 		<Group orientation="horizontal" className="h-full">
@@ -24,11 +24,11 @@ export function Layout() {
 			</Panel>
 			<ResizeHandle />
 			<Panel defaultSize="50%" minSize="20%">
-				<BranchViewer />
+				<ConversationCatalog />
 			</Panel>
 			<ResizeHandle />
 			<Panel defaultSize="30%" minSize="15%">
-				{selectedNodeId ? <ConversationPreview /> : <TextViewer />}
+				{selectedFunctionName ? <ConversationPreview /> : <TextViewer />}
 			</Panel>
 		</Group>
 	);

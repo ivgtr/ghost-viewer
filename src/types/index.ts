@@ -1,4 +1,4 @@
-export type { BranchEdgeData, BranchEdgeType, BranchNodeData } from "./branch";
+export type { CatalogEntry } from "./catalog";
 export type { ChatMessage, ChatSegment } from "./chat-message";
 export type {
 	DirectoryNode,

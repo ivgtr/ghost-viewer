@@ -3,9 +3,14 @@ import type { ChatMessage } from "@/types/chat-message";
 interface ChatMessageBubbleProps {
 	message: ChatMessage;
 	characterName: string;
+	onChoiceClick?: (targetFn: string) => void;
 }
 
-export function ChatMessageBubble({ message, characterName }: ChatMessageBubbleProps) {
+export function ChatMessageBubble({
+	message,
+	characterName,
+	onChoiceClick,
+}: ChatMessageBubbleProps) {
 	const isKero = message.characterId === 1;
 	const alignment = isKero ? "items-end" : "items-start";
 	const bubbleBg = isKero ? "bg-green-900/50" : "bg-blue-900/50";
@@ -37,6 +42,19 @@ export function ChatMessageBubble({ message, characterName }: ChatMessageBubbleP
 							);
 						case "choice": {
 							const label = segment.value.split(",")[0];
+							const targetFn = segment.value.split(",")[1]?.trim();
+							if (targetFn && onChoiceClick) {
+								return (
+									<button
+										key={key}
+										type="button"
+										className="mx-0.5 inline-block rounded bg-orange-800/60 px-2 py-0.5 text-xs text-orange-200 hover:bg-orange-700/60 transition-colors cursor-pointer"
+										onClick={() => onChoiceClick(targetFn)}
+									>
+										{label}
+									</button>
+								);
+							}
 							return (
 								<span
 									key={key}

@@ -1,22 +1,23 @@
 import { lookupDialoguesByFunctionName } from "@/lib/analyzers/lookup-dialogues";
 import { buildChatMessages } from "@/lib/sakura-script/build-chat-messages";
-import { useBranchStore } from "@/stores/branch-store";
+import { useCatalogStore } from "@/stores/catalog-store";
 import { useGhostStore } from "@/stores/ghost-store";
 import { useParseStore } from "@/stores/parse-store";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { ChatMessageBubble } from "./ChatMessageBubble";
 import { VariantSelector } from "./VariantSelector";
 
 export function ConversationPreview() {
-	const selectedNodeId = useBranchStore((s) => s.selectedNodeId);
+	const selectedFunctionName = useCatalogStore((s) => s.selectedFunctionName);
+	const selectFunction = useCatalogStore((s) => s.selectFunction);
 	const parseResult = useParseStore((s) => s.parseResult);
 	const meta = useGhostStore((s) => s.meta);
 	const [variantIndex, setVariantIndex] = useState(0);
 
 	const dialogues = useMemo(() => {
-		if (!selectedNodeId) return [];
-		return lookupDialoguesByFunctionName(selectedNodeId, parseResult?.functions ?? []);
-	}, [selectedNodeId, parseResult]);
+		if (!selectedFunctionName) return [];
+		return lookupDialoguesByFunctionName(selectedFunctionName, parseResult?.functions ?? []);
+	}, [selectedFunctionName, parseResult]);
 
 	const clampedIndex = Math.min(variantIndex, Math.max(0, dialogues.length - 1));
 
@@ -29,10 +30,18 @@ export function ConversationPreview() {
 	const sakuraName = meta?.sakuraName ?? "\\0";
 	const keroName = meta?.keroName ?? "\\1";
 
-	if (!selectedNodeId) {
+	const handleChoiceClick = useCallback(
+		(targetFn: string) => {
+			selectFunction(targetFn);
+			setVariantIndex(0);
+		},
+		[selectFunction],
+	);
+
+	if (!selectedFunctionName) {
 		return (
 			<div className="flex h-full items-center justify-center text-zinc-500">
-				ノードを選択してください
+				イベントを選択してください
 			</div>
 		);
 	}
@@ -52,7 +61,7 @@ export function ConversationPreview() {
 	return (
 		<div className="flex h-full flex-col overflow-hidden">
 			<div className="flex items-center justify-between border-b border-zinc-700 px-4 py-2">
-				<span className="text-sm font-medium text-zinc-200 truncate">{selectedNodeId}</span>
+				<span className="text-sm font-medium text-zinc-200 truncate">{selectedFunctionName}</span>
 				<VariantSelector
 					count={dialogues.length}
 					selected={clampedIndex}
@@ -66,6 +75,7 @@ export function ConversationPreview() {
 						key={i}
 						message={msg}
 						characterName={msg.characterId === 0 ? sakuraName : keroName}
+						onChoiceClick={handleChoiceClick}
 					/>
 				))}
 			</div>
