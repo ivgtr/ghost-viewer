@@ -1,3 +1,5 @@
+import { decodeWithAutoDetection } from "@/lib/encoding/detect";
+import { parseSatoriDic } from "@/lib/parsers/satori";
 import type { ParseResult, ShioriType } from "@/types";
 
 interface ParseInput {
@@ -12,21 +14,21 @@ export function dispatchParse(
 ): ParseResult {
 	onProgress(0);
 
-	const result = createStubResult(input.shioriType);
-
-	onProgress(100);
-	return result;
-}
-
-function createStubResult(shioriType: ShioriType): ParseResult {
-	switch (shioriType) {
+	switch (input.shioriType) {
+		case "satori": {
+			const { text } = decodeWithAutoDetection(input.fileContent);
+			onProgress(50);
+			const functions = parseSatoriDic(text, input.fileName);
+			onProgress(100);
+			return { shioriType: "satori", functions, meta: null };
+		}
 		case "yaya":
-		case "satori":
 		case "kawari":
 		case "unknown":
-			return { shioriType, functions: [], meta: null };
+			onProgress(100);
+			return { shioriType: input.shioriType, functions: [], meta: null };
 		default: {
-			const _exhaustive: never = shioriType;
+			const _exhaustive: never = input.shioriType;
 			throw new Error(`未対応の SHIORI タイプ: ${_exhaustive}`);
 		}
 	}
