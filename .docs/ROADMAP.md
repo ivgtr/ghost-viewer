@@ -60,7 +60,7 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
   - 依存: descript.txt パーサー
 - [x] **SakuraScript トークナイザー** [M] — SakuraScript タグ（`\0`, `\1`, `\s[]`, `\q[]`, `\![raise]` 等）をトークン配列に分解
 - [x] **Web Worker 解析基盤** [M] — Worker の定義、メインスレッドとの postMessage 通信、プログレス通知、タイムアウト制御
-- [ ] **YAYA 辞書パーサー** [L] — 関数定義・変数・制御構文のパース、ランダム選択（複数 Return 文）の検出、イベント抽出
+- [x] **YAYA 辞書パーサー** [L] — 関数定義・変数・制御構文のパース、ランダム選択（複数 Return 文）の検出、イベント抽出
   - 依存: SakuraScript トークナイザー, Web Worker 解析基盤
 - [x] **Satori 辞書パーサー** [M] — キーワードトリガーと応答パターンのペア抽出、文字コード処理
   - 依存: SakuraScript トークナイザー, Web Worker 解析基盤
