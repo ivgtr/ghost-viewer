@@ -65,7 +65,7 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **Satori 辞書パーサー** [M] — キーワードトリガーと応答パターンのペア抽出、文字コード処理
   - 依存: SakuraScript トークナイザー, Web Worker 解析基盤
 
-### Phase 3: Conversation Graph — 6/8
+### Phase 3: Conversation Graph ✅ Complete
 目標: NAR 内の全 .dic を一括パースし、統合会話グラフとして可視化する。ダイアログバリエーションの展開と分岐エッジの色分けを行う
 
 **対象ディレクトリ:** `src/components/branch-viewer/`, `src/stores/`, `src/lib/analyzers/`, `src/lib/workers/`
@@ -80,9 +80,9 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
   - 依存: 全 .dic 一括パース
 - [x] **ダイアログバリエーション展開** [M] — ノード内で全ダイアログ候補をサブアイテムとして展開表示
   - 依存: 統合会話グラフ構築
-- [ ] **カスタムエッジ描画** [M] — choice（オレンジ）/ raise（パープル）の色分け
+- [x] **カスタムエッジ描画** [M] — choice（オレンジ）/ raise（パープル）の色分け
   - 依存: 統合会話グラフ構築
-- [ ] **起点イベント選択 + パスフィルタ** [M] — OnBoot 等を起点に到達可能サブグラフのみ表示
+- [x] **起点イベント選択 + パスフィルタ** [M] — OnBoot 等を起点に到達可能サブグラフのみ表示
   - 依存: カスタムエッジ描画
 
 ### Phase 4: Conversation Preview — 0/4
