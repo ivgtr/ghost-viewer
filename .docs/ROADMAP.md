@@ -49,14 +49,14 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **テキストファイルビューアー** [S] — 中央ペインでプレーンテキスト表示、行番号付き、エンコーディング自動判別（Shift_JIS / EUC-JP / UTF-8）
   - 依存: ファイルツリーコンポーネント
 
-### Phase 2: Parsing Engine — 0/6
+### Phase 2: Parsing Engine — 2/6
 目標: SHIORI言語のパースとSakuraScriptのトークナイズを実装し、会話データの構造化を実現する
 
 **対象ディレクトリ:** `src/lib/parsers/`, `src/lib/sakura-script/`, `src/workers/`
 **未インストール依存:** なし（純粋な TypeScript ロジック）
 
-- [ ] **descript.txt パーサー** [S] — key=value 形式のメタ情報抽出、ゴースト名・作者・キャラクター名の取得
-- [ ] **SHIORI言語自動判別** [S] — 同梱 DLL 名と .dic ファイルパターンから YAYA / Satori / Kawari を推定
+- [x] **descript.txt パーサー** [S] — key=value 形式のメタ情報抽出、ゴースト名・作者・キャラクター名の取得
+- [x] **SHIORI言語自動判別** [S] — 同梱 DLL 名と .dic ファイルパターンから YAYA / Satori / Kawari を推定
   - 依存: descript.txt パーサー
 - [ ] **SakuraScript トークナイザー** [M] — SakuraScript タグ（`\0`, `\1`, `\s[]`, `\q[]`, `\![raise]` 等）をトークン配列に分解
 - [ ] **Web Worker 解析基盤** [M] — Worker の定義、メインスレッドとの postMessage 通信、プログレス通知、タイムアウト制御

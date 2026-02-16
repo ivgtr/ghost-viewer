@@ -189,6 +189,35 @@ describe("ghostStore", () => {
 		expect(fileTreeState.tree.length).toBeGreaterThan(0);
 	});
 
+	it("展開成功時に descript.txt から meta と shioriType が設定される", async () => {
+		const descriptContent = [
+			"name,テストゴースト",
+			"craftmanw,テスト作者",
+			"sakura.name,さくら",
+			"kero.name,うにゅう",
+			"shiori,yaya.dll",
+		].join("\n");
+
+		const file = await createNarFile({
+			"ghost/master/descript.txt": descriptContent,
+			"ghost/master/dic01.dic": "hello",
+		});
+
+		useGhostStore.getState().acceptFile(file);
+
+		await vi.waitFor(() => {
+			expect(useGhostStore.getState().isExtracting).toBe(false);
+		});
+
+		const ghostState = useGhostStore.getState();
+		expect(ghostState.meta).not.toBeNull();
+		expect(ghostState.meta?.name).toBe("テストゴースト");
+		expect(ghostState.meta?.author).toBe("テスト作者");
+		expect(ghostState.meta?.sakuraName).toBe("さくら");
+		expect(ghostState.meta?.keroName).toBe("うにゅう");
+		expect(ghostState.shioriType).toBe("yaya");
+	});
+
 	it("展開失敗時に error が設定され isExtracting が false に戻る", async () => {
 		const invalidBuffer = new ArrayBuffer(100);
 		const file = new File([invalidBuffer], "broken.nar", {

@@ -1,5 +1,7 @@
 import { processNarFile } from "@/lib/nar/extract";
 import { validateNarFile } from "@/lib/nar/validate";
+import { parseDescriptFromBuffer } from "@/lib/parsers/descript";
+import { detectShioriType } from "@/lib/parsers/shiori-detect";
 import type { GhostMeta, GhostStats, ShioriType } from "@/types";
 import { createStore } from "./create-store";
 import { useFileContentStore } from "./file-content-store";
@@ -58,6 +60,18 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 			.then((extractionResult) => {
 				useFileTreeStore.getState().setTree(extractionResult.tree);
 				useFileContentStore.getState().setFileContents(extractionResult.fileContents);
+
+				const descriptBuffer = extractionResult.fileContents.get("ghost/master/descript.txt");
+				let properties: Record<string, string> = {};
+				if (descriptBuffer) {
+					const meta = parseDescriptFromBuffer(descriptBuffer);
+					properties = meta.properties;
+					set({ meta });
+				}
+
+				const shioriType = detectShioriType(extractionResult.fileContents, properties);
+				set({ shioriType });
+
 				set({ stats: extractionResult.stats, isExtracting: false });
 			})
 			.catch((err: unknown) => {
