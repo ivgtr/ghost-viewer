@@ -1,3 +1,5 @@
+import { Layout } from "@/components/common/Layout";
+
 export function App() {
-	return <div>ghost-viewer</div>;
+	return <Layout />;
 }
