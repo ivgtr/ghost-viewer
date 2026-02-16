@@ -5,8 +5,6 @@ import type { BranchEdgeData, BranchNodeData, DicFunction } from "@/types";
 import type { Edge, Node } from "@xyflow/react";
 import { createStore } from "./create-store";
 
-const LAYOUT_OPTIONS = { nodeWidth: 280, nodeHeight: 140 };
-
 interface BranchState {
 	nodes: Node<BranchNodeData>[];
 	edges: Edge<BranchEdgeData>[];
@@ -34,7 +32,7 @@ export const useBranchStore = createStore<BranchState>(
 	(set, get) => ({
 		buildGraph: (functions) => {
 			const { nodes, edges } = buildBranchGraph(functions);
-			const layoutNodes = layoutGraph(nodes, edges, LAYOUT_OPTIONS);
+			const layoutNodes = layoutGraph(nodes, edges);
 
 			const targetIds = new Set(edges.map((e) => e.target));
 			const rootNodeIds = nodes.filter((n) => !targetIds.has(n.id)).map((n) => n.id);
@@ -56,7 +54,7 @@ export const useBranchStore = createStore<BranchState>(
 				const { nodes, edges } = filterReachableGraph(nodeId, allNodes, allEdges);
 				set({
 					startNodeId: nodeId,
-					nodes: layoutGraph(nodes, edges, LAYOUT_OPTIONS),
+					nodes: layoutGraph(nodes, edges),
 					edges,
 				});
 			}

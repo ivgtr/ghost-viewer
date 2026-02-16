@@ -32,35 +32,21 @@ describe("buildBranchGraph", () => {
 		expect(nodes).toHaveLength(1);
 		expect(nodes[0].id).toBe("OnBoot");
 		expect(nodes[0].data.label).toBe("OnBoot");
-		expect(nodes[0].data.dialogues).toEqual([]);
-		expect(nodes[0].data.surfaceIds).toEqual([]);
-		expect(nodes[0].data.characters).toEqual([]);
+		expect(nodes[0].data.preview).toBe("");
 		expect(edges).toEqual([]);
 	});
 
-	it("テキストトークンからダイアログバリエーションを生成する", () => {
+	it("テキストトークンからプレビューテキストを生成する", () => {
 		const tokens = [token("text", "Hello"), token("text", " World")];
 		const { nodes } = buildBranchGraph([makeFn("OnBoot", tokens)]);
-		expect(nodes[0].data.dialogues).toEqual([{ index: 0, preview: "Hello World" }]);
+		expect(nodes[0].data.preview).toBe("Hello World");
 	});
 
 	it("50文字を超えるプレビューを切り捨てる", () => {
 		const longText = "a".repeat(60);
 		const tokens = [token("text", longText)];
 		const { nodes } = buildBranchGraph([makeFn("OnBoot", tokens)]);
-		expect(nodes[0].data.dialogues[0].preview).toBe(`${"a".repeat(50)}...`);
-	});
-
-	it("surfaceIds を抽出する", () => {
-		const tokens = [token("surface", "0"), token("surface", "5"), token("surface", "0")];
-		const { nodes } = buildBranchGraph([makeFn("OnBoot", tokens)]);
-		expect(nodes[0].data.surfaceIds).toEqual([0, 5]);
-	});
-
-	it("characters を抽出する", () => {
-		const tokens = [token("charSwitch", "0"), token("charSwitch", "1"), token("charSwitch", "0")];
-		const { nodes } = buildBranchGraph([makeFn("OnBoot", tokens)]);
-		expect(nodes[0].data.characters).toEqual([0, 1]);
+		expect(nodes[0].data.preview).toBe(`${"a".repeat(50)}...`);
 	});
 
 	it("choice トークンからエッジを生成する", () => {
@@ -113,11 +99,7 @@ describe("buildBranchGraph", () => {
 		const fn2 = makeFn("OnBoot", [token("text", "World")], "file2.dic");
 		const { nodes } = buildBranchGraph([fn1, fn2]);
 		expect(nodes).toHaveLength(1);
-		expect(nodes[0].data.filePath).toBe("file1.dic");
-		expect(nodes[0].data.dialogues).toEqual([
-			{ index: 0, preview: "Hello" },
-			{ index: 1, preview: "World" },
-		]);
+		expect(nodes[0].data.preview).toBe("Hello");
 	});
 
 	it("同一ソース・ターゲット・タイプの重複エッジに異なるIDを付与する", () => {

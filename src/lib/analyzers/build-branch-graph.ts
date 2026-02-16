@@ -1,10 +1,4 @@
-import type {
-	BranchEdgeData,
-	BranchEdgeType,
-	BranchNodeData,
-	DialogueVariant,
-	DicFunction,
-} from "@/types";
+import type { BranchEdgeData, BranchEdgeType, BranchNodeData, DicFunction } from "@/types";
 import type { Edge, Node } from "@xyflow/react";
 
 const PREVIEW_MAX_LENGTH = 50;
@@ -32,11 +26,7 @@ export function buildBranchGraph(functions: DicFunction[]): {
 		position: { x: 0, y: 0 },
 		data: {
 			label: fn.name,
-			dialogues: buildDialogueVariants(fn),
-			surfaceIds: extractSurfaceIds(fn),
-			characters: extractCharacters(fn),
-			filePath: fn.filePath,
-			startLine: fn.startLine,
+			preview: buildPreview(fn),
 		},
 	}));
 
@@ -45,49 +35,15 @@ export function buildBranchGraph(functions: DicFunction[]): {
 	return { nodes, edges };
 }
 
-function buildDialogueVariants(fn: DicFunction): DialogueVariant[] {
-	return fn.dialogues.map((dialogue, index) => {
-		const texts: string[] = [];
-		for (const token of dialogue.tokens) {
-			if (token.tokenType === "text") {
-				texts.push(token.value);
-			}
-		}
-		const joined = texts.join("");
-		const preview =
-			joined.length > PREVIEW_MAX_LENGTH ? `${joined.slice(0, PREVIEW_MAX_LENGTH)}...` : joined;
-		return { index, preview };
-	});
-}
-
-function extractSurfaceIds(fn: DicFunction): number[] {
-	const ids = new Set<number>();
-	for (const dialogue of fn.dialogues) {
-		for (const token of dialogue.tokens) {
-			if (token.tokenType === "surface") {
-				const id = Number(token.value);
-				if (!Number.isNaN(id)) {
-					ids.add(id);
-				}
-			}
-		}
+function buildPreview(fn: DicFunction): string {
+	const first = fn.dialogues[0];
+	if (!first) return "";
+	const texts: string[] = [];
+	for (const token of first.tokens) {
+		if (token.tokenType === "text") texts.push(token.value);
 	}
-	return [...ids];
-}
-
-function extractCharacters(fn: DicFunction): number[] {
-	const chars = new Set<number>();
-	for (const dialogue of fn.dialogues) {
-		for (const token of dialogue.tokens) {
-			if (token.tokenType === "charSwitch") {
-				const id = Number(token.value);
-				if (!Number.isNaN(id)) {
-					chars.add(id);
-				}
-			}
-		}
-	}
-	return [...chars];
+	const joined = texts.join("");
+	return joined.length > PREVIEW_MAX_LENGTH ? `${joined.slice(0, PREVIEW_MAX_LENGTH)}...` : joined;
 }
 
 function buildEdges(functions: DicFunction[], functionNames: Set<string>): Edge<BranchEdgeData>[] {

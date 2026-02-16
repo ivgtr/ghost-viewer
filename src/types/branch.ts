@@ -1,16 +1,7 @@
-export interface DialogueVariant {
-	index: number;
-	preview: string;
-}
-
 export interface BranchNodeData {
 	[key: string]: unknown;
 	label: string;
-	dialogues: DialogueVariant[];
-	surfaceIds: number[];
-	characters: number[];
-	filePath: string;
-	startLine: number;
+	preview: string;
 }
 
 export type BranchEdgeType = "choice" | "raise";
