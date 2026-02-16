@@ -11,7 +11,8 @@ export function BranchViewer() {
 	const parseResult = useParseStore((s) => s.parseResult);
 	const isParsing = useParseStore((s) => s.isParsing);
 	const parseError = useParseStore((s) => s.parseError);
-	const parseProgress = useParseStore((s) => s.parseProgress);
+	const parsedFileCount = useParseStore((s) => s.parsedFileCount);
+	const totalFileCount = useParseStore((s) => s.totalFileCount);
 	const nodes = useBranchStore((s) => s.nodes);
 	const edges = useBranchStore((s) => s.edges);
 	const buildGraph = useBranchStore((s) => s.buildGraph);
@@ -25,7 +26,7 @@ export function BranchViewer() {
 	if (isParsing) {
 		return (
 			<div className="flex h-full items-center justify-center text-zinc-400">
-				解析中... {parseProgress}%
+				解析中... {parsedFileCount} / {totalFileCount} ファイル
 			</div>
 		);
 	}

@@ -31,7 +31,7 @@ export function BranchNode({ data, selected }: NodeProps<Node<BranchNodeData>>) 
 				{data.label}
 			</div>
 
-			{(data.characters.length > 0 || data.preview) && (
+			{(data.characters.length > 0 || data.dialogues.length > 0) && (
 				<div className="px-3 py-2 space-y-1">
 					{data.characters.length > 0 && (
 						<div className="flex gap-1">
@@ -40,9 +40,11 @@ export function BranchNode({ data, selected }: NodeProps<Node<BranchNodeData>>) 
 							))}
 						</div>
 					)}
-					{data.preview && (
-						<p className="text-xs text-zinc-400 leading-relaxed truncate">{data.preview}</p>
-					)}
+					{data.dialogues.map((d) => (
+						<p key={d.index} className="text-xs text-zinc-400 leading-relaxed truncate">
+							{d.preview || "(empty)"}
+						</p>
+					))}
 				</div>
 			)}
 
