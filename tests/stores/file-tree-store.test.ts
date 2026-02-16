@@ -11,6 +11,7 @@ describe("fileTreeStore", () => {
 		const state = useFileTreeStore.getState();
 		expect(state.tree).toEqual([]);
 		expect(state.selectedNodeId).toBeNull();
+		expect(state.expandedNodeIds.size).toBe(0);
 	});
 
 	it("setTree でツリーを設定できる", () => {
@@ -55,5 +56,75 @@ describe("fileTreeStore", () => {
 		const state = useFileTreeStore.getState();
 		expect(state.tree).toEqual([]);
 		expect(state.selectedNodeId).toBeNull();
+		expect(state.expandedNodeIds.size).toBe(0);
+	});
+
+	it("setTree 時にルート直下のディレクトリが自動展開される", () => {
+		const tree: FileTreeNode[] = [
+			{
+				id: "dir-1",
+				name: "ghost",
+				path: "ghost",
+				kind: "directory",
+				children: [],
+			},
+			{
+				id: "file-1",
+				name: "readme.txt",
+				path: "readme.txt",
+				kind: "file",
+				fileKind: "text",
+				size: 50,
+			},
+			{
+				id: "dir-2",
+				name: "shell",
+				path: "shell",
+				kind: "directory",
+				children: [],
+			},
+		];
+		useFileTreeStore.getState().setTree(tree);
+
+		const { expandedNodeIds } = useFileTreeStore.getState();
+		expect(expandedNodeIds.has("dir-1")).toBe(true);
+		expect(expandedNodeIds.has("dir-2")).toBe(true);
+		expect(expandedNodeIds.has("file-1")).toBe(false);
+	});
+
+	it("toggleNodeExpansion で展開/折りたたみをトグルできる", () => {
+		useFileTreeStore.getState().setTree([
+			{
+				id: "dir-1",
+				name: "ghost",
+				path: "ghost",
+				kind: "directory",
+				children: [],
+			},
+		]);
+
+		expect(useFileTreeStore.getState().expandedNodeIds.has("dir-1")).toBe(true);
+
+		useFileTreeStore.getState().toggleNodeExpansion("dir-1");
+		expect(useFileTreeStore.getState().expandedNodeIds.has("dir-1")).toBe(false);
+
+		useFileTreeStore.getState().toggleNodeExpansion("dir-1");
+		expect(useFileTreeStore.getState().expandedNodeIds.has("dir-1")).toBe(true);
+	});
+
+	it("reset で expandedNodeIds もクリアされる", () => {
+		useFileTreeStore.getState().setTree([
+			{
+				id: "dir-1",
+				name: "ghost",
+				path: "ghost",
+				kind: "directory",
+				children: [],
+			},
+		]);
+		expect(useFileTreeStore.getState().expandedNodeIds.size).toBe(1);
+
+		useFileTreeStore.getState().reset();
+		expect(useFileTreeStore.getState().expandedNodeIds.size).toBe(0);
 	});
 });
