@@ -2,7 +2,7 @@
 
 ## 1. Project Overview
 
-ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラウザ上で展開・可視化する SPA ツールである。SHIORI 言語（YAYA / Satori / Kawari）で記述された会話スクリプトをツリー構造として分析し、sasayaka プロジェクトにおける人格要約の品質改善に必要なデータインサイトを得ることを目的とする。技術スタックは TypeScript / React / Vite / Zustand / React Flow / JSZip / CodeMirror 6 / Tailwind CSS で構成され、GitHub Pages にデプロイする。
+ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラウザ上で展開・可視化する SPA ツールである。SHIORI 言語（YAYA / Satori / Kawari）で記述された会話スクリプトをツリー構造として分析し、会話パターンや分岐構造のインサイトを得ることを目的とする。技術スタックは TypeScript / React / Vite / Zustand / React Flow / JSZip / CodeMirror 6 / Tailwind CSS で構成され、GitHub Pages にデプロイする。
 
 ---
 
@@ -21,8 +21,16 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 
 ## 3. Milestones
 
-### Phase 1: Foundation
+### Phase 1: Foundation ✅ Complete
 目標: プロジェクトの土台を構築し、NARファイルの読み込みからファイルツリー表示までの開発ループを確立する
+
+**実装済みモジュール:**
+- `src/lib/nar/` — NAR バリデーション・展開・ファイルツリー構築
+- `src/lib/encoding/` — UTF-8 / Shift_JIS / EUC-JP 自動判別
+- `src/stores/` — ghost-store, file-tree-store, file-content-store, parse-store
+- `src/components/file-tree/` — DropZone, FileTree, FileTreeNode, FileTreeIcon
+- `src/components/script-viewer/` — TextViewer（行番号付きプレーンテキスト表示）
+- `src/components/common/` — Layout（3ペイン）
 
 - [x] **プロジェクト初期化** [S] — Vite + React + TypeScript scaffolding、Tailwind CSS 4.x、Biome 設定、Vitest 設定、基本的な App.tsx
 - [x] **GitHub Actions デプロイ設定** [S] — deploy.yml ワークフロー、404.html SPA リダイレクト、dependabot.yml
@@ -41,8 +49,11 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **テキストファイルビューアー** [S] — 中央ペインでプレーンテキスト表示、行番号付き、エンコーディング自動判別（Shift_JIS / EUC-JP / UTF-8）
   - 依存: ファイルツリーコンポーネント
 
-### Phase 2: Parsing Engine
+### Phase 2: Parsing Engine — 0/6
 目標: SHIORI言語のパースとSakuraScriptのトークナイズを実装し、会話データの構造化を実現する
+
+**対象ディレクトリ:** `src/lib/parsers/`, `src/lib/sakura-script/`, `src/workers/`
+**未インストール依存:** なし（純粋な TypeScript ロジック）
 
 - [ ] **descript.txt パーサー** [S] — key=value 形式のメタ情報抽出、ゴースト名・作者・キャラクター名の取得
 - [ ] **SHIORI言語自動判別** [S] — 同梱 DLL 名と .dic ファイルパターンから YAYA / Satori / Kawari を推定
@@ -54,8 +65,11 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [ ] **Satori 辞書パーサー** [M] — キーワードトリガーと応答パターンのペア抽出、文字コード処理
   - 依存: SakuraScript トークナイザー, Web Worker 解析基盤
 
-### Phase 3: Branch Viewer
+### Phase 3: Branch Viewer — 0/4
 目標: 会話フローをノードグラフとして可視化し、分岐・遷移を視覚的に分析できるようにする
+
+**対象ディレクトリ:** `src/components/branch-viewer/`
+**未インストール依存:** `reactflow`, `dagre`
 
 - [ ] **React Flow セットアップ + レイアウトアルゴリズム** [M] — React Flow の導入、自動レイアウト（dagre等）、ズーム・パン・基本操作
 - [ ] **カスタムブランチノード** [M] — ノードヘッダー（イベント名）、ダイアログプレビュー、キャラクターラベル（`\0`/`\1` 色分け）、サーフェスサムネイル
@@ -65,8 +79,11 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [ ] **ノードクリック連携 + ディテールパネル** [M] — ノード選択時に右ペインにスクリプト詳細を表示、ソースコード位置へのジャンプ
   - 依存: カスタムブランチノード, エッジ描画（分岐・遷移）
 
-### Phase 4: Polish & Analysis
+### Phase 4: Polish & Analysis — 0/6
 目標: スクリプトのシンタックスハイライト、サーフェスプレビュー、統計ダッシュボード、検索・フィルター機能を追加する
+
+**対象ディレクトリ:** `src/components/dashboard/`
+**未インストール依存:** `@codemirror/view`, `@codemirror/state`, `@codemirror/language` 等
 
 - [ ] **CodeMirror 6 統合** [M] — .dic ファイル用のエディタビュー、行番号表示、基本的なテキスト検索
   - 依存: テキストファイルビューアー
@@ -81,14 +98,14 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [ ] **テキスト全文検索** [S] — 会話内容のインクリメンタル検索、結果ハイライト
   - 依存: CodeMirror 6 統合
 
-### Phase 5: Extension
-目標: 対応 SHIORI の拡張と、sasayaka 本体へのフィードバック機能を追加する
+### Phase 5: Extension — 0/4
+目標: 対応 SHIORI の拡張と、分析・比較機能の強化
 
 - [ ] **Kawari 辞書パーサー** [M] — エントリーベースの key/value 解析、バージョン差異への対応
   - 依存: SakuraScript トークナイザー, Web Worker 解析基盤
 - [ ] **複数NARファイル比較ビュー** [L] — 2つの NAR を並べて構造・統計を比較する UI
   - 依存: ゴーストメタ情報ダッシュボード
-- [ ] **解析結果 JSON エクスポート** [S] — パース結果・統計データを JSON ファイルとしてダウンロード（sasayaka へのフィードバック用）
+- [ ] **解析結果 JSON エクスポート** [S] — パース結果・統計データを JSON ファイルとしてダウンロード
   - 依存: ゴーストメタ情報ダッシュボード
 - [ ] **サーフェス使用頻度ヒートマップ** [M] — どの表情がどの頻度で使われるかの可視化
   - 依存: サーフェス画像プレビュー, YAYA 辞書パーサー
