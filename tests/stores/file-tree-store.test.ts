@@ -1,6 +1,14 @@
+import { requestParse } from "@/lib/workers/worker-client";
+import { useFileContentStore } from "@/stores/file-content-store";
 import { useFileTreeStore } from "@/stores/file-tree-store";
-import type { FileTreeNode } from "@/types";
-import { beforeEach, describe, expect, it } from "vitest";
+import { useGhostStore } from "@/stores/ghost-store";
+import { useParseStore } from "@/stores/parse-store";
+import type { FileTreeNode, ParseResult } from "@/types";
+import { type Mock, beforeEach, describe, expect, it, vi } from "vitest";
+
+vi.mock("@/lib/workers/worker-client", () => ({
+	requestParse: vi.fn(),
+}));
 
 describe("fileTreeStore", () => {
 	beforeEach(() => {
@@ -126,5 +134,58 @@ describe("fileTreeStore", () => {
 
 		useFileTreeStore.getState().reset();
 		expect(useFileTreeStore.getState().expandedNodeIds.size).toBe(0);
+	});
+});
+
+describe("triggerParse", () => {
+	const mockRequestParse = requestParse as Mock;
+	const dummyResult: ParseResult = { functions: [], diagnostics: [] };
+
+	beforeEach(() => {
+		useFileTreeStore.getState().reset();
+		useParseStore.getState().reset();
+		useFileContentStore.getState().reset();
+		useGhostStore.getState().setShioriType("unknown");
+		mockRequestParse.mockReset();
+	});
+
+	it("辞書ファイル選択時にパースが開始される", async () => {
+		mockRequestParse.mockResolvedValue(dummyResult);
+		useGhostStore.getState().setShioriType("yaya");
+		useFileContentStore
+			.getState()
+			.setFileContents(new Map([["ghost/master/dic.dic", new ArrayBuffer(8)]]));
+
+		useFileTreeStore.getState().selectNode("ghost/master/dic.dic");
+
+		expect(mockRequestParse).toHaveBeenCalledOnce();
+		expect(useParseStore.getState().isParsing).toBe(true);
+
+		await vi.waitFor(() => {
+			expect(useParseStore.getState().parseResult).toEqual(dummyResult);
+		});
+		expect(useParseStore.getState().isParsing).toBe(false);
+	});
+
+	it("テキストファイル選択時にパースがトリガーされない", () => {
+		useGhostStore.getState().setShioriType("yaya");
+		useFileContentStore
+			.getState()
+			.setFileContents(new Map([["ghost/master/readme.txt", new ArrayBuffer(8)]]));
+
+		useFileTreeStore.getState().selectNode("ghost/master/readme.txt");
+
+		expect(mockRequestParse).not.toHaveBeenCalled();
+	});
+
+	it("shioriType が unknown の場合スキップ", () => {
+		useGhostStore.getState().setShioriType("unknown");
+		useFileContentStore
+			.getState()
+			.setFileContents(new Map([["ghost/master/dic.dic", new ArrayBuffer(8)]]));
+
+		useFileTreeStore.getState().selectNode("ghost/master/dic.dic");
+
+		expect(mockRequestParse).not.toHaveBeenCalled();
 	});
 });

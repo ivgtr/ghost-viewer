@@ -1,6 +1,10 @@
+import { classifyFileKind } from "@/lib/nar/extract";
+import { requestParse } from "@/lib/workers/worker-client";
 import type { FileTreeNode } from "@/types";
 import { createStore } from "./create-store";
 import { useFileContentStore } from "./file-content-store";
+import { useGhostStore } from "./ghost-store";
+import { useParseStore } from "./parse-store";
 
 interface FileTreeState {
 	tree: FileTreeNode[];
@@ -32,6 +36,7 @@ export const useFileTreeStore = createStore<FileTreeState>(
 			set({ selectedNodeId: nodeId });
 			if (nodeId) {
 				useFileContentStore.getState().decodeFile(nodeId);
+				triggerParse(nodeId);
 			}
 		},
 		toggleNodeExpansion: (nodeId) => {
@@ -45,3 +50,30 @@ export const useFileTreeStore = createStore<FileTreeState>(
 		},
 	}),
 );
+
+function triggerParse(nodeId: string): void {
+	if (classifyFileKind(nodeId) !== "dictionary") return;
+
+	const { shioriType } = useGhostStore.getState();
+	if (shioriType !== "yaya" && shioriType !== "satori") return;
+
+	const buffer = useFileContentStore.getState().fileContents.get(nodeId);
+	if (!buffer) return;
+
+	const parseState = useParseStore.getState();
+	parseState.startParse();
+
+	const fileName = nodeId.slice(nodeId.lastIndexOf("/") + 1);
+
+	requestParse({
+		fileContent: buffer.slice(0),
+		fileName,
+		shioriType,
+		onProgress: (percent) => useParseStore.getState().updateProgress(percent),
+	})
+		.then((result) => useParseStore.getState().succeedParse(result))
+		.catch((err: unknown) => {
+			const message = err instanceof Error ? err.message : "解析に失敗しました";
+			useParseStore.getState().failParse(message);
+		});
+}
