@@ -1,25 +1,10 @@
+import { buildDicFunction } from "@/lib/parsers/shared";
+import type { Block } from "@/lib/parsers/shared";
 import { tokenize } from "@/lib/sakura-script/tokenize";
-import type { Dialogue, DicFunction } from "@/types";
-
-interface Block {
-	name: string;
-	startLine: number;
-	endLine: number;
-	dialogues: Dialogue[];
-}
+import type { DicFunction } from "@/types";
 
 function isComment(line: string): boolean {
 	return line.startsWith("//") || line.startsWith("＃");
-}
-
-function buildDicFunction(block: Block, filePath: string): DicFunction {
-	return {
-		name: block.name,
-		filePath,
-		startLine: block.startLine,
-		endLine: block.endLine,
-		dialogues: block.dialogues,
-	};
 }
 
 export function parseSatoriDic(text: string, filePath: string): DicFunction[] {
