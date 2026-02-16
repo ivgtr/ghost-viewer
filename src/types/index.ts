@@ -1,4 +1,5 @@
 export type { BranchEdgeData, BranchEdgeType, BranchNodeData, DialogueVariant } from "./branch";
+export type { ChatMessage, ChatSegment } from "./chat-message";
 export type {
 	DirectoryNode,
 	FileKind,

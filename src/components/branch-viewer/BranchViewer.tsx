@@ -1,10 +1,12 @@
 import { BranchEdge } from "@/components/branch-viewer/BranchEdge";
 import { BranchNode } from "@/components/branch-viewer/BranchNode";
 import { useBranchStore } from "@/stores/branch-store";
+import { useFileTreeStore } from "@/stores/file-tree-store";
 import { useParseStore } from "@/stores/parse-store";
 import { Background, Controls, MiniMap, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { useEffect } from "react";
+import type { NodeMouseHandler } from "@xyflow/react";
+import { useCallback, useEffect } from "react";
 import type { ChangeEvent } from "react";
 
 const nodeTypes = { branchNode: BranchNode };
@@ -22,6 +24,15 @@ export function BranchViewer() {
 	const startNodeId = useBranchStore((s) => s.startNodeId);
 	const buildGraph = useBranchStore((s) => s.buildGraph);
 	const setStartNode = useBranchStore((s) => s.setStartNode);
+	const selectNode = useBranchStore((s) => s.selectNode);
+
+	const handleNodeClick: NodeMouseHandler = useCallback(
+		(_event, node) => {
+			useFileTreeStore.getState().selectNode(null);
+			selectNode(node.id);
+		},
+		[selectNode],
+	);
 
 	useEffect(() => {
 		if (parseResult?.functions.length) {
@@ -75,6 +86,7 @@ export function BranchViewer() {
 					edges={edges}
 					nodeTypes={nodeTypes}
 					edgeTypes={edgeTypes}
+					onNodeClick={handleNodeClick}
 					fitView
 					nodesDraggable={false}
 				>
