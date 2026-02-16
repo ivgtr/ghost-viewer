@@ -70,6 +70,7 @@ describe("buildBranchGraph", () => {
 		expect(edges).toHaveLength(1);
 		expect(edges[0].source).toBe("FnA");
 		expect(edges[0].target).toBe("FnB");
+		expect(edges[0].type).toBe("branchEdge");
 		expect(edges[0].data?.edgeType).toBe("choice");
 		expect(edges[0].data?.label).toBe("Yes");
 	});
@@ -81,6 +82,7 @@ describe("buildBranchGraph", () => {
 		expect(edges).toHaveLength(1);
 		expect(edges[0].source).toBe("FnA");
 		expect(edges[0].target).toBe("OnEvent");
+		expect(edges[0].type).toBe("branchEdge");
 		expect(edges[0].data?.edgeType).toBe("raise");
 		expect(edges[0].data?.label).toBe("OnEvent");
 	});

@@ -160,6 +160,7 @@ function pushEdge(
 		id: edgeId,
 		source: sourceId,
 		target: targetId,
+		type: "branchEdge",
 		data: { edgeType, label },
 	});
 }
