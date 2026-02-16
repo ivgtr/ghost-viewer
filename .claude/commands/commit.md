@@ -25,3 +25,4 @@
 - コミットメッセージは英語で、`type: description` 形式にする
   - type: `feat` / `fix` / `refactor` / `test` / `docs` / `chore`
   - 例: `feat: add NAR file validation`
+- `git -C`は利用しないで、必ずプロジェクトルートでコミットを実行すること
