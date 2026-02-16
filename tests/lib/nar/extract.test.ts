@@ -209,6 +209,28 @@ describe("extractNar", () => {
 		await expect(extractNar(buffer)).rejects.toThrow("安全でないパス");
 	});
 
+	it("fileContents Map を返す", async () => {
+		const buffer = await createTestNarBuffer({
+			"ghost/master/dic01.dic": "hello",
+			"readme.txt": "world",
+		});
+		const result = await extractNar(buffer);
+
+		expect(result.fileContents).toBeInstanceOf(Map);
+		expect(result.fileContents.size).toBe(2);
+		expect(result.fileContents.has("ghost/master/dic01.dic")).toBe(true);
+		expect(result.fileContents.has("readme.txt")).toBe(true);
+	});
+
+	it("fileContents のキーがバックスラッシュを正規化している", async () => {
+		const zip = new JSZip();
+		zip.file("ghost\\master\\dic.dic", "test");
+		const buffer = await zip.generateAsync({ type: "arraybuffer" });
+		const result = await extractNar(buffer);
+
+		expect(result.fileContents.has("ghost/master/dic.dic")).toBe(true);
+	});
+
 	it("不正な ZIP データでエラーを throw する", async () => {
 		const buffer = new ArrayBuffer(100);
 		await expect(extractNar(buffer)).rejects.toThrow();

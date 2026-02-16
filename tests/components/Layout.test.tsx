@@ -9,7 +9,7 @@ describe("Layout", () => {
 		expect(
 			screen.getByRole("button", { name: "NARファイルをドロップまたはクリックして選択" }),
 		).toBeInTheDocument();
-		expect(screen.getByText("Script Viewer")).toBeInTheDocument();
+		expect(screen.getByText("ファイルを選択してください")).toBeInTheDocument();
 		expect(screen.getByText("Branch Viewer")).toBeInTheDocument();
 
 		const separators = container.querySelectorAll("[data-separator]");

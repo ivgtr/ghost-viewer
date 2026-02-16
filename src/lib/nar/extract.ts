@@ -8,6 +8,7 @@ export interface ExtractionResult {
 	tree: FileTreeNode[];
 	entries: NarEntryMeta[];
 	stats: GhostStats;
+	fileContents: Map<string, ArrayBuffer>;
 }
 
 const IMAGE_EXTENSIONS = new Set([".png", ".jpg", ".jpeg", ".bmp", ".pna", ".gif"]);
@@ -129,6 +130,7 @@ export async function extractNar(buffer: ArrayBuffer): Promise<ExtractionResult>
 	}
 
 	const entries: NarEntryMeta[] = [];
+	const fileContents = new Map<string, ArrayBuffer>();
 	let totalSize = 0;
 
 	for (const filePath of filePaths) {
@@ -139,7 +141,9 @@ export async function extractNar(buffer: ArrayBuffer): Promise<ExtractionResult>
 		const size = data.byteLength;
 		totalSize += size;
 
+		const normalizedPath = filePath.split("\\").join("/");
 		entries.push({ path: filePath, size });
+		fileContents.set(normalizedPath, data);
 	}
 
 	if (totalSize > NAR_LIMITS.MAX_EXTRACTED_SIZE) {
@@ -150,7 +154,7 @@ export async function extractNar(buffer: ArrayBuffer): Promise<ExtractionResult>
 	const tree = buildFileTree(entries);
 	const stats = computeStats(entries);
 
-	return { tree, entries, stats };
+	return { tree, entries, stats, fileContents };
 }
 
 export async function processNarFile(file: File): Promise<ExtractionResult> {

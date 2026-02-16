@@ -1,5 +1,6 @@
 import type { FileTreeNode } from "@/types";
 import { createStore } from "./create-store";
+import { useFileContentStore } from "./file-content-store";
 
 interface FileTreeState {
 	tree: FileTreeNode[];
@@ -27,7 +28,12 @@ export const useFileTreeStore = createStore<FileTreeState>(
 			}
 			set({ tree, expandedNodeIds });
 		},
-		selectNode: (nodeId) => set({ selectedNodeId: nodeId }),
+		selectNode: (nodeId) => {
+			set({ selectedNodeId: nodeId });
+			if (nodeId) {
+				useFileContentStore.getState().decodeFile(nodeId);
+			}
+		},
 		toggleNodeExpansion: (nodeId) => {
 			const next = new Set(get().expandedNodeIds);
 			if (next.has(nodeId)) {

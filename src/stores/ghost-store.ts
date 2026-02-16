@@ -2,6 +2,7 @@ import { processNarFile } from "@/lib/nar/extract";
 import { validateNarFile } from "@/lib/nar/validate";
 import type { GhostMeta, GhostStats, ShioriType } from "@/types";
 import { createStore } from "./create-store";
+import { useFileContentStore } from "./file-content-store";
 import { useFileTreeStore } from "./file-tree-store";
 import { useParseStore } from "./parse-store";
 
@@ -51,10 +52,12 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 		});
 		useParseStore.getState().reset();
 		useFileTreeStore.getState().reset();
+		useFileContentStore.getState().reset();
 
 		processNarFile(file)
 			.then((extractionResult) => {
 				useFileTreeStore.getState().setTree(extractionResult.tree);
+				useFileContentStore.getState().setFileContents(extractionResult.fileContents);
 				set({ stats: extractionResult.stats, isExtracting: false });
 			})
 			.catch((err: unknown) => {

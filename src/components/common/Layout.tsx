@@ -1,5 +1,6 @@
 import { DropZone } from "@/components/file-tree/DropZone";
 import { FileTree } from "@/components/file-tree/FileTree";
+import { TextViewer } from "@/components/script-viewer/TextViewer";
 import { useFileTreeStore } from "@/stores/file-tree-store";
 import { Group, Panel, Separator } from "react-resizable-panels";
 
@@ -23,7 +24,7 @@ export function Layout() {
 			</Panel>
 			<ResizeHandle />
 			<Panel defaultSize="50%" minSize="20%">
-				<PanelPlaceholder label="Script Viewer" />
+				<TextViewer />
 			</Panel>
 			<ResizeHandle />
 			<Panel defaultSize="30%" minSize="15%">
