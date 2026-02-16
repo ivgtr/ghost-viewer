@@ -32,23 +32,23 @@ describe("buildBranchGraph", () => {
 		expect(nodes).toHaveLength(1);
 		expect(nodes[0].id).toBe("OnBoot");
 		expect(nodes[0].data.label).toBe("OnBoot");
-		expect(nodes[0].data.preview).toBe("");
+		expect(nodes[0].data.dialogues).toEqual([]);
 		expect(nodes[0].data.surfaceIds).toEqual([]);
 		expect(nodes[0].data.characters).toEqual([]);
 		expect(edges).toEqual([]);
 	});
 
-	it("テキストトークンからプレビューを生成する", () => {
+	it("テキストトークンからダイアログバリエーションを生成する", () => {
 		const tokens = [token("text", "Hello"), token("text", " World")];
 		const { nodes } = buildBranchGraph([makeFn("OnBoot", tokens)]);
-		expect(nodes[0].data.preview).toBe("Hello World");
+		expect(nodes[0].data.dialogues).toEqual([{ index: 0, preview: "Hello World" }]);
 	});
 
 	it("50文字を超えるプレビューを切り捨てる", () => {
 		const longText = "a".repeat(60);
 		const tokens = [token("text", longText)];
 		const { nodes } = buildBranchGraph([makeFn("OnBoot", tokens)]);
-		expect(nodes[0].data.preview).toBe(`${"a".repeat(50)}...`);
+		expect(nodes[0].data.dialogues[0].preview).toBe(`${"a".repeat(50)}...`);
 	});
 
 	it("surfaceIds を抽出する", () => {
@@ -106,12 +106,16 @@ describe("buildBranchGraph", () => {
 		expect(edges[0].target).toBe("FnB");
 	});
 
-	it("同名関数の重複を排除する（最初の出現のみ）", () => {
-		const fn1 = makeFn("OnBoot", [], "file1.dic");
-		const fn2 = makeFn("OnBoot", [], "file2.dic");
+	it("同名関数のダイアログを結合する", () => {
+		const fn1 = makeFn("OnBoot", [token("text", "Hello")], "file1.dic");
+		const fn2 = makeFn("OnBoot", [token("text", "World")], "file2.dic");
 		const { nodes } = buildBranchGraph([fn1, fn2]);
 		expect(nodes).toHaveLength(1);
 		expect(nodes[0].data.filePath).toBe("file1.dic");
+		expect(nodes[0].data.dialogues).toEqual([
+			{ index: 0, preview: "Hello" },
+			{ index: 1, preview: "World" },
+		]);
 	});
 
 	it("同一ソース・ターゲット・タイプの重複エッジに異なるIDを付与する", () => {

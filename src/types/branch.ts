@@ -1,7 +1,12 @@
+export interface DialogueVariant {
+	index: number;
+	preview: string;
+}
+
 export interface BranchNodeData {
 	[key: string]: unknown;
 	label: string;
-	preview: string;
+	dialogues: DialogueVariant[];
 	surfaceIds: number[];
 	characters: number[];
 	filePath: string;

@@ -1,4 +1,4 @@
-export type { BranchEdgeData, BranchEdgeType, BranchNodeData } from "./branch";
+export type { BranchEdgeData, BranchEdgeType, BranchNodeData, DialogueVariant } from "./branch";
 export type {
 	DirectoryNode,
 	FileKind,
