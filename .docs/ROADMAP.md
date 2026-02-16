@@ -27,12 +27,12 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **プロジェクト初期化** [S] — Vite + React + TypeScript scaffolding、Tailwind CSS 4.x、Biome 設定、Vitest 設定、基本的な App.tsx
 - [x] **GitHub Actions デプロイ設定** [S] — deploy.yml ワークフロー、404.html SPA リダイレクト、dependabot.yml
   - 依存: プロジェクト初期化
-- [ ] **共有型定義** [S] — NarFile, FileTreeNode, ShioriType, ParseResult 等の型定義ファイル（`src/types/`）
-- [ ] **Zustand ストア定義** [S] — fileTreeStore, parseStore, ghostStore の初期実装
+- [x] **共有型定義** [S] — NarFile, FileTreeNode, ShioriType, ParseResult 等の型定義ファイル（`src/types/`）
+- [x] **Zustand ストア定義** [S] — fileTreeStore, parseStore, ghostStore の初期実装
   - 依存: 共有型定義
-- [ ] **3ペインレイアウト** [M] — リサイズ可能なスプリッター付きの左・中央・右ペインレイアウト
+- [x] **3ペインレイアウト** [M] — リサイズ可能なスプリッター付きの左・中央・右ペインレイアウト
   - 依存: プロジェクト初期化
-- [ ] **DropZone + NARバリデーション** [M] — ドラッグ&ドロップ / ファイル選択 UI、サイズ・エントリ数・パストラバーサル検証
+- [x] **DropZone + NARバリデーション** [M] — ドラッグ&ドロップ / ファイル選択 UI、サイズ・エントリ数・パストラバーサル検証
   - 依存: 共有型定義
 - [ ] **JSZip展開 + 仮想ファイルツリー構築** [M] — NAR を JSZip で展開し、メモリ上のファイルツリーを構築してストアに格納
   - 依存: Zustand ストア定義, DropZone + NARバリデーション
