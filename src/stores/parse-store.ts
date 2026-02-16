@@ -5,11 +5,12 @@ interface ParseState {
 	parseResult: ParseResult | null;
 	isParsing: boolean;
 	parseError: string | null;
-	parseProgress: number;
-	startParse: () => void;
+	parsedFileCount: number;
+	totalFileCount: number;
+	startBatchParse: (totalFileCount: number) => void;
+	incrementParsedCount: () => void;
 	succeedParse: (result: ParseResult) => void;
 	failParse: (error: string) => void;
-	updateProgress: (percent: number) => void;
 	reset: () => void;
 }
 
@@ -18,12 +19,14 @@ export const useParseStore = createStore<ParseState>(
 		parseResult: null,
 		isParsing: false,
 		parseError: null,
-		parseProgress: 0,
+		parsedFileCount: 0,
+		totalFileCount: 0,
 	},
-	(set) => ({
-		startParse: () => set({ isParsing: true, parseError: null, parseProgress: 0 }),
-		succeedParse: (result) => set({ parseResult: result, isParsing: false, parseProgress: 100 }),
-		failParse: (error) => set({ parseError: error, isParsing: false, parseProgress: 0 }),
-		updateProgress: (percent: number) => set({ parseProgress: percent }),
+	(set, get) => ({
+		startBatchParse: (totalFileCount: number) =>
+			set({ isParsing: true, parseError: null, parsedFileCount: 0, totalFileCount }),
+		incrementParsedCount: () => set({ parsedFileCount: get().parsedFileCount + 1 }),
+		succeedParse: (result) => set({ parseResult: result, isParsing: false }),
+		failParse: (error) => set({ parseError: error, isParsing: false }),
 	}),
 );

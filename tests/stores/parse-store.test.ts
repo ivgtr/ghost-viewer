@@ -12,43 +12,43 @@ describe("parseStore", () => {
 		expect(state.parseResult).toBeNull();
 		expect(state.isParsing).toBe(false);
 		expect(state.parseError).toBeNull();
-		expect(state.parseProgress).toBe(0);
+		expect(state.parsedFileCount).toBe(0);
+		expect(state.totalFileCount).toBe(0);
 	});
 
-	it("startParse で isParsing が true になり parseError がクリアされ parseProgress が 0 にリセットされる", () => {
+	it("startBatchParse で isParsing が true になり parseError がクリアされカウントが初期化される", () => {
 		useParseStore.getState().failParse("previous error");
-		useParseStore.getState().startParse();
+		useParseStore.getState().startBatchParse(10);
 
 		const state = useParseStore.getState();
 		expect(state.isParsing).toBe(true);
 		expect(state.parseError).toBeNull();
-		expect(state.parseProgress).toBe(0);
+		expect(state.parsedFileCount).toBe(0);
+		expect(state.totalFileCount).toBe(10);
 	});
 
-	it("succeedParse で結果が設定され isParsing が false になり parseProgress が 100 になる", () => {
+	it("succeedParse で結果が設定され isParsing が false になる", () => {
 		const result: ParseResult = {
 			shioriType: "yaya",
 			functions: [],
 			meta: null,
 		};
-		useParseStore.getState().startParse();
+		useParseStore.getState().startBatchParse(1);
 		useParseStore.getState().succeedParse(result);
 
 		const state = useParseStore.getState();
 		expect(state.parseResult).toEqual(result);
 		expect(state.isParsing).toBe(false);
-		expect(state.parseProgress).toBe(100);
 	});
 
-	it("failParse でエラーが設定され isParsing が false になり parseProgress が 0 に戻る", () => {
-		useParseStore.getState().startParse();
-		useParseStore.getState().updateProgress(50);
+	it("failParse でエラーが設定され isParsing が false になる", () => {
+		useParseStore.getState().startBatchParse(5);
+		useParseStore.getState().incrementParsedCount();
 		useParseStore.getState().failParse("parse failed");
 
 		const state = useParseStore.getState();
 		expect(state.parseError).toBe("parse failed");
 		expect(state.isParsing).toBe(false);
-		expect(state.parseProgress).toBe(0);
 	});
 
 	it("reset で初期状態に戻る", () => {
@@ -64,16 +64,17 @@ describe("parseStore", () => {
 		expect(state.parseResult).toBeNull();
 		expect(state.isParsing).toBe(false);
 		expect(state.parseError).toBeNull();
-		expect(state.parseProgress).toBe(0);
+		expect(state.parsedFileCount).toBe(0);
+		expect(state.totalFileCount).toBe(0);
 	});
 
-	it("updateProgress で parseProgress が更新される", () => {
-		useParseStore.getState().startParse();
-		useParseStore.getState().updateProgress(42);
+	it("incrementParsedCount で parsedFileCount がインクリメントされる", () => {
+		useParseStore.getState().startBatchParse(5);
+		useParseStore.getState().incrementParsedCount();
 
-		expect(useParseStore.getState().parseProgress).toBe(42);
+		expect(useParseStore.getState().parsedFileCount).toBe(1);
 
-		useParseStore.getState().updateProgress(85);
-		expect(useParseStore.getState().parseProgress).toBe(85);
+		useParseStore.getState().incrementParsedCount();
+		expect(useParseStore.getState().parsedFileCount).toBe(2);
 	});
 });

@@ -67,7 +67,7 @@ describe("ghostStore", () => {
 
 	it("acceptFile 成功時に他ストアをリセットする", async () => {
 		useFileTreeStore.getState().selectNode("node-1");
-		useParseStore.getState().startParse();
+		useParseStore.getState().startBatchParse(1);
 
 		const file = await createNarFile({ "test.txt": "hello" });
 		useGhostStore.getState().acceptFile(file);
