@@ -23,7 +23,6 @@ SHIORI 言語（YAYA / Satori / Kawari）で記述された会話スクリプト
 | ライブラリ | 選定理由 |
 |-----------|---------|
 | JSZip | クライアントサイドでの NAR（ZIP）展開。サーバー不要のブラウザ完結処理 |
-| React Flow | 会話ブランチのノードグラフ描画。ズーム・パン・ノード操作が組み込み済み |
 | CodeMirror 6 | .dic ファイルのシンタックスハイライト表示。拡張性が高くカスタム言語定義が可能 |
 | Tailwind CSS 4.x | ユーティリティファーストのスタイリング。コンポーネントごとのスコープ管理が不要 |
 | Zustand | 軽量な状態管理。Web Worker 間の状態共有にも対応しやすい |
@@ -57,7 +56,7 @@ ghost-viewer/
 │   ├── components/            # React UIコンポーネント
 │   │   ├── file-tree/         # ファイルツリービュー（F2）
 │   │   ├── script-viewer/     # スクリプトビューアー（F3）
-│   │   ├── branch-viewer/     # 会話ブランチビューアー（F4）
+│   │   ├── catalog/           # 会話カタログ（イベント一覧・検索）
 │   │   ├── dashboard/         # メタ情報ダッシュボード（F5）
 │   │   └── common/            # 共通UIコンポーネント（レイアウト、スプリッター等）
 │   ├── lib/                   # ビジネスロジック（React非依存）
@@ -97,9 +96,8 @@ NAR展開完了後              ghostStore                  全 .dic ファイ�
 全 .dic を一括パース →     acceptFile() 内        →    逐次 Worker パース     →    (統合 ParseResult)
                                                        同名関数のダイアログ結合
 
-parseResult 更新時         BranchViewer                buildBranchGraph            branchStore
-統合グラフを構築     ←     useEffect が検知       ←    (同名関数マージ済み)   →    (nodes, edges)
-                           → buildGraph() 呼出
+parseResult 更新時         ConversationCatalog         buildCatalogEntries         catalogStore
+会話カタログ表示     ←     useMemo が検知         ←    (同名関数マージ済み)   →    (selectedFunctionName)
 ```
 
 ### Mermaid図
@@ -115,8 +113,8 @@ flowchart LR
     D --> H[全 .dic 検出]
     H --> I[逐次 Worker パース]
     I --> J[統合 DicFunction 構築]
-    J --> K[buildBranchGraph]
-    K --> L[React Flow 統合グラフ描画]
+    J --> K[buildCatalogEntries]
+    K --> L[会話カタログ表示]
     G -->|ファイル選択| M[テキスト表示]
 ```
 
@@ -174,12 +172,11 @@ type WorkerResponse =
 
 ## 6. Design Decisions
 
-### ADR-001: ツリー描画に React Flow を採用
+### ADR-001: React Flow → 会話カタログ UI に置換
 
-- **決定**: 会話ブランチの描画に React Flow を使用する
-- **理由**: ノードのズーム・パン・ドラッグが標準機能として提供される。React コンポーネントをノードとして直接使用でき、カスタムノード（ダイアログプレビュー、サーフェスサムネイル等）の実装が容易
-- **検討した代替案**: D3.js — より低レベルな制御が可能だが、インタラクション実装の工数が大きい
-- **トレードオフ**: React Flow はノード数が多い場合にパフォーマンスが低下する可能性がある。遅延レンダリングで対処する
+- **決定**: React Flow によるグラフ描画を廃止し、会話カタログ（イベント一覧）＋シミュレーター（choice ボタンによるイベント遷移）に置換
+- **理由**: ノードグラフはノード数が多い場合に俯瞰性が低下し、実際のユースケースでは「全イベントの会話を一覧で閲覧し、選択肢を辿って探索する」方が有用
+- **削除したパッケージ**: `@xyflow/react`, `dagre`, `@types/dagre`
 
 ### ADR-002: 解析処理を Web Worker で分離
 
