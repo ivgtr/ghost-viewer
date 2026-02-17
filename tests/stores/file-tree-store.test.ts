@@ -129,6 +129,24 @@ describe("fileTreeStore", () => {
 		expect(useFileTreeStore.getState().expandedNodeIds.size).toBe(0);
 	});
 
+	it("同一 nodeId で selectNode を呼ぶと decodeFile をスキップする", () => {
+		useFileContentStore
+			.getState()
+			.setFileContents(
+				new Map([["ghost/master/dic.dic", new TextEncoder().encode("hello").buffer]]),
+			);
+
+		useFileTreeStore.getState().selectNode("ghost/master/dic.dic");
+		const textAfterFirst = useFileContentStore.getState().decodedText;
+		expect(textAfterFirst).toBe("hello");
+
+		// decodedText を手動で変更して、decodeFile が再呼び出しされないことを検証
+		useFileContentStore.setState({ decodedText: "modified" });
+
+		useFileTreeStore.getState().selectNode("ghost/master/dic.dic");
+		expect(useFileContentStore.getState().decodedText).toBe("modified");
+	});
+
 	it("selectNode 時に decodeFile が呼ばれる", () => {
 		useFileContentStore
 			.getState()

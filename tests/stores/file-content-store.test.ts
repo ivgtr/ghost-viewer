@@ -72,6 +72,25 @@ describe("fileContentStore", () => {
 		expect(state.decodeError).toContain("バイナリファイル");
 	});
 
+	it("初期状態で highlightRange が null", () => {
+		expect(useFileContentStore.getState().highlightRange).toBeNull();
+	});
+
+	it("setHighlightRange でハイライト範囲を設定できる", () => {
+		useFileContentStore.getState().setHighlightRange({ startLine: 5, endLine: 10 });
+		expect(useFileContentStore.getState().highlightRange).toEqual({ startLine: 5, endLine: 10 });
+	});
+
+	it("decodeFile で highlightRange がリセットされる", () => {
+		const contents = new Map<string, ArrayBuffer>();
+		contents.set("test.txt", new TextEncoder().encode("hello").buffer);
+		useFileContentStore.getState().setFileContents(contents);
+		useFileContentStore.getState().setHighlightRange({ startLine: 5, endLine: 10 });
+
+		useFileContentStore.getState().decodeFile("test.txt");
+		expect(useFileContentStore.getState().highlightRange).toBeNull();
+	});
+
 	it("reset で初期状態に戻る", () => {
 		const contents = new Map<string, ArrayBuffer>();
 		contents.set("test.txt", new TextEncoder().encode("hello").buffer);

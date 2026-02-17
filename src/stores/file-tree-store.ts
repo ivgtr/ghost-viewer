@@ -30,10 +30,13 @@ export const useFileTreeStore = createStore<FileTreeState>(
 			set({ tree, expandedNodeIds });
 		},
 		selectNode: (nodeId) => {
+			const prev = get().selectedNodeId;
 			set({ selectedNodeId: nodeId });
 			if (nodeId) {
 				useCatalogStore.getState().selectFunction(null);
-				useFileContentStore.getState().decodeFile(nodeId);
+				if (nodeId !== prev) {
+					useFileContentStore.getState().decodeFile(nodeId);
+				}
 			}
 		},
 		toggleNodeExpansion: (nodeId) => {
