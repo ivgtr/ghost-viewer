@@ -5,84 +5,70 @@ import type { DicFunction } from "@/types";
 
 const FUNC_DEF_RE = /^([\w.]+)\s*(?::\s*\w+\s*)?\{/;
 
-export function countBraces(line: string): { open: number; close: number } {
-	let open = 0;
-	let close = 0;
-	let inString = false;
-
+function scanCode(line: string, onCodeChar?: (ch: string, index: number) => void): number {
+	let quoteChar: string | null = null;
 	for (let i = 0; i < line.length; i++) {
-		const ch = line[i];
-
-		if (inString) {
+		const ch = line.charAt(i);
+		if (quoteChar !== null) {
 			if (ch === "\\" && i + 1 < line.length) {
 				i++;
 				continue;
 			}
-			if (ch === '"') {
-				inString = false;
-			}
+			if (ch === quoteChar) quoteChar = null;
 			continue;
 		}
-
-		if (ch === "/" && i + 1 < line.length && line[i + 1] === "/") {
-			break;
-		}
-
-		if (ch === '"') {
-			inString = true;
+		if (ch === "/" && i + 1 < line.length && line[i + 1] === "/") return i;
+		if (ch === '"' || ch === "'") {
+			quoteChar = ch;
 			continue;
 		}
-
-		if (ch === "{") {
-			open++;
-		} else if (ch === "}") {
-			close++;
-		}
+		onCodeChar?.(ch, i);
 	}
+	return line.length;
+}
 
+export function countBraces(line: string): { open: number; close: number } {
+	let open = 0;
+	let close = 0;
+	scanCode(line, (ch) => {
+		if (ch === "{") open++;
+		else if (ch === "}") close++;
+	});
 	return { open, close };
 }
 
 function stripInlineComment(line: string): string {
-	let inString = false;
-
-	for (let i = 0; i < line.length; i++) {
-		const ch = line[i];
-
-		if (inString) {
-			if (ch === "\\" && i + 1 < line.length) {
-				i++;
-				continue;
-			}
-			if (ch === '"') {
-				inString = false;
-			}
-			continue;
-		}
-
-		if (ch === "/" && i + 1 < line.length && line[i + 1] === "/") {
-			return line.slice(0, i).trimEnd();
-		}
-
-		if (ch === '"') {
-			inString = true;
-		}
-	}
-
-	return line;
+	const end = scanCode(line);
+	return end === line.length ? line : line.slice(0, end).trimEnd();
 }
 
 function extractStringContent(s: string): string | null {
-	const start = s.indexOf('"');
-	if (start === -1) return null;
+	const dq = s.indexOf('"');
+	const sq = s.indexOf("'");
+	let start: number;
+	let quote: string;
+	if (dq === -1 && sq === -1) return null;
+	if (dq === -1) {
+		start = sq;
+		quote = "'";
+	} else if (sq === -1) {
+		start = dq;
+		quote = '"';
+	} else if (dq < sq) {
+		start = dq;
+		quote = '"';
+	} else {
+		start = sq;
+		quote = "'";
+	}
 
 	let result = "";
 	for (let i = start + 1; i < s.length; i++) {
 		const ch = s[i];
 		if (ch === "\\" && i + 1 < s.length) {
 			const next = s[i + 1];
-			if (next === '"') {
-				result += '"';
+			if (next === quote) {
+				result += quote;
 				i++;
 				continue;
 			}
@@ -90,7 +76,7 @@ function extractStringContent(s: string): string | null {
 			i++;
 			continue;
 		}
-		if (ch === '"') {
+		if (ch === quote) {
 			return result;
 		}
 		result += ch;
@@ -105,10 +91,16 @@ function extractDialogue(line: string): string | null {
 
 	let target: string | null = null;
 
-	if (stripped.startsWith('"')) {
+	if (stripped.startsWith('"') || stripped.startsWith("'")) {
 		target = stripped;
-	} else if (/^return\s+"/.test(stripped)) {
-		target = stripped.slice(stripped.indexOf('"'));
+	} else if (/^return\s+["']/.test(stripped)) {
+		const dq = stripped.indexOf('"');
+		const sq = stripped.indexOf("'");
+		let pos: number;
+		if (dq === -1) pos = sq;
+		else if (sq === -1) pos = dq;
+		else pos = Math.min(dq, sq);
+		target = stripped.slice(pos);
 	}
 
 	if (target === null) return null;

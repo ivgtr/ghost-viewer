@@ -216,6 +216,67 @@ describe("parseYayaDic", () => {
 		expect(result).toHaveLength(1);
 		expect(result[0].name).toBe("resource.homeurl");
 	});
+
+	it("シングルクォート会話をパースする", () => {
+		const text = "OnBoot {\n\t'\\0こんにちは\\e'\n}";
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("\\0こんにちは\\e");
+	});
+
+	it("シングルクォートとダブルクォートの混在をパースする", () => {
+		const text = "OnBoot {\n\t\"hello\"\n\t'world'\n}";
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].dialogues).toHaveLength(2);
+		expect(result[0].dialogues[0].rawText).toBe("hello");
+		expect(result[0].dialogues[1].rawText).toBe("world");
+	});
+
+	it("シングルクォート内の // はコメントとして扱わない", () => {
+		const text = "OnBoot {\n\t'http://example.com'\n}";
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("http://example.com");
+	});
+
+	it("return 文のシングルクォートからダイアログを抽出する", () => {
+		const text = "OnBoot {\n\treturn 'hello'\n}";
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("hello");
+	});
+
+	it("シングルクォート内の {} が braceDepth に影響しない", () => {
+		const text = "OnBoot {\n\t'text { with } braces'\n}";
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("text { with } braces");
+	});
+
+	it("空シングルクォート文字列をスキップする", () => {
+		const text = "OnBoot {\n\t''\n\t'hello'\n}";
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("hello");
+	});
+
+	it("一行関数でシングルクォートをパースする", () => {
+		const text = "OnBoot { 'hello' }";
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("hello");
+	});
 });
 
 describe("countBraces", () => {
@@ -248,5 +309,17 @@ describe("countBraces", () => {
 			open: 2,
 			close: 2,
 		});
+	});
+
+	it("シングルクォート文字列内の波括弧を無視する", () => {
+		expect(countBraces("'{ }'")).toEqual({ open: 0, close: 0 });
+	});
+
+	it("ダブルクォート内のシングルクォートを処理する", () => {
+		expect(countBraces(`"it's {" }`)).toEqual({ open: 0, close: 1 });
+	});
+
+	it("シングルクォート内のダブルクォートを処理する", () => {
+		expect(countBraces(`'say "hi" {' }`)).toEqual({ open: 0, close: 1 });
 	});
 });
