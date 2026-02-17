@@ -277,6 +277,49 @@ describe("parseYayaDic", () => {
 		expect(result[0].dialogues).toHaveLength(1);
 		expect(result[0].dialogues[0].rawText).toBe("hello");
 	});
+
+	it("braceDepth 0 で else { を関数として認識しない", () => {
+		// style B: 関数名と { が別行のコードで braceDepth がずれた場合、
+		// else { が braceDepth === 0 でマッチするケースを防止する
+		const text = 'else {\n\t"hello"\n}';
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(0);
+	});
+
+	it("braceDepth 0 で do { を関数として認識しない", () => {
+		const text = 'do {\n\t"hello"\n}';
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(0);
+	});
+
+	it("others をトップレベル関数として正常にパースする", () => {
+		const text = 'others {\n\t"hello"\n}';
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].name).toBe("others");
+		expect(result[0].dialogues).toHaveLength(1);
+	});
+
+	it("関数内の else で回帰しない（style A）", () => {
+		const text = 'OnBoot {\n\tif RAND(2) == 0 {\n\t\t"hello"\n\t}\n\telse {\n\t\t"world"\n\t}\n}';
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].name).toBe("OnBoot");
+		expect(result[0].dialogues).toHaveLength(2);
+	});
+
+	it("} else { 同一行スタイルで dialogues 数が正しい", () => {
+		const text = 'OnBoot {\n\tif RAND(2) == 0 {\n\t\t"hello"\n\t} else {\n\t\t"world"\n\t}\n}';
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].name).toBe("OnBoot");
+		expect(result[0].dialogues).toHaveLength(2);
+	});
 });
 
 describe("countBraces", () => {

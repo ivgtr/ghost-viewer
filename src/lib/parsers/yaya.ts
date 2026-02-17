@@ -5,6 +5,23 @@ import type { DicFunction } from "@/types";
 
 const FUNC_DEF_RE = /^([\w.]+)\s*(?::\s*\w+\s*)?\{/;
 
+// braceDepth === 0 で FUNC_DEF_RE にマッチしうる制御構文キーワード。
+// 主な対象は else / do（キーワード直後に { が来る）。
+// 他のキーワード（if, while 等）は条件式が介在するため通常マッチしないが、防御的に含める。
+const RESERVED_KEYWORDS = new Set([
+	"if",
+	"else",
+	"elseif",
+	"while",
+	"do",
+	"for",
+	"foreach",
+	"switch",
+	"case",
+	"break",
+	"continue",
+]);
+
 function scanCode(line: string, onCodeChar?: (ch: string, index: number) => void): number {
 	let quoteChar: string | null = null;
 	for (let i = 0; i < line.length; i++) {
@@ -133,6 +150,11 @@ export function parseYayaDic(text: string, filePath: string): DicFunction[] {
 			const match = FUNC_DEF_RE.exec(trimmed);
 			if (match) {
 				const name = match[1] as string;
+				if (RESERVED_KEYWORDS.has(name)) {
+					const braces = countBraces(trimmed);
+					braceDepth += braces.open - braces.close;
+					continue;
+				}
 				current = {
 					name,
 					startLine: i,
