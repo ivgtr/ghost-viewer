@@ -114,6 +114,8 @@ export function ConversationPreview() {
 						key={i}
 						message={msg}
 						characterName={characterNames[msg.characterId] ?? `\\p[${msg.characterId}]`}
+						characterNames={characterNames}
+						properties={meta?.properties ?? {}}
 						onChoiceClick={handleChoiceClick}
 					/>
 				))}
