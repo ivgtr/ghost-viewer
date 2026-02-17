@@ -8,6 +8,14 @@ function hasContent(segments: ChatSegment[]): boolean {
 	);
 }
 
+function stripLeadingLineBreaks(segments: ChatSegment[]): ChatSegment[] {
+	const firstContentIndex = segments.findIndex(
+		(s) => s.type === "text" || s.type === "choice" || s.type === "variable",
+	);
+	if (firstContentIndex <= 0) return segments;
+	return segments.filter((s, i) => i >= firstContentIndex || s.type !== "lineBreak");
+}
+
 export function buildChatMessages(tokens: SakuraScriptToken[]): ChatMessage[] {
 	const messages: ChatMessage[] = [];
 	let currentCharId = 0;
@@ -15,7 +23,7 @@ export function buildChatMessages(tokens: SakuraScriptToken[]): ChatMessage[] {
 
 	function flush(): void {
 		if (hasContent(segments)) {
-			messages.push({ characterId: currentCharId, segments });
+			messages.push({ characterId: currentCharId, segments: stripLeadingLineBreaks(segments) });
 		}
 		segments = [];
 	}

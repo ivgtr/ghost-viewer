@@ -169,6 +169,69 @@ describe("buildChatMessages", () => {
 		expect(result[1].segments).toEqual([{ type: "text", value: "二行目" }]);
 	});
 
+	it("charSwitch 直後の先頭 lineBreak が除去される（\\h\\s[4]\\n\\nテキスト）", () => {
+		const tokens = [
+			token("charSwitch", "\\h", "0"),
+			token("surface", "\\s[4]", "4"),
+			token("marker", "\\n", ""),
+			token("marker", "\\n", ""),
+			token("text", "テキスト", "テキスト"),
+		];
+		const result = buildChatMessages(tokens);
+		expect(result).toHaveLength(1);
+		expect(result[0].segments).toEqual([
+			{ type: "surface", value: "4" },
+			{ type: "text", value: "テキスト" },
+		]);
+	});
+
+	it("先頭 lineBreak が除去される（\\n\\n\\s[204]テキスト）", () => {
+		const tokens = [
+			token("marker", "\\n", ""),
+			token("marker", "\\n", ""),
+			token("surface", "\\s[204]", "204"),
+			token("text", "テキスト", "テキスト"),
+		];
+		const result = buildChatMessages(tokens);
+		expect(result).toHaveLength(1);
+		expect(result[0].segments).toEqual([
+			{ type: "surface", value: "204" },
+			{ type: "text", value: "テキスト" },
+		]);
+	});
+
+	it("surface を挟む先頭 lineBreak も除去される（\\n\\s[4]\\nテキスト）", () => {
+		const tokens = [
+			token("marker", "\\n", ""),
+			token("surface", "\\s[4]", "4"),
+			token("marker", "\\n", ""),
+			token("text", "テキスト", "テキスト"),
+		];
+		const result = buildChatMessages(tokens);
+		expect(result).toHaveLength(1);
+		expect(result[0].segments).toEqual([
+			{ type: "surface", value: "4" },
+			{ type: "text", value: "テキスト" },
+		]);
+	});
+
+	it("テキスト間の lineBreak は保持される", () => {
+		const tokens = [
+			token("text", "テキスト", "テキスト"),
+			token("marker", "\\n", ""),
+			token("marker", "\\n", ""),
+			token("text", "テキスト", "テキスト"),
+		];
+		const result = buildChatMessages(tokens);
+		expect(result).toHaveLength(1);
+		expect(result[0].segments).toEqual([
+			{ type: "text", value: "テキスト" },
+			{ type: "lineBreak", value: "" },
+			{ type: "lineBreak", value: "" },
+			{ type: "text", value: "テキスト" },
+		]);
+	});
+
 	it("典型パターン \\0\\s[0]こんにちは\\1\\s[10]やあ の統合テスト", () => {
 		const tokens = [
 			token("charSwitch", "\\0", "0"),
