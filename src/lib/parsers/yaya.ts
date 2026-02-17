@@ -1,9 +1,9 @@
-import { buildDicFunction } from "@/lib/parsers/shared";
+import { buildDicFunction, hasVisibleText } from "@/lib/parsers/shared";
 import type { Block } from "@/lib/parsers/shared";
 import { lex } from "@/lib/parsers/yaya-lexer";
 import type { Token } from "@/lib/parsers/yaya-lexer";
 import { tokenize } from "@/lib/sakura-script/tokenize";
-import type { DicFunction } from "@/types";
+import type { Dialogue, DicFunction } from "@/types";
 
 // 条件式を持つキーワード: keyword から次の lbrace までの文字列をダイアログとして扱わない
 const CONDITION_KEYWORDS = new Set([
@@ -48,6 +48,46 @@ function tryParseFuncDef(
 	}
 
 	return null;
+}
+
+function mergeControlOnlyDialogues(dialogues: Dialogue[]): Dialogue[] {
+	if (dialogues.length <= 1) return dialogues;
+	const result: Dialogue[] = [];
+	let pendingRaw = "";
+	let pendingStartLine = -1;
+
+	for (const d of dialogues) {
+		if (hasVisibleText(d)) {
+			if (pendingRaw) {
+				const mergedRaw = pendingRaw + d.rawText;
+				result.push({
+					tokens: tokenize(mergedRaw),
+					startLine: pendingStartLine,
+					endLine: d.endLine,
+					rawText: mergedRaw,
+				});
+				pendingRaw = "";
+				pendingStartLine = -1;
+			} else {
+				result.push(d);
+			}
+		} else {
+			if (pendingStartLine === -1) pendingStartLine = d.startLine;
+			pendingRaw += d.rawText;
+		}
+	}
+
+	const lastDialogue = dialogues[dialogues.length - 1];
+	if (pendingRaw && lastDialogue) {
+		result.push({
+			tokens: tokenize(pendingRaw),
+			startLine: pendingStartLine,
+			endLine: lastDialogue.endLine,
+			rawText: pendingRaw,
+		});
+	}
+
+	return result;
 }
 
 export function parseYayaDic(text: string, filePath: string): DicFunction[] {
@@ -106,6 +146,7 @@ export function parseYayaDic(text: string, filePath: string): DicFunction[] {
 			braceDepth--;
 			if (braceDepth === 0 && current) {
 				current.endLine = token.line;
+				current.dialogues = mergeControlOnlyDialogues(current.dialogues);
 				results.push(buildDicFunction(current, filePath));
 				current = null;
 				parenDepth = 0;

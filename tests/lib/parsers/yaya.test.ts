@@ -465,4 +465,62 @@ describe("parseYayaDic", () => {
 		expect(result).toHaveLength(1);
 		expect(result[0].dialogues).toHaveLength(1);
 	});
+
+	// --- 制御タグのみダイアログのマージ ---
+
+	it("制御タグのみのダイアログが次のテキストダイアログにマージされる", () => {
+		const text = [
+			"OnTest {",
+			'\t"\\t\\![set,choicetimeout,0]"',
+			"\t--",
+			'\t"\\h\\s[0]hello"',
+			"}",
+		].join("\n");
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("\\t\\![set,choicetimeout,0]\\h\\s[0]hello");
+	});
+
+	it("連続する制御タグダイアログがまとめてマージされる", () => {
+		const text = [
+			"OnTest {",
+			'\t"\\t\\![set,choicetimeout,0]"',
+			"\t--",
+			'\t"\\t\\![set,autoscroll,disable]"',
+			"\t--",
+			'\t"\\h\\s[0]hello"',
+			"}",
+		].join("\n");
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe(
+			"\\t\\![set,choicetimeout,0]\\t\\![set,autoscroll,disable]\\h\\s[0]hello",
+		);
+	});
+
+	it("テキスト + テキストのダイアログはマージされない", () => {
+		const text = ["OnTest {", '\t"hello"', "\t--", '\t"world"', "}"].join("\n");
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result[0].dialogues).toHaveLength(2);
+		expect(result[0].dialogues[0].rawText).toBe("hello");
+		expect(result[0].dialogues[1].rawText).toBe("world");
+	});
+
+	it("末尾の制御タグのみダイアログは独立して保持される", () => {
+		const text = [
+			"OnTest {",
+			'\t"\\h\\s[0]hello"',
+			"\t--",
+			'\t"\\t\\![set,choicetimeout,0]"',
+			"}",
+		].join("\n");
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result[0].dialogues).toHaveLength(2);
+		expect(result[0].dialogues[0].rawText).toBe("\\h\\s[0]hello");
+		expect(result[0].dialogues[1].rawText).toBe("\\t\\![set,choicetimeout,0]");
+	});
 });
