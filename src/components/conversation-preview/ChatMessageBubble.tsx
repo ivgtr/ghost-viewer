@@ -1,5 +1,17 @@
 import type { ChatMessage } from "@/types/chat-message";
 
+const FALLBACK_STYLE = {
+	alignment: "items-start",
+	bg: "bg-amber-900/50",
+	nameColor: "text-amber-400",
+} as const;
+
+const CHARACTER_STYLES = [
+	{ alignment: "items-start", bg: "bg-blue-900/50", nameColor: "text-blue-400" },
+	{ alignment: "items-end", bg: "bg-green-900/50", nameColor: "text-green-400" },
+	FALLBACK_STYLE,
+] as const;
+
 interface ChatMessageBubbleProps {
 	message: ChatMessage;
 	characterName: string;
@@ -11,10 +23,10 @@ export function ChatMessageBubble({
 	characterName,
 	onChoiceClick,
 }: ChatMessageBubbleProps) {
-	const isKero = message.characterId === 1;
-	const alignment = isKero ? "items-end" : "items-start";
-	const bubbleBg = isKero ? "bg-green-900/50" : "bg-blue-900/50";
-	const nameBg = isKero ? "text-green-400" : "text-blue-400";
+	const style = CHARACTER_STYLES[message.characterId] ?? FALLBACK_STYLE;
+	const alignment = style.alignment;
+	const bubbleBg = style.bg;
+	const nameBg = style.nameColor;
 
 	return (
 		<div className={`flex flex-col ${alignment} gap-1`}>
