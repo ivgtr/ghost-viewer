@@ -24,6 +24,12 @@ describe("tokenize", () => {
 		it.each([
 			{ input: "\\0", tokenType: "charSwitch", value: "0" },
 			{ input: "\\1", tokenType: "charSwitch", value: "1" },
+			{ input: "\\2", tokenType: "charSwitch", value: "2" },
+			{ input: "\\9", tokenType: "charSwitch", value: "9" },
+			{ input: "\\h", tokenType: "charSwitch", value: "0" },
+			{ input: "\\u", tokenType: "charSwitch", value: "1" },
+			{ input: "\\p[0]", tokenType: "charSwitch", value: "0" },
+			{ input: "\\p[2]", tokenType: "charSwitch", value: "2" },
 		])("charSwitch: $input", ({ input, tokenType, value }) => {
 			const result = tokenize(input);
 			expect(result).toHaveLength(1);
@@ -77,7 +83,12 @@ describe("tokenize", () => {
 			{ input: "\\_a[link1]", tokenType: "marker", value: "link1" },
 			{ input: "\\_a", tokenType: "marker", value: "" },
 			{ input: "\\n", tokenType: "marker", value: "" },
+			{ input: "\\n[50]", tokenType: "marker", value: "50" },
+			{ input: "\\n[half]", tokenType: "marker", value: "half" },
+			{ input: "\\n[-30]", tokenType: "marker", value: "-30" },
 			{ input: "\\e", tokenType: "marker", value: "" },
+			{ input: "\\c", tokenType: "marker", value: "" },
+			{ input: "\\t", tokenType: "marker", value: "" },
 		])("marker: $input", ({ input, tokenType, value }) => {
 			const result = tokenize(input);
 			expect(result).toHaveLength(1);
@@ -222,19 +233,193 @@ describe("tokenize", () => {
 			expect(result[0].value).toBe("\\z");
 		});
 
+		it("\\n[ 閉じ括弧なし → \\n + text にフォールバック", () => {
+			const result = tokenize("\\n[50");
+			expect(result).toHaveLength(2);
+			expect(result[0]).toEqual({ tokenType: "marker", raw: "\\n", value: "", offset: 0 });
+			expect(result[1]).toEqual({ tokenType: "text", raw: "[50", value: "[50", offset: 2 });
+		});
+
 		it("\\![open,...] は unknown", () => {
 			const result = tokenize("\\![open,browser]");
 			expect(result).toHaveLength(1);
 			expect(result[0].tokenType).toBe("unknown");
 		});
 
-		it("\\s の後に [ がない", () => {
+		it("\\sN は surface の省略形", () => {
 			const result = tokenize("\\s5");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("surface");
+			expect(result[0].raw).toBe("\\s5");
+			expect(result[0].value).toBe("5");
+		});
+
+		it("\\s の後が数字でも [ でもない場合は unknown", () => {
+			const result = tokenize("\\sX");
 			expect(result).toHaveLength(2);
 			expect(result[0].tokenType).toBe("unknown");
 			expect(result[0].raw).toBe("\\s");
 			expect(result[1].tokenType).toBe("text");
-			expect(result[1].value).toBe("5");
+			expect(result[1].value).toBe("X");
+		});
+
+		it("\\pN は charSwitch の省略形", () => {
+			const result = tokenize("\\p5");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("charSwitch");
+			expect(result[0].raw).toBe("\\p5");
+			expect(result[0].value).toBe("5");
+		});
+
+		it("\\p の後が数字でも [ でもない場合は unknown", () => {
+			const result = tokenize("\\pX");
+			expect(result).toHaveLength(2);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe("\\p");
+			expect(result[1].tokenType).toBe("text");
+			expect(result[1].value).toBe("X");
+		});
+
+		it("\\bN は balloon の省略形", () => {
+			const result = tokenize("\\b2");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("balloon");
+			expect(result[0].raw).toBe("\\b2");
+			expect(result[0].value).toBe("2");
+		});
+
+		it("\\b[N] は balloon のブラケット形", () => {
+			const result = tokenize("\\b[3]");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("balloon");
+			expect(result[0].raw).toBe("\\b[3]");
+			expect(result[0].value).toBe("3");
+		});
+
+		it("\\b[ 閉じ括弧なし → unknown", () => {
+			const result = tokenize("\\b[5");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe("\\b[5");
+		});
+
+		it("\\b の後が数字でも [ でもない場合は unknown", () => {
+			const result = tokenize("\\bX");
+			expect(result).toHaveLength(2);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe("\\b");
+			expect(result[1].tokenType).toBe("text");
+			expect(result[1].value).toBe("X");
+		});
+
+		it("\\p[ 閉じ括弧なし", () => {
+			const result = tokenize("\\p[5");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe("\\p[5");
+		});
+	});
+
+	describe("ブラケット消費", () => {
+		it.each([
+			{ input: "\\f[height,10]", desc: "\\f[...]" },
+			{ input: "\\i[60]", desc: "\\i[...]" },
+			{ input: "\\j[http://example.com]", desc: "\\j[...]" },
+		])("unknown タグ $desc がブラケットごと消費される", ({ input }) => {
+			const result = tokenize(input);
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe(input);
+		});
+
+		it("\\f[height,10]テスト → unknown + text（テキスト漏れなし）", () => {
+			const result = tokenize("\\f[height,10]テスト");
+			expect(result).toHaveLength(2);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe("\\f[height,10]");
+			expect(result[1].tokenType).toBe("text");
+			expect(result[1].value).toBe("テスト");
+		});
+
+		it("\\8[file.wav] → unknown としてブラケットごと消費", () => {
+			const result = tokenize("\\8[file.wav]");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe("\\8[file.wav]");
+		});
+
+		it("\\0[half] → unknown としてブラケットごと消費", () => {
+			const result = tokenize("\\0[half]");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe("\\0[half]");
+		});
+
+		it("\\x[noclear] → wait としてブラケットごと消費", () => {
+			const result = tokenize("\\x[noclear]");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("wait");
+			expect(result[0].raw).toBe("\\x[noclear]");
+			expect(result[0].value).toBe("noclear");
+		});
+
+		it("\\c[char,5] → marker としてブラケットごと消費", () => {
+			const result = tokenize("\\c[char,5]");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("marker");
+			expect(result[0].raw).toBe("\\c[char,5]");
+			expect(result[0].value).toBe("char,5");
+		});
+
+		it("\\_q → unknown として3文字消費", () => {
+			const result = tokenize("\\_q");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe("\\_q");
+		});
+
+		it("\\_qテスト → unknown 3文字 + text", () => {
+			const result = tokenize("\\_qテスト");
+			expect(result).toHaveLength(2);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe("\\_q");
+			expect(result[1].tokenType).toBe("text");
+			expect(result[1].value).toBe("テスト");
+		});
+
+		it("\\_s → unknown として3文字消費", () => {
+			const result = tokenize("\\_s");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe("\\_s");
+		});
+
+		it("\\_l[0,0] → unknown としてブラケットごと消費", () => {
+			const result = tokenize("\\_l[0,0]");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe("\\_l[0,0]");
+		});
+
+		it("\\_b[path/to/file] → unknown としてブラケットごと消費", () => {
+			const result = tokenize("\\_b[path/to/file]");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe("\\_b[path/to/file]");
+		});
+
+		it("unknown タグのブラケット閉じ括弧なし → 残り全体を消費", () => {
+			const result = tokenize("\\f[height,10");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe("\\f[height,10");
+		});
+
+		it("\\_ のみ（末尾）→ 2文字で unknown", () => {
+			const result = tokenize("\\_");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe("\\_");
 		});
 	});
 });

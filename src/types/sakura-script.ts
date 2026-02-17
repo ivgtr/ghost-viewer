@@ -2,6 +2,7 @@ export type SakuraScriptTokenType =
 	| "text"
 	| "charSwitch"
 	| "surface"
+	| "balloon"
 	| "choice"
 	| "raise"
 	| "wait"

@@ -22,6 +22,40 @@ function findClosing(input: string, openPos: number, openChar: string, closeChar
 	return -1;
 }
 
+function tryConsumeBracket(
+	input: string,
+	pos: number,
+	baseLen: number,
+	tokenType: SakuraScriptTokenType,
+): { token: SakuraScriptToken; nextCursor: number } | null {
+	const bracketStart = pos + baseLen;
+	if (input[bracketStart] !== "[") return null;
+	const closePos = findClosing(input, bracketStart, "[", "]");
+	if (closePos === -1) {
+		const raw = input.slice(pos);
+		return { token: createToken("unknown", raw, raw, pos), nextCursor: input.length };
+	}
+	const raw = input.slice(pos, closePos + 1);
+	const value = input.slice(bracketStart + 1, closePos);
+	return { token: createToken(tokenType, raw, value, pos), nextCursor: closePos + 1 };
+}
+
+function handleTagWithDigitOrBracket(
+	input: string,
+	pos: number,
+	tokenType: SakuraScriptTokenType,
+): { token: SakuraScriptToken; nextCursor: number } {
+	const afterTag = input[pos + 2];
+	if (afterTag !== undefined && afterTag >= "0" && afterTag <= "9") {
+		const raw = input.slice(pos, pos + 3);
+		return { token: createToken(tokenType, raw, afterTag, pos), nextCursor: pos + 3 };
+	}
+	const bracket = tryConsumeBracket(input, pos, 2, tokenType);
+	if (bracket) return bracket;
+	const raw = input.slice(pos, pos + 2);
+	return { token: createToken("unknown", raw, raw, pos), nextCursor: pos + 2 };
+}
+
 function tryParseTag(
 	input: string,
 	pos: number,
@@ -31,27 +65,29 @@ function tryParseTag(
 		return { token: createToken("unknown", "\\", "\\", pos), nextCursor: pos + 1 };
 	}
 
-	// \0, \1 — charSwitch
-	if (next === "0" || next === "1") {
+	// \0〜\9 — charSwitch (ブラケット付きは unknown)
+	if (next >= "0" && next <= "9") {
+		const bracket = tryConsumeBracket(input, pos, 2, "unknown");
+		if (bracket) return bracket;
 		const raw = input.slice(pos, pos + 2);
 		return { token: createToken("charSwitch", raw, next, pos), nextCursor: pos + 2 };
 	}
 
-	// \s[N] — surface
-	if (next === "s") {
-		if (input[pos + 2] !== "[") {
-			const raw = input.slice(pos, pos + 2);
-			return { token: createToken("unknown", raw, raw, pos), nextCursor: pos + 2 };
-		}
-		const closePos = findClosing(input, pos + 2, "[", "]");
-		if (closePos === -1) {
-			const raw = input.slice(pos);
-			return { token: createToken("unknown", raw, raw, pos), nextCursor: input.length };
-		}
-		const raw = input.slice(pos, closePos + 1);
-		const value = input.slice(pos + 3, closePos);
-		return { token: createToken("surface", raw, value, pos), nextCursor: closePos + 1 };
+	// \h = \0, \u = \1 — charSwitch エイリアス
+	if (next === "h") {
+		const raw = input.slice(pos, pos + 2);
+		return { token: createToken("charSwitch", raw, "0", pos), nextCursor: pos + 2 };
 	}
+	if (next === "u") {
+		const raw = input.slice(pos, pos + 2);
+		return { token: createToken("charSwitch", raw, "1", pos), nextCursor: pos + 2 };
+	}
+
+	// \p[N], \pN — charSwitch
+	if (next === "p") return handleTagWithDigitOrBracket(input, pos, "charSwitch");
+
+	// \s[N], \sN — surface
+	if (next === "s") return handleTagWithDigitOrBracket(input, pos, "surface");
 
 	// \q[label,ID] — choice
 	if (next === "q") {
@@ -125,9 +161,15 @@ function tryParseTag(
 			return { token: createToken("wait", raw, value, pos), nextCursor: closePos + 1 };
 		}
 
-		// \_ + unknown
-		const raw = input.slice(pos, pos + 2);
-		return { token: createToken("unknown", raw, raw, pos), nextCursor: pos + 2 };
+		// \_ + unknown — 3文字消費 + オプショナルブラケット
+		if (third === undefined) {
+			const raw = input.slice(pos, pos + 2);
+			return { token: createToken("unknown", raw, raw, pos), nextCursor: pos + 2 };
+		}
+		const bracket = tryConsumeBracket(input, pos, 3, "unknown");
+		if (bracket) return bracket;
+		const raw = input.slice(pos, pos + 3);
+		return { token: createToken("unknown", raw, raw, pos), nextCursor: pos + 3 };
 	}
 
 	// \w, \wN — wait
@@ -141,25 +183,48 @@ function tryParseTag(
 		return { token: createToken("wait", raw, "", pos), nextCursor: pos + 2 };
 	}
 
-	// \x — wait
+	// \x — wait (オプションブラケット対応)
 	if (next === "x") {
+		const bracket = tryConsumeBracket(input, pos, 2, "wait");
+		if (bracket) return bracket;
 		const raw = input.slice(pos, pos + 2);
 		return { token: createToken("wait", raw, "", pos), nextCursor: pos + 2 };
 	}
 
-	// \n — marker
+	// \n, \n[N] — marker
 	if (next === "n") {
+		if (input[pos + 2] === "[") {
+			const closePos = findClosing(input, pos + 2, "[", "]");
+			if (closePos !== -1) {
+				const raw = input.slice(pos, closePos + 1);
+				const value = input.slice(pos + 3, closePos);
+				return { token: createToken("marker", raw, value, pos), nextCursor: closePos + 1 };
+			}
+		}
 		const raw = input.slice(pos, pos + 2);
 		return { token: createToken("marker", raw, "", pos), nextCursor: pos + 2 };
 	}
 
-	// \e — marker
-	if (next === "e") {
+	// \e, \t — marker
+	if (next === "e" || next === "t") {
 		const raw = input.slice(pos, pos + 2);
 		return { token: createToken("marker", raw, "", pos), nextCursor: pos + 2 };
 	}
 
-	// unknown tag
+	// \b[N], \bN — balloon
+	if (next === "b") return handleTagWithDigitOrBracket(input, pos, "balloon");
+
+	// \c — marker (オプションブラケット対応)
+	if (next === "c") {
+		const bracket = tryConsumeBracket(input, pos, 2, "marker");
+		if (bracket) return bracket;
+		const raw = input.slice(pos, pos + 2);
+		return { token: createToken("marker", raw, "", pos), nextCursor: pos + 2 };
+	}
+
+	// unknown tag — ブラケットがあれば含めて消費
+	const bracket = tryConsumeBracket(input, pos, 2, "unknown");
+	if (bracket) return bracket;
 	const raw = input.slice(pos, pos + 2);
 	return { token: createToken("unknown", raw, raw, pos), nextCursor: pos + 2 };
 }
