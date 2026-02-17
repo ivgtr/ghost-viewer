@@ -45,26 +45,41 @@ describe("dispatchParse", () => {
 		expect(result.meta).toBeNull();
 	});
 
-	const stubTypes: ShioriType[] = ["kawari", "unknown"];
+	it("kawari で辞書を正しくパースする", () => {
+		const onProgress = vi.fn();
+		const text = "sentence : \\0こんにちは\\e , \\0やあ\\e";
+		const input = {
+			fileContent: toArrayBuffer(text),
+			filePath: "kawari.dic",
+			shioriType: "kawari" as const,
+		};
 
-	for (const shioriType of stubTypes) {
-		it(`${shioriType} でスタブ結果を返す`, () => {
-			const onProgress = vi.fn();
-			const input = {
-				fileContent: new ArrayBuffer(0),
-				filePath: "test.dic",
-				shioriType,
-			};
+		const result = dispatchParse(input, onProgress);
 
-			const result = dispatchParse(input, onProgress);
+		expect(result.shioriType).toBe("kawari");
+		expect(result.functions).toHaveLength(1);
+		expect(result.functions[0].name).toBe("sentence");
+		expect(result.functions[0].filePath).toBe("kawari.dic");
+		expect(result.functions[0].dialogues).toHaveLength(2);
+		expect(result.meta).toBeNull();
+	});
 
-			expect(result).toEqual({
-				shioriType,
-				functions: [],
-				meta: null,
-			});
+	it("unknown でスタブ結果を返す", () => {
+		const onProgress = vi.fn();
+		const input = {
+			fileContent: new ArrayBuffer(0),
+			filePath: "test.dic",
+			shioriType: "unknown" as const,
+		};
+
+		const result = dispatchParse(input, onProgress);
+
+		expect(result).toEqual({
+			shioriType: "unknown",
+			functions: [],
+			meta: null,
 		});
-	}
+	});
 
 	it("satori の onProgress が 0→50→100 で呼ばれる", () => {
 		const onProgress = vi.fn();
@@ -98,12 +113,28 @@ describe("dispatchParse", () => {
 		expect(onProgress).toHaveBeenNthCalledWith(3, 100);
 	});
 
-	it("スタブタイプの onProgress が 0→100 で呼ばれる", () => {
+	it("kawari の onProgress が 0→50→100 で呼ばれる", () => {
+		const onProgress = vi.fn();
+		const input = {
+			fileContent: toArrayBuffer("sentence : hello"),
+			filePath: "test.dic",
+			shioriType: "kawari" as const,
+		};
+
+		dispatchParse(input, onProgress);
+
+		expect(onProgress).toHaveBeenCalledTimes(3);
+		expect(onProgress).toHaveBeenNthCalledWith(1, 0);
+		expect(onProgress).toHaveBeenNthCalledWith(2, 50);
+		expect(onProgress).toHaveBeenNthCalledWith(3, 100);
+	});
+
+	it("unknown の onProgress が 0→100 で呼ばれる", () => {
 		const onProgress = vi.fn();
 		const input = {
 			fileContent: new ArrayBuffer(0),
 			filePath: "test.dic",
-			shioriType: "kawari" as const,
+			shioriType: "unknown" as const,
 		};
 
 		dispatchParse(input, onProgress);

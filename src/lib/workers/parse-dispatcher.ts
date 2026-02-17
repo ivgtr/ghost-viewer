@@ -1,4 +1,5 @@
 import { decodeWithAutoDetection } from "@/lib/encoding/detect";
+import { parseKawariDic } from "@/lib/parsers/kawari";
 import { parseSatoriDic } from "@/lib/parsers/satori";
 import { parseYayaDic } from "@/lib/parsers/yaya";
 import type { ParseResult, ShioriType } from "@/types";
@@ -30,10 +31,16 @@ export function dispatchParse(
 			onProgress(100);
 			return { shioriType: "yaya", functions: yayaFunctions, meta: null };
 		}
-		case "kawari":
+		case "kawari": {
+			const { text: kawariText } = decodeWithAutoDetection(input.fileContent);
+			onProgress(50);
+			const kawariFunctions = parseKawariDic(kawariText, input.filePath);
+			onProgress(100);
+			return { shioriType: "kawari", functions: kawariFunctions, meta: null };
+		}
 		case "unknown":
 			onProgress(100);
-			return { shioriType: input.shioriType, functions: [], meta: null };
+			return { shioriType: "unknown", functions: [], meta: null };
 		default: {
 			const _exhaustive: never = input.shioriType;
 			throw new Error(`未対応の SHIORI タイプ: ${_exhaustive}`);
