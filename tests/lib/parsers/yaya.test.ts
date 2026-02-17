@@ -1,4 +1,4 @@
-import { countBraces, parseYayaDic } from "@/lib/parsers/yaya";
+import { parseYayaDic } from "@/lib/parsers/yaya";
 import { describe, expect, it } from "vitest";
 
 describe("parseYayaDic", () => {
@@ -170,11 +170,11 @@ describe("parseYayaDic", () => {
 	});
 
 	it("# プリプロセッサ指令をスキップする", () => {
-		const text = '#globaldefine MACRO\nOnBoot {\n\t"hello"\n}';
+		const text = '#globaldefine SCOPE\nOnBoot {\n\t"hello"\n}';
 		const result = parseYayaDic(text, "test.dic");
 
 		expect(result).toHaveLength(1);
-		expect(result[0].name).toBe("OnBoot");
+		expect(result[0].dialogues).toHaveLength(1);
 	});
 
 	it("CR+LF 改行コードを処理する", () => {
@@ -279,8 +279,6 @@ describe("parseYayaDic", () => {
 	});
 
 	it("braceDepth 0 で else { を関数として認識しない", () => {
-		// style B: 関数名と { が別行のコードで braceDepth がずれた場合、
-		// else { が braceDepth === 0 でマッチするケースを防止する
 		const text = 'else {\n\t"hello"\n}';
 		const result = parseYayaDic(text, "test.dic");
 
@@ -312,6 +310,49 @@ describe("parseYayaDic", () => {
 		expect(result[0].dialogues).toHaveLength(2);
 	});
 
+	it("行継続構文の引数行をダイアログとして抽出しない", () => {
+		const text = [
+			"SHIORI3FW.EscapeDangerousTags {",
+			"\t_result = RE_REPLACE(/",
+			"\t\t'pattern1',/",
+			"\t\t'replace1',/",
+			"\t\t'pattern2',/",
+			"\t\t'replace2',/",
+			"\t\t_input)",
+			"}",
+		].join("\n");
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].name).toBe("SHIORI3FW.EscapeDangerousTags");
+		expect(result[0].dialogues).toHaveLength(0);
+	});
+
+	it("行継続ブロック後の通常ダイアログは正常に抽出される", () => {
+		const text = [
+			"OnTest {",
+			"\t_result = RE_REPLACE(/",
+			"\t\t'pattern',/",
+			"\t\t_input)",
+			'\t"\\0こんにちは\\e"',
+			"}",
+		].join("\n");
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("\\0こんにちは\\e");
+	});
+
+	it("文字列内の末尾 / は行継続として扱わない", () => {
+		const text = 'OnBoot {\n\t"http://example.com/"\n}';
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("http://example.com/");
+	});
+
 	it("} else { 同一行スタイルで dialogues 数が正しい", () => {
 		const text = 'OnBoot {\n\tif RAND(2) == 0 {\n\t\t"hello"\n\t} else {\n\t\t"world"\n\t}\n}';
 		const result = parseYayaDic(text, "test.dic");
@@ -320,49 +361,108 @@ describe("parseYayaDic", () => {
 		expect(result[0].name).toBe("OnBoot");
 		expect(result[0].dialogues).toHaveLength(2);
 	});
-});
 
-describe("countBraces", () => {
-	it("通常の波括弧をカウントする", () => {
-		expect(countBraces("{ }")).toEqual({ open: 1, close: 1 });
+	// --- 新規テスト: Style B 関数定義 ---
+
+	it("Style B 関数定義（関数名と { が別行）をパースする", () => {
+		const text = 'TalkToUser\n{\n\t"hello"\n}';
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].name).toBe("TalkToUser");
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("hello");
 	});
 
-	it("文字列内の波括弧を無視する", () => {
-		expect(countBraces('"{ }"')).toEqual({ open: 0, close: 0 });
+	it("Style B + 返り値型アノテーションをパースする", () => {
+		const text = 'OnBoot : string\n{\n\t"hello"\n}';
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].name).toBe("OnBoot");
+		expect(result[0].dialogues).toHaveLength(1);
 	});
 
-	it("コメント内の波括弧を無視する", () => {
-		expect(countBraces("// { }")).toEqual({ open: 0, close: 0 });
+	it("Style B の startLine が関数名の行を指す", () => {
+		const text = '// comment\nTalkToUser\n{\n\t"hello"\n}';
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result[0].startLine).toBe(1);
+		expect(result[0].endLine).toBe(4);
 	});
 
-	it("文字列とコメントの混在を処理する", () => {
-		expect(countBraces('"{" // }')).toEqual({ open: 0, close: 0 });
+	it("Style B で空行を挟んでも関数を検出する", () => {
+		const text = 'TalkToUser\n\n{\n\t"hello"\n}';
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].name).toBe("TalkToUser");
 	});
 
-	it("エスケープクォートを含む文字列を処理する", () => {
-		expect(countBraces('"\\"{" }')).toEqual({ open: 0, close: 1 });
+	// --- 新規テスト: 条件式内文字列の除外 ---
+
+	it("if 条件式内の文字列はダイアログとして抽出しない", () => {
+		const text = ["OnTest {", '\tif "text" _in_ reference[1] {', '\t\t"dialogue"', "\t}", "}"].join(
+			"\n",
+		);
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("dialogue");
 	});
 
-	it("空行は 0 を返す", () => {
-		expect(countBraces("")).toEqual({ open: 0, close: 0 });
+	it("case 内の文字列はダイアログとして抽出しない", () => {
+		const text = [
+			"OnTest {",
+			"\tswitch {",
+			'\t\tcase "pattern" {',
+			'\t\t\t"dialogue"',
+			"\t\t}",
+			"\t}",
+			"}",
+		].join("\n");
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("dialogue");
 	});
 
-	it("複数の波括弧をカウントする", () => {
-		expect(countBraces("if { } else { }")).toEqual({
-			open: 2,
-			close: 2,
-		});
+	// --- 新規テスト: -- セパレータ ---
+
+	it("-- セパレータ前後のダイアログを抽出する", () => {
+		const text = 'OnBoot {\n\t"hello"\n\t--\n\t"world"\n}';
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result[0].dialogues).toHaveLength(2);
+		expect(result[0].dialogues[0].rawText).toBe("hello");
+		expect(result[0].dialogues[1].rawText).toBe("world");
 	});
 
-	it("シングルクォート文字列内の波括弧を無視する", () => {
-		expect(countBraces("'{ }'")).toEqual({ open: 0, close: 0 });
+	// --- 新規テスト: 関数呼び出し引数の除外 ---
+
+	it("関数呼び出し引数内の文字列はダイアログとして抽出しない", () => {
+		const text = ["OnTest {", '\tSomeFunc("not a dialogue")', '\t"dialogue"', "}"].join("\n");
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("dialogue");
 	});
 
-	it("ダブルクォート内のシングルクォートを処理する", () => {
-		expect(countBraces(`"it's {" }`)).toEqual({ open: 0, close: 1 });
+	// --- 新規テスト: ブロックコメント ---
+
+	it("ブロックコメントをスキップする", () => {
+		const text = 'OnBoot {\n\t/* comment */\n\t"hello"\n}';
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("hello");
 	});
 
-	it("シングルクォート内のダブルクォートを処理する", () => {
-		expect(countBraces(`'say "hi" {' }`)).toEqual({ open: 0, close: 1 });
+	it("ブロックコメント内の {} を波括弧カウントに含めない", () => {
+		const text = 'OnBoot {\n\t/* { } */\n\t"hello"\n}';
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].dialogues).toHaveLength(1);
 	});
 });
