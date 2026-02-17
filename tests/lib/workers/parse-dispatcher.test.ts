@@ -12,7 +12,7 @@ describe("dispatchParse", () => {
 		const text = "＊OnBoot\n：\\0こんにちは\\e";
 		const input = {
 			fileContent: toArrayBuffer(text),
-			fileName: "satori.dic",
+			filePath: "satori.dic",
 			shioriType: "satori" as const,
 		};
 
@@ -31,7 +31,7 @@ describe("dispatchParse", () => {
 		const text = 'OnBoot {\n\t"\\0こんにちは\\e"\n}';
 		const input = {
 			fileContent: toArrayBuffer(text),
-			fileName: "yaya.dic",
+			filePath: "yaya.dic",
 			shioriType: "yaya" as const,
 		};
 
@@ -52,7 +52,7 @@ describe("dispatchParse", () => {
 			const onProgress = vi.fn();
 			const input = {
 				fileContent: new ArrayBuffer(0),
-				fileName: "test.dic",
+				filePath: "test.dic",
 				shioriType,
 			};
 
@@ -70,7 +70,7 @@ describe("dispatchParse", () => {
 		const onProgress = vi.fn();
 		const input = {
 			fileContent: toArrayBuffer("＊OnBoot\n：hello"),
-			fileName: "test.dic",
+			filePath: "test.dic",
 			shioriType: "satori" as const,
 		};
 
@@ -86,7 +86,7 @@ describe("dispatchParse", () => {
 		const onProgress = vi.fn();
 		const input = {
 			fileContent: toArrayBuffer('OnBoot {\n\t"hello"\n}'),
-			fileName: "test.dic",
+			filePath: "test.dic",
 			shioriType: "yaya" as const,
 		};
 
@@ -102,7 +102,7 @@ describe("dispatchParse", () => {
 		const onProgress = vi.fn();
 		const input = {
 			fileContent: new ArrayBuffer(0),
-			fileName: "test.dic",
+			filePath: "test.dic",
 			shioriType: "kawari" as const,
 		};
 

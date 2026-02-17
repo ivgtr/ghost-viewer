@@ -4,7 +4,7 @@ const PARSE_TIMEOUT_MS = 30_000;
 
 interface ParseOptions {
 	fileContent: ArrayBuffer;
-	fileName: string;
+	filePath: string;
 	shioriType: ShioriType;
 	onProgress?: (percent: number) => void;
 }
@@ -50,7 +50,7 @@ export function requestParse(options: ParseOptions): Promise<ParseResult> {
 		const request: WorkerRequest = {
 			type: "parse",
 			fileContent: options.fileContent,
-			fileName: options.fileName,
+			filePath: options.filePath,
 			shioriType: options.shioriType,
 		};
 		worker.postMessage(request, [options.fileContent]);

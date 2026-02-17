@@ -4,7 +4,7 @@ import type { ShioriType } from "./shiori";
 export type WorkerRequest = {
 	type: "parse";
 	fileContent: ArrayBuffer;
-	fileName: string;
+	filePath: string;
 	shioriType: ShioriType;
 };
 

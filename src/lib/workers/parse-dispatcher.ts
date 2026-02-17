@@ -5,7 +5,7 @@ import type { ParseResult, ShioriType } from "@/types";
 
 interface ParseInput {
 	fileContent: ArrayBuffer;
-	fileName: string;
+	filePath: string;
 	shioriType: ShioriType;
 }
 
@@ -19,14 +19,14 @@ export function dispatchParse(
 		case "satori": {
 			const { text } = decodeWithAutoDetection(input.fileContent);
 			onProgress(50);
-			const functions = parseSatoriDic(text, input.fileName);
+			const functions = parseSatoriDic(text, input.filePath);
 			onProgress(100);
 			return { shioriType: "satori", functions, meta: null };
 		}
 		case "yaya": {
 			const { text: yayaText } = decodeWithAutoDetection(input.fileContent);
 			onProgress(50);
-			const yayaFunctions = parseYayaDic(yayaText, input.fileName);
+			const yayaFunctions = parseYayaDic(yayaText, input.filePath);
 			onProgress(100);
 			return { shioriType: "yaya", functions: yayaFunctions, meta: null };
 		}

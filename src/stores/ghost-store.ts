@@ -116,12 +116,10 @@ async function batchParse(
 			continue;
 		}
 
-		const fileName = path.slice(path.lastIndexOf("/") + 1);
-
 		try {
 			const result = await requestParse({
 				fileContent: buffer.slice(0),
-				fileName,
+				filePath: path,
 				shioriType,
 			});
 			allFunctions.push(...result.functions);

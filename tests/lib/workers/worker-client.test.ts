@@ -50,7 +50,7 @@ vi.stubGlobal(
 
 const defaultOptions = {
 	fileContent: new ArrayBuffer(8),
-	fileName: "test.dic",
+	filePath: "test.dic",
 	shioriType: "yaya" as const,
 };
 
@@ -119,7 +119,7 @@ describe("requestParse", () => {
 		expect(mockWorkerInstance.postMessage).toHaveBeenCalledWith(
 			expect.objectContaining({
 				type: "parse",
-				fileName: "test.dic",
+				filePath: "test.dic",
 				shioriType: "yaya",
 			}),
 			[fileContent],
