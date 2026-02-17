@@ -1,7 +1,9 @@
 import { buildCatalogEntries } from "@/lib/analyzers/build-catalog";
+import { getCategoryOrder } from "@/lib/analyzers/categorize-event";
 import { useCatalogStore } from "@/stores/catalog-store";
 import { useFileTreeStore } from "@/stores/file-tree-store";
 import { useParseStore } from "@/stores/parse-store";
+import type { CatalogEntry } from "@/types/catalog";
 import { useMemo, useState } from "react";
 import { CatalogItem } from "./CatalogItem";
 
@@ -23,6 +25,22 @@ export function ConversationCatalog() {
 		const lower = searchQuery.toLowerCase();
 		return entries.filter((e) => e.name.toLowerCase().includes(lower));
 	}, [entries, searchQuery]);
+
+	const grouped = useMemo(() => {
+		const categoryOrder = getCategoryOrder();
+		const groups = new Map<string, typeof filtered>();
+		for (const entry of filtered) {
+			const list = groups.get(entry.category);
+			if (list) {
+				list.push(entry);
+			} else {
+				groups.set(entry.category, [entry]);
+			}
+		}
+		return categoryOrder
+			.map((cat) => ({ category: cat, entries: groups.get(cat) }))
+			.filter((g): g is { category: string; entries: CatalogEntry[] } => g.entries !== undefined);
+	}, [filtered]);
 
 	const handleItemClick = (name: string) => {
 		useFileTreeStore.getState().selectNode(null);
@@ -61,13 +79,20 @@ export function ConversationCatalog() {
 				/>
 			</div>
 			<div className="flex-1 overflow-auto">
-				{filtered.map((entry) => (
-					<CatalogItem
-						key={entry.name}
-						entry={entry}
-						selected={entry.name === selectedFunctionName}
-						onClick={() => handleItemClick(entry.name)}
-					/>
+				{grouped.map((group) => (
+					<div key={group.category}>
+						<div className="sticky top-0 z-10 border-b border-zinc-700 bg-zinc-800 px-4 py-1.5 text-xs font-semibold text-zinc-400">
+							{group.category}
+						</div>
+						{group.entries.map((entry) => (
+							<CatalogItem
+								key={entry.name}
+								entry={entry}
+								selected={entry.name === selectedFunctionName}
+								onClick={() => handleItemClick(entry.name)}
+							/>
+						))}
+					</div>
 				))}
 				{filtered.length === 0 && (
 					<div className="flex items-center justify-center py-8 text-zinc-500 text-sm">
