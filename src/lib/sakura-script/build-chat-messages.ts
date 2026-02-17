@@ -2,7 +2,10 @@ import type { ChatMessage, ChatSegment } from "@/types/chat-message";
 import type { SakuraScriptToken } from "@/types/sakura-script";
 
 function hasContent(segments: ChatSegment[]): boolean {
-	return segments.some((s) => s.type === "text" || s.type === "choice" || s.type === "surface");
+	return segments.some(
+		(s) =>
+			s.type === "text" || s.type === "choice" || s.type === "surface" || s.type === "variable",
+	);
 }
 
 export function buildChatMessages(tokens: SakuraScriptToken[]): ChatMessage[] {
@@ -32,6 +35,9 @@ export function buildChatMessages(tokens: SakuraScriptToken[]): ChatMessage[] {
 				break;
 			case "choice":
 				segments.push({ type: "choice", value: token.value });
+				break;
+			case "variable":
+				segments.push({ type: "variable", value: token.value });
 				break;
 			case "wait":
 				segments.push({ type: "wait", value: token.value });

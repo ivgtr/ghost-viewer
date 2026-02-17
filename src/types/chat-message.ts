@@ -1,5 +1,5 @@
 export interface ChatSegment {
-	type: "text" | "lineBreak" | "surface" | "choice" | "wait";
+	type: "text" | "lineBreak" | "surface" | "choice" | "wait" | "variable";
 	value: string;
 }
 

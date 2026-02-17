@@ -72,4 +72,30 @@ describe("buildCatalogEntries", () => {
 		expect(entries.map((e) => e.name)).toEqual(["Zebra", "Middle", "Alpha"]);
 		expect(entries.map((e) => e.dialogueCount)).toEqual([3, 2, 1]);
 	});
+
+	it("variable トークンを含むプレビューが raw 形式で生成される", () => {
+		const varToken: SakuraScriptToken = {
+			tokenType: "variable",
+			raw: "%(weather)",
+			value: "weather",
+			offset: 0,
+		};
+		const tokens = [token("text", "今日は"), varToken, token("text", "です")];
+		const entries = buildCatalogEntries([makeFn("aitalk", tokens)]);
+		expect(entries[0].preview).toBe("今日は%(weather)です");
+	});
+
+	it("category フィールドが設定される", () => {
+		const entries = buildCatalogEntries([
+			makeFn("aitalk", [token("text", "a")]),
+			makeFn("OnBoot", [token("text", "b")]),
+			makeFn("OnMouseClick", [token("text", "c")]),
+			makeFn("CustomEvent", [token("text", "d")]),
+		]);
+		const categoryMap = new Map(entries.map((e) => [e.name, e.category]));
+		expect(categoryMap.get("aitalk")).toBe("ランダムトーク");
+		expect(categoryMap.get("OnBoot")).toBe("起動・終了");
+		expect(categoryMap.get("OnMouseClick")).toBe("マウス");
+		expect(categoryMap.get("CustomEvent")).toBe("その他");
+	});
 });

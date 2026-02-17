@@ -86,6 +86,43 @@ describe("tokenize", () => {
 		});
 	});
 
+	describe("YAYA 変数 %(...))", () => {
+		it("%(variable) → variable トークン", () => {
+			const result = tokenize("%(variable)");
+			expect(result).toEqual([
+				{ tokenType: "variable", raw: "%(variable)", value: "variable", offset: 0 },
+			]);
+		});
+
+		it("%(ANY(('a','b','c'))) → ネスト括弧の variable トークン", () => {
+			const result = tokenize("%(ANY(('a','b','c')))");
+			expect(result).toEqual([
+				{
+					tokenType: "variable",
+					raw: "%(ANY(('a','b','c')))",
+					value: "ANY(('a','b','c'))",
+					offset: 0,
+				},
+			]);
+		});
+
+		it("閉じ括弧なし %(open → unknown フォールバック", () => {
+			const result = tokenize("%(open");
+			expect(result).toHaveLength(1);
+			expect(result[0].tokenType).toBe("unknown");
+			expect(result[0].raw).toBe("%(open");
+		});
+
+		it("テキスト中の %(...)  が前後テキストと分離される", () => {
+			const result = tokenize("今日は%(weather)です");
+			expect(result).toEqual([
+				{ tokenType: "text", raw: "今日は", value: "今日は", offset: 0 },
+				{ tokenType: "variable", raw: "%(weather)", value: "weather", offset: 3 },
+				{ tokenType: "text", raw: "です", value: "です", offset: 13 },
+			]);
+		});
+	});
+
 	describe("複合パターン", () => {
 		it("典型的会話", () => {
 			const input = "\\0\\s[0]こんにちは。\\w9\\1\\s[10]やあ。\\e";

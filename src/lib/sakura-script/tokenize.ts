@@ -9,12 +9,12 @@ function createToken(
 	return { tokenType, raw, value, offset };
 }
 
-function findClosingBracket(input: string, openPos: number): number {
+function findClosing(input: string, openPos: number, openChar: string, closeChar: string): number {
 	let depth = 1;
 	for (let i = openPos + 1; i < input.length; i++) {
-		if (input[i] === "[") {
+		if (input[i] === openChar) {
 			depth++;
-		} else if (input[i] === "]") {
+		} else if (input[i] === closeChar) {
 			depth--;
 			if (depth === 0) return i;
 		}
@@ -43,7 +43,7 @@ function tryParseTag(
 			const raw = input.slice(pos, pos + 2);
 			return { token: createToken("unknown", raw, raw, pos), nextCursor: pos + 2 };
 		}
-		const closePos = findClosingBracket(input, pos + 2);
+		const closePos = findClosing(input, pos + 2, "[", "]");
 		if (closePos === -1) {
 			const raw = input.slice(pos);
 			return { token: createToken("unknown", raw, raw, pos), nextCursor: input.length };
@@ -59,7 +59,7 @@ function tryParseTag(
 			const raw = input.slice(pos, pos + 2);
 			return { token: createToken("unknown", raw, raw, pos), nextCursor: pos + 2 };
 		}
-		const closePos = findClosingBracket(input, pos + 2);
+		const closePos = findClosing(input, pos + 2, "[", "]");
 		if (closePos === -1) {
 			const raw = input.slice(pos);
 			return { token: createToken("unknown", raw, raw, pos), nextCursor: input.length };
@@ -75,7 +75,7 @@ function tryParseTag(
 			const raw = input.slice(pos, pos + 2);
 			return { token: createToken("unknown", raw, raw, pos), nextCursor: pos + 2 };
 		}
-		const closePos = findClosingBracket(input, pos + 2);
+		const closePos = findClosing(input, pos + 2, "[", "]");
 		if (closePos === -1) {
 			const raw = input.slice(pos);
 			return { token: createToken("unknown", raw, raw, pos), nextCursor: input.length };
@@ -96,7 +96,7 @@ function tryParseTag(
 		// \_a[ID] or \_a (anchor end)
 		if (third === "a") {
 			if (input[pos + 3] === "[") {
-				const closePos = findClosingBracket(input, pos + 3);
+				const closePos = findClosing(input, pos + 3, "[", "]");
 				if (closePos === -1) {
 					const raw = input.slice(pos);
 					return { token: createToken("unknown", raw, raw, pos), nextCursor: input.length };
@@ -115,7 +115,7 @@ function tryParseTag(
 				const raw = input.slice(pos, pos + 3);
 				return { token: createToken("unknown", raw, raw, pos), nextCursor: pos + 3 };
 			}
-			const closePos = findClosingBracket(input, pos + 3);
+			const closePos = findClosing(input, pos + 3, "[", "]");
 			if (closePos === -1) {
 				const raw = input.slice(pos);
 				return { token: createToken("unknown", raw, raw, pos), nextCursor: input.length };
@@ -184,6 +184,18 @@ export function tokenize(input: string): SakuraScriptToken[] {
 			if (result) {
 				tokens.push(result.token);
 				cursor = result.nextCursor;
+			}
+		} else if (input[cursor] === "%" && input[cursor + 1] === "(") {
+			flushText(cursor);
+			const closePos = findClosing(input, cursor + 1, "(", ")");
+			if (closePos === -1) {
+				tokens.push(createToken("unknown", input.slice(cursor), input.slice(cursor), cursor));
+				cursor = input.length;
+			} else {
+				const raw = input.slice(cursor, closePos + 1);
+				const value = input.slice(cursor + 2, closePos);
+				tokens.push(createToken("variable", raw, value, cursor));
+				cursor = closePos + 1;
 			}
 		} else {
 			if (textStart === -1) {

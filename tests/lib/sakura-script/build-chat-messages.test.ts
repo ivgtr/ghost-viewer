@@ -102,6 +102,22 @@ describe("buildChatMessages", () => {
 		]);
 	});
 
+	it("variable トークンが variable セグメントに変換される", () => {
+		const tokens = [token("text", "今日は", "今日は"), token("variable", "%(weather)", "weather")];
+		const result = buildChatMessages(tokens);
+		expect(result[0].segments).toEqual([
+			{ type: "text", value: "今日は" },
+			{ type: "variable", value: "weather" },
+		]);
+	});
+
+	it("variable のみのメッセージが空メッセージとして除外されない", () => {
+		const tokens = [token("variable", "%(greeting)", "greeting")];
+		const result = buildChatMessages(tokens);
+		expect(result).toHaveLength(1);
+		expect(result[0].segments).toEqual([{ type: "variable", value: "greeting" }]);
+	});
+
 	it("典型パターン \\0\\s[0]こんにちは\\1\\s[10]やあ の統合テスト", () => {
 		const tokens = [
 			token("charSwitch", "\\0", "0"),

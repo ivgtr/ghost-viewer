@@ -1,4 +1,5 @@
 import type { CatalogEntry, DicFunction } from "@/types";
+import { categorizeEvent } from "./categorize-event";
 
 const PREVIEW_MAX_LENGTH = 50;
 
@@ -19,6 +20,7 @@ export function buildCatalogEntries(functions: DicFunction[]): CatalogEntry[] {
 			name: fn.name,
 			dialogueCount: fn.dialogues.length,
 			preview: buildPreview(fn),
+			category: categorizeEvent(fn.name),
 		});
 	}
 
@@ -33,6 +35,7 @@ function buildPreview(fn: DicFunction): string {
 	const texts: string[] = [];
 	for (const token of first.tokens) {
 		if (token.tokenType === "text") texts.push(token.value);
+		else if (token.tokenType === "variable") texts.push(token.raw);
 	}
 	const joined = texts.join("");
 	return joined.length > PREVIEW_MAX_LENGTH ? `${joined.slice(0, PREVIEW_MAX_LENGTH)}...` : joined;

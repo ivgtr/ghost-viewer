@@ -6,6 +6,7 @@ export type SakuraScriptTokenType =
 	| "raise"
 	| "wait"
 	| "marker"
+	| "variable"
 	| "unknown";
 
 export interface SakuraScriptToken {

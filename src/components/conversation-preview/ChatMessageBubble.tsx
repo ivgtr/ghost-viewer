@@ -64,6 +64,15 @@ export function ChatMessageBubble({
 								</span>
 							);
 						}
+						case "variable":
+							return (
+								<span
+									key={key}
+									className="mx-0.5 inline-block rounded bg-purple-800/60 px-1.5 py-0.5 font-mono text-xs text-purple-200"
+								>
+									%({segment.value})
+								</span>
+							);
 						case "wait":
 							return null;
 					}
