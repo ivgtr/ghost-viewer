@@ -1,62 +1,54 @@
+import { lex } from "@/lib/parsers/satori-lexer";
 import { buildDicFunction } from "@/lib/parsers/shared";
 import type { Block } from "@/lib/parsers/shared";
 import { tokenize } from "@/lib/sakura-script/tokenize";
 import type { DicFunction } from "@/types";
 
-function isComment(line: string): boolean {
-	return line.startsWith("//") || line.startsWith("＃");
-}
-
 export function parseSatoriDic(text: string, filePath: string): DicFunction[] {
-	const lines = text.split(/\r?\n/);
+	const tokens = lex(text);
 	const results: DicFunction[] = [];
 	let current: Block | null = null;
 
-	for (let i = 0; i < lines.length; i++) {
-		const line = lines[i] as string;
-
-		if (line === "" || isComment(line)) {
-			continue;
-		}
-
-		if (line.startsWith("＊")) {
-			if (current) {
-				results.push(buildDicFunction(current, filePath));
+	for (const token of tokens) {
+		switch (token.type) {
+			case "event": {
+				if (current) {
+					results.push(buildDicFunction(current, filePath));
+				}
+				current = {
+					name: token.value,
+					startLine: token.line,
+					endLine: token.line,
+					dialogues: [],
+				};
+				break;
 			}
-			current = {
-				name: line.slice(1).trim(),
-				startLine: i,
-				endLine: i,
-				dialogues: [],
-			};
-			continue;
-		}
-
-		if (line.startsWith("＠") || line.startsWith("＄")) {
-			if (current) {
-				results.push(buildDicFunction(current, filePath));
-				current = null;
+			case "section": {
+				if (current) {
+					results.push(buildDicFunction(current, filePath));
+					current = null;
+				}
+				break;
 			}
-			continue;
-		}
-
-		if (line.startsWith("：")) {
-			if (current) {
-				const rawText = line.slice(1);
-				const tokens = tokenize(rawText);
-				current.dialogues.push({
-					tokens,
-					startLine: i,
-					endLine: i,
-					rawText,
-				});
-				current.endLine = i;
+			case "dialogue": {
+				if (current) {
+					const rawText = token.value;
+					current.dialogues.push({
+						tokens: tokenize(rawText),
+						startLine: token.line,
+						endLine: token.line,
+						rawText,
+					});
+					current.endLine = token.line;
+				}
+				break;
 			}
-			continue;
-		}
-
-		if (current) {
-			current.endLine = i;
+			case "text": {
+				if (current) {
+					current.endLine = token.line;
+				}
+				break;
+			}
 		}
 	}
 

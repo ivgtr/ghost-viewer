@@ -153,6 +153,31 @@ describe("parseSatoriDic", () => {
 		expect(result[0].dialogues).toHaveLength(1);
 	});
 
+	it("/* ... */ ブロックコメントをスキップする", () => {
+		const text = "＊OnBoot\n/* comment */\n：\\0hello\\e";
+		const result = parseSatoriDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].dialogues).toHaveLength(1);
+	});
+
+	it("複数行ブロックコメントをスキップする", () => {
+		const text = "＊OnBoot\n/* multi\nline\ncomment */\n：\\0hello\\e";
+		const result = parseSatoriDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].startLine).toBe(4);
+	});
+
+	it("行内ブロックコメントを除去する", () => {
+		const text = "＊On/* x */Boot\n：\\0hello\\e";
+		const result = parseSatoriDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].name).toBe("OnBoot");
+	});
+
 	it("連続する＊行を正しく処理する", () => {
 		const text = "＊First\n＊Second\n：\\0hello\\e";
 		const result = parseSatoriDic(text, "test.dic");

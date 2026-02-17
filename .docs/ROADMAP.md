@@ -96,9 +96,11 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **会話カタログのカテゴリ分類** [S] — イベントを「ランダムトーク」「起動・終了」等のカテゴリでグルーピング表示
   - 依存: 会話カタログ UI
 
-### Phase 5: Extension — 0/5
+### Phase 5: Extension — 1/6
 目標: 対応 SHIORI の拡張と、分析・比較・可視化機能の強化
 
+- [x] **Satori Lexer/Parser 分離** [S] — YAYA と同様の Lexer/Parser 2層構造にリファクタリング、ブロックコメント対応
+  - 依存: Satori 辞書パーサー
 - [ ] **Kawari 辞書パーサー** [M] — エントリーベースの key/value 解析、バージョン差異への対応
   - 依存: SakuraScript トークナイザー, Web Worker 解析基盤
 - [ ] **CodeMirror 6 統合** [M] — 右ペイン補助機能としてのコードビュー、行番号表示、基本的なテキスト検索
