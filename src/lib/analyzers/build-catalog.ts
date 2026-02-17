@@ -22,8 +22,9 @@ export function buildCatalogEntries(functions: DicFunction[]): CatalogEntry[] {
 		});
 	}
 
-	entries.sort((a, b) => a.name.localeCompare(b.name));
-	return entries;
+	return entries
+		.filter((e) => e.dialogueCount > 0)
+		.sort((a, b) => b.dialogueCount - a.dialogueCount || a.name.localeCompare(b.name));
 }
 
 function buildPreview(fn: DicFunction): string {

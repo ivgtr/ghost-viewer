@@ -56,18 +56,20 @@ describe("buildCatalogEntries", () => {
 		expect(entries[0].dialogueCount).toBe(1);
 	});
 
-	it("ダイアログなしの関数はカウント0でプレビュー空文字", () => {
+	it("ダイアログなしの関数は結果から除外される", () => {
 		const entries = buildCatalogEntries([makeFn("OnBoot")]);
-		expect(entries[0].dialogueCount).toBe(0);
-		expect(entries[0].preview).toBe("");
+		expect(entries).toEqual([]);
 	});
 
-	it("名前順でソートする", () => {
-		const entries = buildCatalogEntries([
-			makeFn("Zebra", [token("text", "z")]),
-			makeFn("Alpha", [token("text", "a")]),
-			makeFn("Middle", [token("text", "m")]),
-		]);
-		expect(entries.map((e) => e.name)).toEqual(["Alpha", "Middle", "Zebra"]);
+	it("会話数降順でソートする（同数なら名前順）", () => {
+		const fn1 = makeFn("Alpha", [token("text", "a")]);
+		const fn2 = makeFn("Zebra", [token("text", "z1")]);
+		fn2.dialogues.push({ tokens: [token("text", "z2")], startLine: 2, endLine: 3, rawText: "" });
+		fn2.dialogues.push({ tokens: [token("text", "z3")], startLine: 4, endLine: 5, rawText: "" });
+		const fn3 = makeFn("Middle", [token("text", "m1")]);
+		fn3.dialogues.push({ tokens: [token("text", "m2")], startLine: 2, endLine: 3, rawText: "" });
+		const entries = buildCatalogEntries([fn1, fn2, fn3]);
+		expect(entries.map((e) => e.name)).toEqual(["Zebra", "Middle", "Alpha"]);
+		expect(entries.map((e) => e.dialogueCount)).toEqual([3, 2, 1]);
 	});
 });
