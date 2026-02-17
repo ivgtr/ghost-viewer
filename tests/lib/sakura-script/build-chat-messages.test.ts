@@ -81,6 +81,20 @@ describe("buildChatMessages", () => {
 		]);
 	});
 
+	it("marker(\\n[50]) が lineBreak セグメントに変換される", () => {
+		const tokens = [
+			token("text", "一行目", "一行目"),
+			token("marker", "\\n[50]", "50"),
+			token("text", "二行目", "二行目"),
+		];
+		const result = buildChatMessages(tokens);
+		expect(result[0].segments).toEqual([
+			{ type: "text", value: "一行目" },
+			{ type: "lineBreak", value: "" },
+			{ type: "text", value: "二行目" },
+		]);
+	});
+
 	it("unknown / raise / marker(\\e) がスキップされる", () => {
 		const tokens = [
 			token("text", "テスト", "テスト"),
@@ -116,6 +130,43 @@ describe("buildChatMessages", () => {
 		const result = buildChatMessages(tokens);
 		expect(result).toHaveLength(1);
 		expect(result[0].segments).toEqual([{ type: "variable", value: "greeting" }]);
+	});
+
+	it("\\c がメッセージを分割し characterId を保持する", () => {
+		const tokens = [
+			token("charSwitch", "\\0", "0"),
+			token("text", "一行目", "一行目"),
+			token("marker", "\\c", ""),
+			token("text", "二行目", "二行目"),
+		];
+		const result = buildChatMessages(tokens);
+		expect(result).toHaveLength(2);
+		expect(result[0].characterId).toBe(0);
+		expect(result[0].segments).toEqual([{ type: "text", value: "一行目" }]);
+		expect(result[1].characterId).toBe(0);
+		expect(result[1].segments).toEqual([{ type: "text", value: "二行目" }]);
+	});
+
+	it("\\t がスキップされる", () => {
+		const tokens = [token("text", "テスト", "テスト"), token("marker", "\\t", "")];
+		const result = buildChatMessages(tokens);
+		expect(result).toHaveLength(1);
+		expect(result[0].segments).toEqual([{ type: "text", value: "テスト" }]);
+	});
+
+	it("\\c[char,5] がメッセージを分割する", () => {
+		const tokens = [
+			token("charSwitch", "\\0", "0"),
+			token("text", "一行目", "一行目"),
+			token("marker", "\\c[char,5]", "char,5"),
+			token("text", "二行目", "二行目"),
+		];
+		const result = buildChatMessages(tokens);
+		expect(result).toHaveLength(2);
+		expect(result[0].characterId).toBe(0);
+		expect(result[0].segments).toEqual([{ type: "text", value: "一行目" }]);
+		expect(result[1].characterId).toBe(0);
+		expect(result[1].segments).toEqual([{ type: "text", value: "二行目" }]);
 	});
 
 	it("典型パターン \\0\\s[0]こんにちは\\1\\s[10]やあ の統合テスト", () => {

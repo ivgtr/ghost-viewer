@@ -43,11 +43,13 @@ export function buildChatMessages(tokens: SakuraScriptToken[]): ChatMessage[] {
 				segments.push({ type: "wait", value: token.value });
 				break;
 			case "marker":
-				if (token.raw === "\\n") {
+				if (token.raw.startsWith("\\n")) {
 					segments.push({ type: "lineBreak", value: "" });
+				} else if (token.raw.startsWith("\\c")) {
+					flush();
 				}
 				break;
-			// raise, unknown, marker(\e) → skip
+			// raise, unknown, marker(\e, \t) → skip
 		}
 	}
 
