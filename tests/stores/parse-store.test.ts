@@ -55,7 +55,7 @@ describe("parseStore", () => {
 		const result: ParseResult = {
 			shioriType: "satori",
 			functions: [],
-			meta: { name: "test", author: "", sakuraName: "", keroName: "", properties: {} },
+			meta: { name: "test", author: "", characterNames: {}, properties: {} },
 		};
 		useParseStore.getState().succeedParse(result);
 		useParseStore.getState().reset();

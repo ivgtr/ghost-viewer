@@ -28,11 +28,17 @@ export function parseDescript(text: string): Record<string, string> {
 }
 
 export function buildGhostMeta(properties: Record<string, string>): GhostMeta {
+	const characterNames: Record<number, string> = {};
+	if (properties["sakura.name"]) characterNames[0] = properties["sakura.name"];
+	if (properties["kero.name"]) characterNames[1] = properties["kero.name"];
+	for (const [key, value] of Object.entries(properties)) {
+		const match = key.match(/^char(\d+)\.name$/);
+		if (match && value) characterNames[Number(match[1])] = value;
+	}
 	return {
 		name: properties.name ?? "",
 		author: properties.craftmanw ?? properties.craftman ?? "",
-		sakuraName: properties["sakura.name"] ?? "",
-		keroName: properties["kero.name"] ?? "",
+		characterNames,
 		properties,
 	};
 }

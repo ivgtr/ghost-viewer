@@ -34,8 +34,7 @@ export function ConversationPreview() {
 		return buildChatMessages(dialogue.tokens);
 	}, [dialogues, clampedIndex]);
 
-	const sakuraName = meta?.sakuraName ?? "\\0";
-	const keroName = meta?.keroName ?? "\\1";
+	const characterNames = meta?.characterNames ?? {};
 
 	const handleChoiceClick = useCallback(
 		(targetFn: string) => {
@@ -114,7 +113,7 @@ export function ConversationPreview() {
 						// biome-ignore lint/suspicious/noArrayIndexKey: メッセージ列は静的で並び替えが発生しない
 						key={i}
 						message={msg}
-						characterName={msg.characterId === 0 ? sakuraName : keroName}
+						characterName={characterNames[msg.characterId] ?? `\\p[${msg.characterId}]`}
 						onChoiceClick={handleChoiceClick}
 					/>
 				))}

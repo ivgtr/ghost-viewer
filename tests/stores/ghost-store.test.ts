@@ -82,8 +82,7 @@ describe("ghostStore", () => {
 		useGhostStore.getState().setMeta({
 			name: "old",
 			author: "",
-			sakuraName: "",
-			keroName: "",
+			characterNames: {},
 			properties: {},
 		});
 		useGhostStore.getState().setShioriType("yaya");
@@ -102,8 +101,7 @@ describe("ghostStore", () => {
 		const meta = {
 			name: "TestGhost",
 			author: "Author",
-			sakuraName: "Sakura",
-			keroName: "Kero",
+			characterNames: { 0: "Sakura", 1: "Kero" },
 			properties: {},
 		};
 		useGhostStore.getState().setMeta(meta);
@@ -130,8 +128,7 @@ describe("ghostStore", () => {
 		useGhostStore.getState().setMeta({
 			name: "Ghost",
 			author: "",
-			sakuraName: "",
-			keroName: "",
+			characterNames: {},
 			properties: {},
 		});
 		useGhostStore.getState().setShioriType("yaya");
@@ -213,8 +210,8 @@ describe("ghostStore", () => {
 		expect(ghostState.meta).not.toBeNull();
 		expect(ghostState.meta?.name).toBe("テストゴースト");
 		expect(ghostState.meta?.author).toBe("テスト作者");
-		expect(ghostState.meta?.sakuraName).toBe("さくら");
-		expect(ghostState.meta?.keroName).toBe("うにゅう");
+		expect(ghostState.meta?.characterNames[0]).toBe("さくら");
+		expect(ghostState.meta?.characterNames[1]).toBe("うにゅう");
 		expect(ghostState.shioriType).toBe("yaya");
 	});
 

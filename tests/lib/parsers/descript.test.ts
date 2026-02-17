@@ -58,8 +58,8 @@ describe("buildGhostMeta", () => {
 		const meta = buildGhostMeta(props);
 		expect(meta.name).toBe("テストゴースト");
 		expect(meta.author).toBe("作者");
-		expect(meta.sakuraName).toBe("さくら");
-		expect(meta.keroName).toBe("うにゅう");
+		expect(meta.characterNames[0]).toBe("さくら");
+		expect(meta.characterNames[1]).toBe("うにゅう");
 	});
 
 	it("craftmanw を craftman より優先する", () => {
@@ -76,8 +76,17 @@ describe("buildGhostMeta", () => {
 		const meta = buildGhostMeta({});
 		expect(meta.name).toBe("");
 		expect(meta.author).toBe("");
-		expect(meta.sakuraName).toBe("");
-		expect(meta.keroName).toBe("");
+		expect(meta.characterNames).toEqual({});
+	});
+
+	it("charN.name からキャラクター名を取得する", () => {
+		const props = {
+			"sakura.name": "さくら",
+			"char2.name": "まゆら",
+		};
+		const meta = buildGhostMeta(props);
+		expect(meta.characterNames[0]).toBe("さくら");
+		expect(meta.characterNames[2]).toBe("まゆら");
 	});
 
 	it("properties に全キーを含む", () => {
@@ -94,7 +103,7 @@ describe("parseDescriptFromBuffer", () => {
 		const meta = parseDescriptFromBuffer(buffer);
 		expect(meta.name).toBe("テストゴースト");
 		expect(meta.author).toBe("作者");
-		expect(meta.sakuraName).toBe("さくら");
+		expect(meta.characterNames[0]).toBe("さくら");
 	});
 
 	it("Shift_JIS の ArrayBuffer から GhostMeta を構築する", () => {

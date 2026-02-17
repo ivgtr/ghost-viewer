@@ -5,8 +5,7 @@ export type ShioriType = "yaya" | "satori" | "kawari" | "unknown";
 export interface GhostMeta {
 	name: string;
 	author: string;
-	sakuraName: string;
-	keroName: string;
+	characterNames: Record<number, string>;
 	properties: Record<string, string>;
 }
 
