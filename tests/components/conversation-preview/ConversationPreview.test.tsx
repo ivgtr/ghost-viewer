@@ -191,4 +191,52 @@ describe("ConversationPreview", () => {
 		expect(useFileTreeStore.getState().selectedNodeId).toBe("ghost/master/dic01_Base.txt");
 		expect(useFileContentStore.getState().highlightRange).toEqual({ startLine: 1, endLine: 3 });
 	});
+
+	it("複数バリアント時に統一UIを表示し、切り替えで会話内容が変わる", () => {
+		const parseResult: ParseResult = {
+			shioriType: "satori",
+			functions: [
+				{
+					name: "OnBoot",
+					condition: null,
+					filePath: "ghost/master/dic01_Base.txt",
+					startLine: 1,
+					endLine: 6,
+					dialogues: [
+						{
+							tokens: [makeToken("charSwitch", "\\0", "0"), makeToken("text", "first", "first")],
+							startLine: 2,
+							endLine: 2,
+							rawText: "first",
+						},
+						{
+							tokens: [makeToken("charSwitch", "\\0", "0"), makeToken("text", "second", "second")],
+							startLine: 4,
+							endLine: 4,
+							rawText: "second",
+						},
+					],
+				},
+			],
+			meta: null,
+			diagnostics: [],
+		};
+
+		useParseStore.getState().succeedParse(parseResult);
+		useCatalogStore.getState().selectFunction("OnBoot");
+
+		render(<ConversationPreview />);
+
+		expect(screen.getByLabelText("前のバリアント")).toBeInTheDocument();
+		expect(screen.getByLabelText("バリアントを選択")).toBeInTheDocument();
+		expect(screen.getByLabelText("次のバリアント")).toBeInTheDocument();
+		expect(screen.getByText("1 / 2")).toBeInTheDocument();
+		expect(screen.getByText("first")).toBeInTheDocument();
+
+		fireEvent.click(screen.getByLabelText("次のバリアント"));
+
+		expect(screen.getByText("2 / 2")).toBeInTheDocument();
+		expect(screen.getByText("second")).toBeInTheDocument();
+		expect(useViewStore.getState().variantIndexByFunction.get("OnBoot")).toBe(1);
+	});
 });

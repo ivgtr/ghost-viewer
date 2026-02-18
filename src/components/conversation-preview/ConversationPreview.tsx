@@ -105,7 +105,7 @@ export function ConversationPreview() {
 	return (
 		<div className="flex h-full flex-col overflow-hidden">
 			<div className="flex items-center justify-between border-b border-zinc-700 px-4 py-2">
-				<div className="flex items-center gap-2 min-w-0">
+				<div className="flex min-w-0 items-center gap-2">
 					<div className="flex min-w-0 flex-col">
 						<span className="text-sm font-medium text-zinc-200 truncate">
 							{toEventDisplayName(selectedEventName)}
@@ -135,11 +135,13 @@ export function ConversationPreview() {
 						</svg>
 					</button>
 				</div>
-				<VariantSelector
-					count={dialogues.length}
-					selected={clampedIndex}
-					onChange={handleVariantChange}
-				/>
+				<div className="shrink-0 pl-2">
+					<VariantSelector
+						count={dialogues.length}
+						selected={clampedIndex}
+						onChange={handleVariantChange}
+					/>
+				</div>
 			</div>
 			<div className="flex-1 space-y-3 overflow-auto p-4">
 				{messages.map((msg, i) => (
