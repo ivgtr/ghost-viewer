@@ -17,36 +17,41 @@ describe("GhostViewerPanel", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("さくら/けろの2面を表示する", () => {
+	it("単一ステージで2キャラを重ね表示し、旧2カードUIを表示しない", () => {
 		initializePanelState();
 
 		render(<GhostViewerPanel />);
 
-		expect(screen.getByText("さくら / scope 0")).toBeInTheDocument();
-		expect(screen.getByText("けろ / scope 1")).toBeInTheDocument();
-		expect(URL.createObjectURL).toHaveBeenCalledTimes(2);
-
-		const images = screen.getAllByRole("img");
-		expect(images).toHaveLength(2);
-		expect(images[0]).toHaveAttribute("src", "blob:mock-url");
-		expect(images[1]).toHaveAttribute("src", "blob:mock-url");
+		expect(screen.getByTestId("surface-stage")).toBeInTheDocument();
+		expect(screen.queryByText("さくら / scope 0")).not.toBeInTheDocument();
+		expect(screen.queryByText("けろ / scope 1")).not.toBeInTheDocument();
+		expect(screen.getAllByRole("img")).toHaveLength(2);
+		expect(screen.getByText("surface0.png")).toBeInTheDocument();
 	});
 
-	it("クリックでフォーカスを切り替える", () => {
+	it("画像クリックで focusedScope を切り替え、ファイル名ラベルを更新する", () => {
 		initializePanelState();
 		render(<GhostViewerPanel />);
 
-		fireEvent.click(screen.getByRole("button", { name: /けろ \/ scope 1/i }));
+		fireEvent.click(screen.getByTestId("surface-node-1"));
 		expect(useSurfaceStore.getState().focusedScope).toBe(1);
+		expect(screen.getByText("surface10.png")).toBeInTheDocument();
 	});
 
-	it("通知を描画する", () => {
+	it("ベルボタンで通知オーバーレイを開閉する", () => {
 		initializePanelState({
 			diagnostics: [
 				{
 					level: "warning",
-					code: "SURFACE_TEST",
-					message: "warning message",
+					code: "SURFACE_WARN",
+					message: "warn message",
+					shellName: "master",
+					path: "shell/master/surfaces.txt",
+				},
+				{
+					level: "error",
+					code: "SURFACE_ERROR",
+					message: "error message",
 					shellName: "master",
 					path: "shell/master/surfaces.txt",
 				},
@@ -54,8 +59,15 @@ describe("GhostViewerPanel", () => {
 		});
 
 		render(<GhostViewerPanel />);
-		expect(screen.getByText("SURFACE_TEST")).toBeInTheDocument();
-		expect(screen.getByText("warning message")).toBeInTheDocument();
+
+		const bellButton = screen.getByRole("button", { name: "通知 (2)" });
+		fireEvent.click(bellButton);
+		expect(screen.getByTestId("surface-notification-overlay")).toBeInTheDocument();
+		expect(screen.getByText("SURFACE_WARN")).toBeInTheDocument();
+		expect(screen.getByText("SURFACE_ERROR")).toBeInTheDocument();
+
+		fireEvent.pointerDown(document.body);
+		expect(screen.queryByTestId("surface-notification-overlay")).not.toBeInTheDocument();
 	});
 });
 
@@ -71,8 +83,8 @@ function initializePanelState(
 	} = {},
 ) {
 	const fileContents = new Map<string, ArrayBuffer>([
-		["shell/master/surface0.png", new Uint8Array([1, 2, 3]).buffer],
-		["shell/master/surface10.png", new Uint8Array([4, 5, 6]).buffer],
+		["shell/master/surface0.png", createPngHeaderBuffer(220, 300)],
+		["shell/master/surface10.png", createPngHeaderBuffer(180, 240)],
 	]);
 	useFileContentStore.getState().setFileContents(fileContents);
 	useSurfaceStore.getState().initialize({
@@ -107,6 +119,22 @@ function initializePanelState(
 		]),
 		aliasMapByShell: new Map(),
 		diagnostics: overrides.diagnostics ?? [],
-		descriptProperties: {},
+		descriptProperties: {
+			"sakura.defaultx": "0",
+			"sakura.defaulty": "0",
+			"kero.defaultx": "200",
+			"kero.defaulty": "0",
+		},
 	});
+}
+
+function createPngHeaderBuffer(width: number, height: number): ArrayBuffer {
+	const bytes = new Uint8Array(24);
+	bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
+	bytes.set([0x00, 0x00, 0x00, 0x0d], 8);
+	bytes.set([0x49, 0x48, 0x44, 0x52], 12);
+	const view = new DataView(bytes.buffer);
+	view.setUint32(16, width);
+	view.setUint32(20, height);
+	return bytes.buffer;
 }

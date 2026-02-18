@@ -86,3 +86,42 @@ export interface SurfaceInitializeInput {
 	descriptProperties: Record<string, string>;
 	rng?: () => number;
 }
+
+export interface SurfacePositionSource {
+	scopeId: number;
+	x: number;
+	y: number;
+	xKey: string | null;
+	yKey: string | null;
+	isFallback: boolean;
+}
+
+export interface SurfaceCharacterPlacement {
+	scopeId: number;
+	surfaceId: number | null;
+	fileName: string | null;
+	worldX: number;
+	worldY: number;
+	width: number;
+	height: number;
+	screenX: number;
+	screenY: number;
+	screenWidth: number;
+	screenHeight: number;
+	positionSource: SurfacePositionSource;
+}
+
+export interface SurfaceSetLayout {
+	viewportWidth: number;
+	viewportHeight: number;
+	scale: number;
+	offsetX: number;
+	offsetY: number;
+	worldMinX: number;
+	worldMinY: number;
+	worldMaxX: number;
+	worldMaxY: number;
+	worldWidth: number;
+	worldHeight: number;
+	placements: SurfaceCharacterPlacement[];
+}

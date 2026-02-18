@@ -17,6 +17,7 @@ export type {
 	ShellSurfaceCatalog,
 	SurfaceAliasMap,
 	SurfaceAliasMapByShell,
+	SurfaceCharacterPlacement,
 	SurfaceDefinition,
 	SurfaceDefinitionFile,
 	SurfaceDefinitionFilesByShell,
@@ -28,7 +29,9 @@ export type {
 	SurfaceInitializeInput,
 	SurfaceNotification,
 	SurfaceParseResult,
+	SurfacePositionSource,
 	SurfaceResolverContext,
+	SurfaceSetLayout,
 	SurfaceDefinitionsByShell,
 } from "./surface";
 export type {
