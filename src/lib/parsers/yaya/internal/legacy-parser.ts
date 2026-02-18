@@ -16,6 +16,7 @@ import type {
 	IfStatement,
 	NullLiteral,
 	NumberLiteral,
+	ParallelStatement,
 	Parameter,
 	ReturnStatement,
 	Separator,
@@ -25,6 +26,7 @@ import type {
 	TupleExpression,
 	TypeAnnotation,
 	VariableDecl,
+	VoidStatement,
 	WhileStatement,
 	YayaProgram,
 } from "../ast";
@@ -33,6 +35,7 @@ import type { Token } from "../lexer";
 import { lex } from "../lexer";
 
 const BINARY_PRECEDENCE: Record<string, number> = {
+	",": 0,
 	"||": 1,
 	"&&": 2,
 	"==": 3,
@@ -257,9 +260,12 @@ class Parser {
 				this.check("rbrace") ||
 				this.isAtEnd() ||
 				this.isKeyword("elseif") ||
+				this.isIdentifier("elseif") ||
 				this.isKeyword("else") ||
+				this.isIdentifier("else") ||
 				this.isKeyword("when") ||
-				this.isKeyword("others")
+				this.isKeyword("others") ||
+				this.isIdentifier("others")
 			) {
 				return this.createEmptyBlock();
 			}
@@ -344,6 +350,14 @@ class Parser {
 
 		if (allowFunctionDef && this.isFunctionDefStart()) {
 			return this.parseFunctionDef();
+		}
+
+		if (this.isContextKeyword("parallel")) {
+			return this.parseParallelStatement();
+		}
+
+		if (this.isContextKeyword("void")) {
+			return this.parseVoidStatement();
 		}
 
 		if (token.type === "lbrace") {
@@ -497,9 +511,9 @@ class Parser {
 
 		let alternate: BlockStatement | IfStatement | null = null;
 		this.skipNewlines();
-		if (this.match("keyword", "elseif")) {
+		if (this.matchElseIfAlias()) {
 			alternate = this.parseElseIf();
-		} else if (this.match("keyword", "else")) {
+		} else if (this.matchElseAlias()) {
 			alternate = this.parseControlBody();
 		}
 
@@ -519,9 +533,9 @@ class Parser {
 
 		let alternate: BlockStatement | IfStatement | null = null;
 		this.skipNewlines();
-		if (this.match("keyword", "elseif")) {
+		if (this.matchElseIfAlias()) {
 			alternate = this.parseElseIf();
-		} else if (this.match("keyword", "else")) {
+		} else if (this.matchElseAlias()) {
 			alternate = this.parseControlBody();
 		}
 
@@ -536,15 +550,15 @@ class Parser {
 
 	private parseStandaloneElseIf(): IfStatement {
 		const start = this.currentLoc();
-		this.expect("keyword", "elseif");
+		this.expectElseIfAlias();
 		const test = this.parseConditionExpression();
 		const consequent = this.parseControlBody();
 
 		let alternate: BlockStatement | IfStatement | null = null;
 		this.skipNewlines();
-		if (this.match("keyword", "elseif")) {
+		if (this.matchElseIfAlias()) {
 			alternate = this.parseElseIf();
-		} else if (this.match("keyword", "else")) {
+		} else if (this.matchElseAlias()) {
 			alternate = this.parseControlBody();
 		}
 
@@ -762,6 +776,30 @@ class Parser {
 			type: "CaseClause",
 			test,
 			consequent: [],
+			loc: mergeLoc(start, this.prevLoc()),
+		};
+	}
+
+	private parseParallelStatement(): ParallelStatement {
+		const start = this.currentLoc();
+		this.expectContextKeyword("parallel");
+		const expression = this.parseExpression(() => this.isExpressionStatementBoundary());
+		this.match("semicolon");
+		return {
+			type: "ParallelStatement",
+			expression,
+			loc: mergeLoc(start, this.prevLoc()),
+		};
+	}
+
+	private parseVoidStatement(): VoidStatement {
+		const start = this.currentLoc();
+		this.expectContextKeyword("void");
+		const expression = this.parseExpression(() => this.isExpressionStatementBoundary());
+		this.match("semicolon");
+		return {
+			type: "VoidStatement",
+			expression,
 			loc: mergeLoc(start, this.prevLoc()),
 		};
 	}
@@ -1017,9 +1055,9 @@ class Parser {
 	private parseBinary(minPrec: number, boundary: () => boolean): Expression {
 		let left = this.parseUnary(boundary);
 
-		while (!boundary() && (this.check("operator") || this.check("colon"))) {
+		while (!boundary() && (this.check("operator") || this.check("colon") || this.check("comma"))) {
 			const token = this.current();
-			const op = token.type === "colon" ? ":" : token.value;
+			const op = token.type === "colon" ? ":" : token.type === "comma" ? "," : token.value;
 			const prec = BINARY_PRECEDENCE[op];
 			if (prec === undefined || prec < minPrec) {
 				break;
@@ -1037,6 +1075,47 @@ class Parser {
 		}
 
 		return left;
+	}
+
+	private isContextKeyword(value: string): boolean {
+		return this.check("keyword", value) || this.check("identifier", value);
+	}
+
+	private expectContextKeyword(value: string): Token {
+		if (this.match("keyword", value) || this.match("identifier", value)) {
+			const prev = this.prev();
+			if (prev) {
+				return prev;
+			}
+		}
+		throw new Error(
+			`Expected context keyword "${value}" but got ${this.current().type} "${this.current().value}" at line ${this.current().line}`,
+		);
+	}
+
+	private matchElseIfAlias(): boolean {
+		return this.match("keyword", "elseif") || this.match("identifier", "elseif");
+	}
+
+	private expectElseIfAlias(): Token {
+		if (this.matchElseIfAlias()) {
+			const prev = this.prev();
+			if (prev) {
+				return prev;
+			}
+		}
+		throw new Error(
+			`Expected elseif but got ${this.current().type} "${this.current().value}" at line ${this.current().line}`,
+		);
+	}
+
+	private matchElseAlias(): boolean {
+		return (
+			this.match("keyword", "else") ||
+			this.match("identifier", "else") ||
+			this.match("keyword", "others") ||
+			this.match("identifier", "others")
+		);
 	}
 
 	private parseUnary(boundary: () => boolean): Expression {

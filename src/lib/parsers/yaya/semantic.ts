@@ -14,10 +14,12 @@ import type {
 	IfStatement,
 	IndexExpression,
 	MemberExpression,
+	ParallelStatement,
 	Parameter,
 	ReturnStatement,
 	SwitchStatement,
 	VariableDecl,
+	VoidStatement,
 	WhileStatement,
 	YayaProgram,
 } from "./ast";
@@ -137,6 +139,14 @@ class SemanticAnalyzer {
 				}
 				break;
 			}
+
+			case "ParallelStatement":
+				this.analyzeExpression((node as ParallelStatement).expression);
+				break;
+
+			case "VoidStatement":
+				this.analyzeExpression((node as VoidStatement).expression);
+				break;
 
 			case "IfStatement": {
 				const ifStmt = node as IfStatement;

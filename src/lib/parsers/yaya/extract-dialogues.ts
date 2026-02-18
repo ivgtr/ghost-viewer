@@ -15,11 +15,13 @@ import type {
 	IfStatement,
 	IndexExpression,
 	MemberExpression,
+	ParallelStatement,
 	ReturnStatement,
 	Separator,
 	StringLiteral,
 	SwitchStatement,
 	VariableDecl,
+	VoidStatement,
 	WhileStatement,
 } from "./ast";
 import {
@@ -205,6 +207,18 @@ function extractStringsFromFunction(fn: FunctionDecl): ExtractedString[] {
 				if (ret.value) {
 					extractFromExpression(ret.value, context);
 				}
+				break;
+			}
+
+			case "ParallelStatement": {
+				const parallelStmt = stmt as ParallelStatement;
+				extractFromExpression(parallelStmt.expression, context);
+				break;
+			}
+
+			case "VoidStatement": {
+				const voidStmt = stmt as VoidStatement;
+				extractFromExpression(voidStmt.expression, context);
 				break;
 			}
 

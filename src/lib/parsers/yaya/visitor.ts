@@ -20,6 +20,7 @@ import type {
 	MemberExpression,
 	NullLiteral,
 	NumberLiteral,
+	ParallelStatement,
 	Parameter,
 	ReturnStatement,
 	Separator,
@@ -28,6 +29,7 @@ import type {
 	TupleExpression,
 	TypeAnnotation,
 	VariableDecl,
+	VoidStatement,
 	WhileStatement,
 	YayaProgram,
 } from "./ast";
@@ -58,6 +60,8 @@ interface Visitor {
 	visitReturnStatement?(node: ReturnStatement): void;
 	visitBreakStatement?(node: BreakStatement): void;
 	visitContinueStatement?(node: ContinueStatement): void;
+	visitParallelStatement?(node: ParallelStatement): void;
+	visitVoidStatement?(node: VoidStatement): void;
 	visitSeparator?(node: Separator): void;
 	visitCallExpression?(node: CallExpression): void;
 	visitMemberExpression?(node: MemberExpression): void;
@@ -229,6 +233,20 @@ function traverse(node: BaseNode, visitor: Visitor): void {
 		case "ContinueStatement":
 			visitor.visitContinueStatement?.(node as ContinueStatement);
 			break;
+
+		case "ParallelStatement": {
+			const parallelStmt = node as ParallelStatement;
+			visitor.visitParallelStatement?.(parallelStmt);
+			traverse(parallelStmt.expression, visitor);
+			break;
+		}
+
+		case "VoidStatement": {
+			const voidStmt = node as VoidStatement;
+			visitor.visitVoidStatement?.(voidStmt);
+			traverse(voidStmt.expression, visitor);
+			break;
+		}
 
 		case "Separator":
 			visitor.visitSeparator?.(node as Separator);

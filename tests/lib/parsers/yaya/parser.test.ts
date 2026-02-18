@@ -7,9 +7,11 @@ import type {
 	FunctionDecl,
 	Identifier,
 	IfStatement,
+	ParallelStatement,
 	ReturnStatement,
 	StringLiteral,
 	VariableDecl,
+	VoidStatement,
 	WhileStatement,
 } from "@/lib/parsers/yaya/ast";
 import { parse } from "@/lib/parsers/yaya/parser";
@@ -96,6 +98,14 @@ describe("YAYA Parser", () => {
 			expect(stmt.alternate?.type).toBe("IfStatement");
 		});
 
+		it("should parse if-elseif-others chain as else alias", () => {
+			const ast = parse("if (a) { } elseif (b) { } others { }");
+			const stmt = ast.body[0] as IfStatement;
+			expect(stmt.alternate?.type).toBe("IfStatement");
+			const elseIf = stmt.alternate as IfStatement;
+			expect(elseIf.alternate?.type).toBe("BlockStatement");
+		});
+
 		it("should parse while statement", () => {
 			const ast = parse("while (true) { }");
 			const stmt = ast.body[0] as WhileStatement;
@@ -122,6 +132,25 @@ describe("YAYA Parser", () => {
 			const ast = parse("for i = 0 ; i < 3 ; i++ --");
 			const stmt = ast.body[0] as ForStatement;
 			expect(stmt.type).toBe("ForStatement");
+		});
+
+		it("should parse parallel statement", () => {
+			const ast = parse("parallel FuncCall()");
+			const stmt = ast.body[0] as ParallelStatement;
+			expect(stmt.type).toBe("ParallelStatement");
+		});
+
+		it("should parse void statement", () => {
+			const ast = parse("void FuncCall()");
+			const stmt = ast.body[0] as VoidStatement;
+			expect(stmt.type).toBe("VoidStatement");
+		});
+
+		it("should keep function name compatibility for parallel", () => {
+			const ast = parse("parallel { }");
+			const func = ast.body[0] as FunctionDecl;
+			expect(func.type).toBe("FunctionDecl");
+			expect(func.name.name).toBe("parallel");
 		});
 	});
 
@@ -162,6 +191,15 @@ describe("YAYA Parser", () => {
 			expect(ast.body).toHaveLength(1);
 		});
 
+		it("should parse comma operator with lowest precedence", () => {
+			const ast = parse("1 + 2, 3 * 4");
+			const stmt = ast.body[0] as import("@/lib/parsers/yaya/ast").ExpressionStatement;
+			const root = stmt.expression as BinaryExpression;
+			expect(root.operator).toBe(",");
+			expect((root.left as BinaryExpression).operator).toBe("+");
+			expect((root.right as BinaryExpression).operator).toBe("*");
+		});
+
 		it("should parse member expression", () => {
 			const ast = parse("foo::bar");
 			expect(ast.body).toHaveLength(1);
@@ -195,6 +233,13 @@ describe("YAYA Parser", () => {
 		it("should parse function calls with implicit argument separators", () => {
 			const ast = parse('foo("a" "b")');
 			expect(ast.body).toHaveLength(1);
+		});
+
+		it("should keep comma as argument delimiter in calls", () => {
+			const ast = parse('foo("a", "b")');
+			const stmt = ast.body[0] as import("@/lib/parsers/yaya/ast").ExpressionStatement;
+			const call = stmt.expression as CallExpression;
+			expect(call.arguments).toHaveLength(2);
 		});
 	});
 

@@ -49,10 +49,7 @@ function processLineSource(source: string): string {
 		const stripped = stripCommentsOutsideQuotes(rawLine, inBlockComment);
 		inBlockComment = stripped.inBlockComment;
 
-		let line = stripped.text;
-		if (line.trimStart().startsWith("#")) {
-			line = "";
-		}
+		const line = stripped.text;
 
 		if (line.trim().length === 0) {
 			if (logicalLine.length > 0 && !logicalLine.endsWith("\n")) {

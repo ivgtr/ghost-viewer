@@ -8,7 +8,7 @@ export type {
 } from "./file-tree";
 export type { GhostStats } from "./ghost";
 export type { NarEntryMeta, NarFile, NarValidationResult } from "./nar";
-export type { ParseResult } from "./parse-result";
+export type { ParseDiagnostic, ParseResult } from "./parse-result";
 export type {
 	SakuraScriptToken,
 	SakuraScriptTokenType,
@@ -19,4 +19,11 @@ export type {
 	GhostMeta,
 	ShioriType,
 } from "./shiori";
-export type { WorkerRequest, WorkerResponse } from "./worker-message";
+export type {
+	BatchParseWorkerFile,
+	ParseKawariBatchWorkerRequest,
+	ParseSatoriBatchWorkerRequest,
+	ParseYayaBatchWorkerRequest,
+	WorkerRequest,
+	WorkerResponse,
+} from "./worker-message";

@@ -32,6 +32,7 @@ describe("parseStore", () => {
 			shioriType: "yaya",
 			functions: [],
 			meta: null,
+			diagnostics: [],
 		};
 		useParseStore.getState().startBatchParse(1);
 		useParseStore.getState().succeedParse(result);
@@ -56,6 +57,7 @@ describe("parseStore", () => {
 			shioriType: "satori",
 			functions: [],
 			meta: { name: "test", author: "", characterNames: {}, properties: {} },
+			diagnostics: [],
 		};
 		useParseStore.getState().succeedParse(result);
 		useParseStore.getState().reset();

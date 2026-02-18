@@ -1,4 +1,4 @@
-import { parseYayaDic } from "@/lib/parsers/yaya";
+import { parseYayaDic, parseYayaDicWithDiagnostics } from "@/lib/parsers/yaya";
 import { describe, expect, it } from "vitest";
 
 describe("parseYayaDic", () => {
@@ -175,6 +175,44 @@ describe("parseYayaDic", () => {
 
 		expect(result).toHaveLength(1);
 		expect(result[0].dialogues).toHaveLength(1);
+	});
+
+	it("#define と #globaldefine を同一ファイルで適用する", () => {
+		const text = [
+			'#define DIALOG_A "\\0alpha\\e"',
+			'#globaldefine DIALOG_B "\\0beta\\e"',
+			"OnBoot {",
+			"\tDIALOG_A",
+			"\tDIALOG_B",
+			"}",
+		].join("\n");
+		const result = parseYayaDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0]?.dialogues).toHaveLength(2);
+		expect(result[0]?.dialogues[0]?.rawText).toBe("\\0alpha\\e");
+		expect(result[0]?.dialogues[1]?.rawText).toBe("\\0beta\\e");
+	});
+
+	it("__AYA_SYSTEM_FILE__ と __AYA_SYSTEM_LINE__ を展開する", () => {
+		const text = 'OnBoot {\n\t"__AYA_SYSTEM_FILE__:__AYA_SYSTEM_LINE__"\n}';
+		const result = parseYayaDic(text, "ghost/master/test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0]?.dialogues[0]?.rawText).toBe("ghost/master/test.dic:1");
+	});
+
+	it("未知の # 指令を warning diagnostics として返す", () => {
+		const text = '#unknown FOO BAR\nOnBoot {\n\t"hello"\n}';
+		const result = parseYayaDicWithDiagnostics(text, "test.dic");
+
+		expect(result.functions).toHaveLength(1);
+		expect(
+			result.diagnostics.some(
+				(diagnostic) =>
+					diagnostic.level === "warning" && diagnostic.code === "YAYA_PREPROCESS_UNKNOWN_DIRECTIVE",
+			),
+		).toBe(true);
 	});
 
 	it("CR+LF 改行コードを処理する", () => {
@@ -457,6 +495,25 @@ describe("parseYayaDic", () => {
 		expect(dialogues[1]?.rawText.includes("\\1second")).toBe(true);
 		expect(dialogues.some((dialogue) => dialogue.rawText.includes("========"))).toBe(false);
 		expect(dialogues[0]?.startLine).toBeLessThan(dialogues[1]?.startLine ?? 0);
+	});
+
+	it("test.dic 経路でも文字列内の ======== を分割する", () => {
+		const text = [
+			"OnTest",
+			"{",
+			'\t<<"',
+			"\t\\0first",
+			"\t========",
+			"\t\\1second",
+			'\t">>',
+			"}",
+		].join("\n");
+		const result = parseYayaDic(text, "test.dic");
+		const dialogues = result[0]?.dialogues ?? [];
+
+		expect(dialogues).toHaveLength(2);
+		expect(dialogues[0]?.rawText.includes("\\0first")).toBe(true);
+		expect(dialogues[1]?.rawText.includes("\\1second")).toBe(true);
 	});
 
 	// --- 新規テスト: 関数呼び出し引数の除外 ---

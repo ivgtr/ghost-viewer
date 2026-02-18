@@ -1,12 +1,29 @@
 import type { ParseResult } from "./parse-result";
-import type { ShioriType } from "./shiori";
 
-export type WorkerRequest = {
-	type: "parse";
+export interface BatchParseWorkerFile {
 	fileContent: ArrayBuffer;
 	filePath: string;
-	shioriType: ShioriType;
-};
+}
+
+export interface ParseYayaBatchWorkerRequest {
+	type: "parse-yaya-batch";
+	files: BatchParseWorkerFile[];
+}
+
+export interface ParseSatoriBatchWorkerRequest {
+	type: "parse-satori-batch";
+	files: BatchParseWorkerFile[];
+}
+
+export interface ParseKawariBatchWorkerRequest {
+	type: "parse-kawari-batch";
+	files: BatchParseWorkerFile[];
+}
+
+export type WorkerRequest =
+	| ParseYayaBatchWorkerRequest
+	| ParseSatoriBatchWorkerRequest
+	| ParseKawariBatchWorkerRequest;
 
 export type WorkerResponse =
 	| { type: "parsed"; result: ParseResult }

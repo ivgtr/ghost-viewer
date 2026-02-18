@@ -167,6 +167,16 @@ interface ContinueStatement extends BaseNode {
 	type: "ContinueStatement";
 }
 
+interface ParallelStatement extends BaseNode {
+	type: "ParallelStatement";
+	expression: Expression;
+}
+
+interface VoidStatement extends BaseNode {
+	type: "VoidStatement";
+	expression: Expression;
+}
+
 interface Separator extends BaseNode {
 	type: "Separator";
 }
@@ -211,6 +221,8 @@ type Statement =
 	| ReturnStatement
 	| BreakStatement
 	| ContinueStatement
+	| ParallelStatement
+	| VoidStatement
 	| Separator
 	| FunctionDecl
 	| VariableDecl
@@ -268,6 +280,8 @@ export type {
 	ReturnStatement,
 	BreakStatement,
 	ContinueStatement,
+	ParallelStatement,
+	VoidStatement,
 	Separator,
 	FunctionDecl,
 	Parameter,

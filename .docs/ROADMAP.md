@@ -124,6 +124,8 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 
 - [x] **Satori Lexer/Parser 分離** [S] — YAYA と同様の Lexer/Parser 2層構造にリファクタリング、ブロックコメント対応
   - 依存: Satori 辞書パーサー
+- [ ] **Worker 解析リクエスト単一路化** [S] — `WorkerRequest` の `type: "parse"` を廃止し、解析リクエストを SHIORI ごとの明示バッチ API に統一
+  - 依存: Web Worker 解析基盤, 全 .dic 一括パース, Satori 辞書パーサー, Kawari 辞書パーサー
 - [ ] **Kawari 意味解析** [M] — `kawari/semantic.ts` でエントリ名、${変数} 参照のシンボル解決
   - 依存: Kawari AST パーサー, シンボルテーブル + スコープ管理
 - [ ] **CodeMirror 6 統合** [M] — 右ペイン補助機能としてのコードビュー、行番号表示、基本的なテキスト検索

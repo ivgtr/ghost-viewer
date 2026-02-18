@@ -1,49 +1,125 @@
 import { decodeWithAutoDetection } from "@/lib/encoding/detect";
 import { parseKawariDic } from "@/lib/parsers/kawari";
 import { parseSatoriDic } from "@/lib/parsers/satori";
-import { parseYayaDic } from "@/lib/parsers/yaya";
-import type { ParseResult, ShioriType } from "@/types";
+import { parseYayaDicWithDiagnostics } from "@/lib/parsers/yaya";
+import { createYayaPreprocessState } from "@/lib/parsers/yaya/internal/preprocessor";
+import type { BatchParseWorkerFile, DicFunction, ParseDiagnostic, ParseResult } from "@/types";
 
-interface ParseInput {
-	fileContent: ArrayBuffer;
-	filePath: string;
-	shioriType: ShioriType;
+interface BatchParseInput {
+	files: BatchParseWorkerFile[];
 }
 
-export function dispatchParse(
-	input: ParseInput,
+function sortFilesByPath(files: BatchParseWorkerFile[]): BatchParseWorkerFile[] {
+	return [...files].sort((a, b) => a.filePath.localeCompare(b.filePath));
+}
+
+export function dispatchParseYayaBatch(
+	input: BatchParseInput,
 	onProgress: (percent: number) => void,
 ): ParseResult {
 	onProgress(0);
 
-	switch (input.shioriType) {
-		case "satori": {
-			const { text } = decodeWithAutoDetection(input.fileContent);
-			onProgress(50);
-			const functions = parseSatoriDic(text, input.filePath);
-			onProgress(100);
-			return { shioriType: "satori", functions, meta: null };
-		}
-		case "yaya": {
-			const { text: yayaText } = decodeWithAutoDetection(input.fileContent);
-			onProgress(50);
-			const yayaFunctions = parseYayaDic(yayaText, input.filePath);
-			onProgress(100);
-			return { shioriType: "yaya", functions: yayaFunctions, meta: null };
-		}
-		case "kawari": {
-			const { text: kawariText } = decodeWithAutoDetection(input.fileContent);
-			onProgress(50);
-			const kawariFunctions = parseKawariDic(kawariText, input.filePath);
-			onProgress(100);
-			return { shioriType: "kawari", functions: kawariFunctions, meta: null };
-		}
-		case "unknown":
-			onProgress(100);
-			return { shioriType: "unknown", functions: [], meta: null };
-		default: {
-			const _exhaustive: never = input.shioriType;
-			throw new Error(`未対応の SHIORI タイプ: ${_exhaustive}`);
-		}
+	const sortedFiles = sortFilesByPath(input.files);
+	const preprocessState = createYayaPreprocessState();
+	const functions: DicFunction[] = [];
+	const diagnostics: ParseDiagnostic[] = [];
+
+	if (sortedFiles.length === 0) {
+		onProgress(100);
+		return {
+			shioriType: "yaya",
+			functions,
+			meta: null,
+			diagnostics,
+		};
 	}
+
+	for (const [index, file] of sortedFiles.entries()) {
+		const { text } = decodeWithAutoDetection(file.fileContent);
+		const parsed = parseYayaDicWithDiagnostics(text, file.filePath, {
+			preprocessState,
+		});
+		functions.push(...parsed.functions);
+		diagnostics.push(...parsed.diagnostics);
+
+		const percent = Math.round(((index + 1) / sortedFiles.length) * 100);
+		onProgress(percent);
+	}
+
+	return {
+		shioriType: "yaya",
+		functions,
+		meta: null,
+		diagnostics,
+	};
+}
+
+export function dispatchParseSatoriBatch(
+	input: BatchParseInput,
+	onProgress: (percent: number) => void,
+): ParseResult {
+	onProgress(0);
+
+	const sortedFiles = sortFilesByPath(input.files);
+	const functions: DicFunction[] = [];
+
+	if (sortedFiles.length === 0) {
+		onProgress(100);
+		return {
+			shioriType: "satori",
+			functions,
+			meta: null,
+			diagnostics: [],
+		};
+	}
+
+	for (const [index, file] of sortedFiles.entries()) {
+		const { text } = decodeWithAutoDetection(file.fileContent);
+		functions.push(...parseSatoriDic(text, file.filePath));
+
+		const percent = Math.round(((index + 1) / sortedFiles.length) * 100);
+		onProgress(percent);
+	}
+
+	return {
+		shioriType: "satori",
+		functions,
+		meta: null,
+		diagnostics: [],
+	};
+}
+
+export function dispatchParseKawariBatch(
+	input: BatchParseInput,
+	onProgress: (percent: number) => void,
+): ParseResult {
+	onProgress(0);
+
+	const sortedFiles = sortFilesByPath(input.files);
+	const functions: DicFunction[] = [];
+
+	if (sortedFiles.length === 0) {
+		onProgress(100);
+		return {
+			shioriType: "kawari",
+			functions,
+			meta: null,
+			diagnostics: [],
+		};
+	}
+
+	for (const [index, file] of sortedFiles.entries()) {
+		const { text } = decodeWithAutoDetection(file.fileContent);
+		functions.push(...parseKawariDic(text, file.filePath));
+
+		const percent = Math.round(((index + 1) / sortedFiles.length) * 100);
+		onProgress(percent);
+	}
+
+	return {
+		shioriType: "kawari",
+		functions,
+		meta: null,
+		diagnostics: [],
+	};
 }
