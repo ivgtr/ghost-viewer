@@ -3,6 +3,7 @@ import { validateNarFile } from "@/lib/nar/validate";
 import { parseDescriptFromBuffer } from "@/lib/parsers/descript";
 import { isBatchParseTargetPath } from "@/lib/parsers/dictionary-path";
 import { detectShioriType, detectUnsupportedShiori } from "@/lib/parsers/shiori-detect";
+import { extractSurfaceAssets } from "@/lib/surfaces/surface-asset-extractor";
 import { requestParseSatoriBatch, requestParseYayaBatch } from "@/lib/workers/worker-client";
 import type {
 	BatchParseWorkerFile,
@@ -18,6 +19,7 @@ import { createStore } from "./create-store";
 import { useFileContentStore } from "./file-content-store";
 import { useFileTreeStore } from "./file-tree-store";
 import { useParseStore } from "./parse-store";
+import { useSurfaceStore } from "./surface-store";
 import { useViewStore } from "./view-store";
 
 interface GhostState {
@@ -77,11 +79,15 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 		useFileContentStore.getState().reset();
 		useCatalogStore.getState().reset();
 		useViewStore.getState().reset();
+		useSurfaceStore.getState().reset();
 
 		processNarFile(file)
 			.then((extractionResult) => {
 				useFileTreeStore.getState().setTree(extractionResult.tree);
 				useFileContentStore.getState().setFileContents(extractionResult.fileContents);
+				useSurfaceStore
+					.getState()
+					.setExtractionResult(extractSurfaceAssets(extractionResult.fileContents));
 
 				const descriptBuffer = extractionResult.fileContents.get("ghost/master/descript.txt");
 				let properties: Record<string, string> = {};
@@ -135,6 +141,14 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 	setShioriType: (shioriType) => set({ shioriType }),
 	setStats: (stats) => set({ stats }),
 }));
+
+const ghostStoreReset = useGhostStore.getState().reset;
+useGhostStore.setState({
+	reset: () => {
+		ghostStoreReset();
+		useSurfaceStore.getState().reset();
+	},
+});
 
 async function batchParse(
 	dicPaths: string[],

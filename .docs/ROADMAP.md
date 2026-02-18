@@ -143,13 +143,13 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **Legacy Kawari検出時の案内表示** [S] — kawari.ini 等で旧Kawariを検出した場合、会話カタログ中央に「Kawari は対応予定です」を表示
   - 依存: SHIORI言語自動判別, 会話カタログ UI
 
-### Phase 7: Ghost Display & Layout — 0/9
+### Phase 7: Ghost Display & Layout — 2/9
 目標: レイアウト拡張（最大3レーン）を導入しつつ、NAR 内の surface 画像を会話と連動表示できるゴーストビューアーを実装する
 
-- [ ] **3レーンスロットレイアウト基盤** [M] — 最大3レーンの設定駆動スロット化を導入し、右レーンを上下分割（初期50/50、可変）する。右上は `会話/コード` 切替維持、右下は画像ビューアー常設
+- [x] **3レーンスロットレイアウト基盤** [M] — 最大3レーンの設定駆動スロット化を導入し、右レーンを上下分割（初期50/50、可変）する。右上は `会話/コード` 切替維持、右下は画像ビューアー常設
   - 依存: 3ペインレイアウト, 会話プレビューパネル, ソースコードジャンプ
   - 詳細: `.docs/tasks/024-lane-slot-layout-architecture.md`
-- [ ] **サーフェス画像抽出** [M] — shell ディレクトリの `surface*.png` を収集し、`shell/master` 優先で初期シェルを自動選択する
+- [x] **サーフェス画像抽出** [M] — shell ディレクトリの `surface*.png` を収集し、`shell/master` 優先で初期シェルを自動選択する
   - 依存: JSZip展開 + 仮想ファイルツリー構築
   - 詳細: `.docs/tasks/025-surface-asset-extraction.md`
 - [ ] **surfaces*.txt コア解析** [M] — `surface` / `surface.append` / `surface.alias` と複数 `surfaces*.txt` の連結読み込みを実装する

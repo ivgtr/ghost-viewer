@@ -14,6 +14,12 @@ export type {
 	SakuraScriptTokenType,
 } from "./sakura-script";
 export type {
+	ShellSurfaceCatalog,
+	SurfaceDiagnostic,
+	SurfaceExtractionResult,
+	SurfaceImageAsset,
+} from "./surface";
+export type {
 	Dialogue,
 	DicFunction,
 	GhostMeta,

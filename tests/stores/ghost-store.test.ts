@@ -5,6 +5,7 @@ import { requestParseSatoriBatch, requestParseYayaBatch } from "@/lib/workers/wo
 import { useFileTreeStore } from "@/stores/file-tree-store";
 import { useGhostStore } from "@/stores/ghost-store";
 import { useParseStore } from "@/stores/parse-store";
+import { useSurfaceStore } from "@/stores/surface-store";
 
 vi.mock("@/lib/workers/worker-client", () => ({
 	requestParseYayaBatch: vi.fn(),
@@ -38,6 +39,7 @@ describe("ghostStore", () => {
 		useGhostStore.getState().reset();
 		useParseStore.getState().reset();
 		useFileTreeStore.getState().reset();
+		useSurfaceStore.getState().reset();
 		vi.clearAllMocks();
 
 		vi.mocked(requestParseYayaBatch).mockResolvedValue({
@@ -100,14 +102,45 @@ describe("ghostStore", () => {
 	it("acceptFile 成功時に他ストアをリセットする", async () => {
 		useFileTreeStore.getState().selectNode("node-1");
 		useParseStore.getState().startBatchParse(1);
+		useSurfaceStore.getState().setExtractionResult({
+			shells: [
+				{
+					shellName: "master",
+					assets: [{ id: 0, shellName: "master", pngPath: "a", pnaPath: null }],
+				},
+			],
+			initialShellName: "master",
+			diagnostics: [],
+		});
 
 		const file = await createNarFile({ "test.txt": "hello" });
 		useGhostStore.getState().acceptFile(file);
 
 		expect(useFileTreeStore.getState().selectedNodeId).toBeNull();
 		expect(useParseStore.getState().isParsing).toBe(false);
+		expect(useSurfaceStore.getState().shells).toEqual([]);
 
 		await flushPromises();
+	});
+
+	it("acceptFile 成功時にサーフェス抽出結果が反映される", async () => {
+		const file = await createNarFile({
+			"shell/master/surface0.png": "png",
+			"shell/master/surface0.pna": "pna",
+			"ghost/master/descript.txt": "name,test",
+		});
+
+		useGhostStore.getState().acceptFile(file);
+
+		await vi.waitFor(() => {
+			expect(useGhostStore.getState().isExtracting).toBe(false);
+		});
+
+		const surfaceState = useSurfaceStore.getState();
+		expect(surfaceState.selectedShellName).toBe("master");
+		expect(surfaceState.shells).toHaveLength(1);
+		expect(surfaceState.shells[0]?.assets[0]?.pngPath).toBe("shell/master/surface0.png");
+		expect(surfaceState.shells[0]?.assets[0]?.pnaPath).toBe("shell/master/surface0.pna");
 	});
 
 	it("acceptFile 成功時に前のメタ情報をクリアする", async () => {
@@ -180,6 +213,25 @@ describe("ghostStore", () => {
 		expect(state.fileName).toBeNull();
 		expect(state.error).toBeNull();
 		expect(state.isExtracting).toBe(false);
+	});
+
+	it("ghostStore.reset で surfaceStore も初期化される", () => {
+		useSurfaceStore.getState().setExtractionResult({
+			shells: [
+				{
+					shellName: "master",
+					assets: [{ id: 0, shellName: "master", pngPath: "a", pnaPath: null }],
+				},
+			],
+			initialShellName: "master",
+			diagnostics: [],
+		});
+
+		useGhostStore.getState().reset();
+
+		expect(useSurfaceStore.getState().shells).toEqual([]);
+		expect(useSurfaceStore.getState().selectedShellName).toBeNull();
+		expect(useSurfaceStore.getState().diagnostics).toEqual([]);
 	});
 
 	it("isExtracting 中に acceptFile を呼ぶとエラーが設定される", async () => {

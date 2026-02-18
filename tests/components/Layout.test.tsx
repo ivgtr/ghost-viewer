@@ -3,6 +3,7 @@ import { useCatalogStore } from "@/stores/catalog-store";
 import { useFileTreeStore } from "@/stores/file-tree-store";
 import { useGhostStore } from "@/stores/ghost-store";
 import { useParseStore } from "@/stores/parse-store";
+import { useSurfaceStore } from "@/stores/surface-store";
 import { useViewStore } from "@/stores/view-store";
 import { cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -13,13 +14,14 @@ describe("Layout", () => {
 		useParseStore.getState().reset();
 		useFileTreeStore.getState().reset();
 		useGhostStore.getState().reset();
+		useSurfaceStore.getState().reset();
 		useViewStore.getState().reset();
 	});
 	afterEach(() => {
 		cleanup();
 	});
 
-	it("3つのパネルと2つのリサイズハンドルが描画される", () => {
+	it("3つのレーンと3つのリサイズハンドルが描画される", () => {
 		const { container } = render(<Layout />);
 
 		expect(
@@ -27,9 +29,10 @@ describe("Layout", () => {
 		).toBeInTheDocument();
 		expect(screen.getByText("ファイルを選択してください")).toBeInTheDocument();
 		expect(screen.getByText("NAR/ZIP ファイルを読み込んでください")).toBeInTheDocument();
+		expect(screen.getByText("ゴーストビューアー")).toBeInTheDocument();
 
 		const separators = container.querySelectorAll("[data-separator]");
-		expect(separators).toHaveLength(2);
+		expect(separators).toHaveLength(3);
 	});
 
 	it("selectedFunctionName が空文字でも右ペインに ConversationPreview が表示される", () => {
