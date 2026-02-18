@@ -438,6 +438,27 @@ describe("parseYayaDic", () => {
 		expect(result[0].dialogues[1].rawText).toBe("world");
 	});
 
+	it("文字列内の ======== でもダイアログを分割する", () => {
+		const text = [
+			"OnTest",
+			"{",
+			'\t<<"',
+			"\t\\0first",
+			"\t========",
+			"\t\\1second",
+			'\t">>',
+			"}",
+		].join("\n");
+		const result = parseYayaDic(text, "ghost/master/aya_menu.dic");
+		const dialogues = result[0]?.dialogues ?? [];
+
+		expect(dialogues).toHaveLength(2);
+		expect(dialogues[0]?.rawText.includes("\\0first")).toBe(true);
+		expect(dialogues[1]?.rawText.includes("\\1second")).toBe(true);
+		expect(dialogues.some((dialogue) => dialogue.rawText.includes("========"))).toBe(false);
+		expect(dialogues[0]?.startLine).toBeLessThan(dialogues[1]?.startLine ?? 0);
+	});
+
 	// --- 新規テスト: 関数呼び出し引数の除外 ---
 
 	it("関数呼び出し引数内の文字列はダイアログとして抽出しない", () => {

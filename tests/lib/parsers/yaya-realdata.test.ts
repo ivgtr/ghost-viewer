@@ -93,6 +93,75 @@ OnClose
 		});
 	});
 
+	describe("emily4 specific regressions", () => {
+		it("OnChoiceSelect_INTRODUCE_NAZO heredoc should keep sakura-script escapes", () => {
+			const code = `OnChoiceSelect_INTRODUCE_NAZO
+{
+	<<"
+	\\u\\s[-1]\\0\\s[4]ふー、ゴミ出し終わりっと…\\w5…\\w5\\w9\\nなんでこんなにゴミが出るかなぁ。\\w9\\s[3]\\nちょっと我慢しないとなぁ。\\w9\\e
+	==========
+	\\u\\s[10]\\0\\s[0]…\\w5…\\w5と言うわけで、変な子がいたんだよ。\\w9\\w9\\e
+	">>
+}`;
+			const result = parseYayaDic(code, "ghost/master/aya_menu.dic");
+			const target = result.find((fn) => fn.name === "OnChoiceSelect_INTRODUCE_NAZO");
+
+			expect(target).toBeDefined();
+			const dialogues = target?.dialogues ?? [];
+			expect(dialogues.length).toBe(2);
+
+			expect(dialogues[0]?.rawText.startsWith("\\u\\s[-1]\\0\\s[4]")).toBe(true);
+			expect(dialogues[0]?.rawText.startsWith("us[-1]0s[4]")).toBe(false);
+			expect(dialogues[0]?.tokens.some((t) => t.tokenType === "charSwitch")).toBe(true);
+			expect(dialogues[0]?.tokens.some((t) => t.tokenType === "surface")).toBe(true);
+			expect(dialogues[0]?.rawText.includes("==========")).toBe(false);
+			expect(dialogues[1]?.rawText.includes("==========")).toBe(false);
+			expect((dialogues[0]?.startLine ?? 0) < (dialogues[1]?.startLine ?? 0)).toBe(true);
+		});
+
+		it("OnCommunicate_Hand should parse :eval=: as non-visible directive", () => {
+			const code = `OnCommunicate_Hand
+{
+	if '動作検証' _in_ reference[1] {
+		"\\u\\s[10]\\h\\s[7]動作検証は間に合ってますっ！\\w9\\w9\\p2\\s[203]え～、\\w5俺もやだよ。:eval=:StartCommunicate(reference[0])"
+	}
+}`;
+			const result = parseYayaDic(code, "ghost/master/aya_communicate_normal.dic");
+			const target = result.find((fn) => fn.name === "OnCommunicate_Hand");
+
+			expect(target).toBeDefined();
+			expect(target?.dialogues.length).toBeGreaterThan(0);
+
+			const dialogue = target?.dialogues[0];
+			const visibleText = dialogue?.tokens
+				.filter((token) => token.tokenType === "text")
+				.map((token) => token.value)
+				.join("");
+
+			expect(visibleText?.includes(":eval=:")).toBe(false);
+			expect(dialogue?.tokens.some((token) => token.tokenType === "directive")).toBe(true);
+		});
+
+		it("hyphen separator line in heredoc should split dialogues", () => {
+			const code = `OnMouseStyle
+{
+	<<"
+	\\0lineA\\e
+	------------
+	\\1lineB\\e
+	">>
+}`;
+			const result = parseYayaDic(code, "ghost/master/aya_mouse.dic");
+			const target = result.find((fn) => fn.name === "OnMouseStyle");
+			const dialogues = target?.dialogues ?? [];
+
+			expect(dialogues.length).toBe(2);
+			expect(dialogues[0]?.rawText.includes("\\0lineA")).toBe(true);
+			expect(dialogues[1]?.rawText.includes("\\1lineB")).toBe(true);
+			expect(dialogues.some((dialogue) => dialogue.rawText.includes("------------"))).toBe(false);
+		});
+	});
+
 	describe("emily4.nar aya_bootend.dic", () => {
 		it("should parse actual emily4 dictionary file", async () => {
 			// Read the pre-extracted file

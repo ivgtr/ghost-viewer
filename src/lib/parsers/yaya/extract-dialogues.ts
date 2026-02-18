@@ -16,15 +16,21 @@ import type {
 	IndexExpression,
 	MemberExpression,
 	ReturnStatement,
+	Separator,
 	StringLiteral,
 	SwitchStatement,
 	VariableDecl,
 	WhileStatement,
 } from "./ast";
+import {
+	type ConventionalSplitSegment,
+	splitExtractedStringByConventionalSeparators,
+} from "./internal/dialogue-separator";
 
 interface ExtractedString {
 	value: string;
 	line: number;
+	isHardSeparator?: true;
 }
 
 interface ExtractionContext {
@@ -74,6 +80,14 @@ function mergeControlOnlyDialogues(rawDialogues: ExtractedString[]): ExtractedSt
 	}
 
 	return result;
+}
+
+function createHardSeparator(line: number): ExtractedString {
+	return {
+		value: "",
+		line,
+		isHardSeparator: true,
+	};
 }
 
 function extractStringsFromFunction(fn: FunctionDecl): ExtractedString[] {
@@ -266,6 +280,12 @@ function extractStringsFromFunction(fn: FunctionDecl): ExtractedString[] {
 				extractFromBlock(block);
 				break;
 			}
+
+			case "Separator": {
+				const separator = stmt as Separator;
+				strings.push(createHardSeparator(separator.loc?.start.line ?? 0));
+				break;
+			}
 		}
 	}
 
@@ -280,12 +300,44 @@ function extractStringsFromFunction(fn: FunctionDecl): ExtractedString[] {
 	return strings;
 }
 
-function splitBySeparator(strings: ExtractedString[]): ExtractedString[][] {
+function expandExtractedStrings(strings: ExtractedString[]): ExtractedString[] {
+	const expanded: ExtractedString[] = [];
+
+	for (const entry of strings) {
+		if (entry.isHardSeparator) {
+			expanded.push(entry);
+			continue;
+		}
+
+		const parts = splitExtractedStringByConventionalSeparators(entry.value, entry.line);
+		appendExpandedParts(expanded, parts, entry.line);
+	}
+
+	return expanded;
+}
+
+function appendExpandedParts(
+	target: ExtractedString[],
+	parts: ConventionalSplitSegment[],
+	line: number,
+): void {
+	for (const [index, part] of parts.entries()) {
+		target.push({
+			value: part.value,
+			line: part.line,
+		});
+		if (index < parts.length - 1) {
+			target.push(createHardSeparator(line));
+		}
+	}
+}
+
+function groupByHardSeparator(strings: ExtractedString[]): ExtractedString[][] {
 	const groups: ExtractedString[][] = [];
 	let current: ExtractedString[] = [];
 
 	for (const s of strings) {
-		if (s.value === "--") {
+		if (s.isHardSeparator) {
 			if (current.length > 0) {
 				groups.push(current);
 				current = [];
@@ -305,24 +357,68 @@ function splitBySeparator(strings: ExtractedString[]): ExtractedString[][] {
 function stringsToDialogues(strings: ExtractedString[]): Dialogue[] {
 	if (strings.length === 0) return [];
 
-	const groups = splitBySeparator(strings);
+	const expanded = expandExtractedStrings(strings);
+	const groups = groupByHardSeparator(expanded);
+	const merged = mergeControlOnlyAcrossGroups(groups);
 	const result: Dialogue[] = [];
 
+	for (const d of merged) {
+		if (d.value.length === 0) continue;
+
+		result.push({
+			rawText: d.value,
+			tokens: tokenize(d.value),
+			startLine: d.line,
+			endLine: d.line,
+		});
+	}
+
+	return result;
+}
+
+function mergeControlOnlyAcrossGroups(groups: ExtractedString[][]): ExtractedString[] {
+	const result: ExtractedString[] = [];
+	let pendingControl: ExtractedString | null = null;
+
 	for (const group of groups) {
-		if (group.length === 0) continue;
-
-		const merged = mergeControlOnlyDialogues(group);
-
-		for (const d of merged) {
-			if (d.value.length === 0) continue;
-
-			result.push({
-				rawText: d.value,
-				tokens: tokenize(d.value),
-				startLine: d.line,
-				endLine: d.line,
-			});
+		if (group.length === 0) {
+			continue;
 		}
+
+		const mergedInGroup = mergeControlOnlyDialogues(group);
+		for (const entry of mergedInGroup) {
+			if (entry.value.length === 0) {
+				continue;
+			}
+
+			if (isTextDialogue(entry.value)) {
+				if (!pendingControl) {
+					result.push(entry);
+					continue;
+				}
+
+				result.push({
+					value: pendingControl.value + entry.value,
+					line: pendingControl.line,
+				});
+				pendingControl = null;
+				continue;
+			}
+
+			if (!pendingControl) {
+				pendingControl = entry;
+				continue;
+			}
+
+			pendingControl = {
+				value: pendingControl.value + entry.value,
+				line: pendingControl.line,
+			};
+		}
+	}
+
+	if (pendingControl) {
+		result.push(pendingControl);
 	}
 
 	return result;
