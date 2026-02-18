@@ -2,6 +2,7 @@ import { buildCatalogEntries } from "@/lib/analyzers/build-catalog";
 import { getCategoryOrder } from "@/lib/analyzers/categorize-event";
 import { toEventDisplayName } from "@/lib/analyzers/event-name";
 import { useCatalogStore } from "@/stores/catalog-store";
+import { useGhostStore } from "@/stores/ghost-store";
 import { useParseStore } from "@/stores/parse-store";
 import { useViewStore } from "@/stores/view-store";
 import type { CatalogEntry } from "@/types/catalog";
@@ -14,6 +15,7 @@ export function ConversationCatalog() {
 	const parseError = useParseStore((s) => s.parseError);
 	const parsedFileCount = useParseStore((s) => s.parsedFileCount);
 	const totalFileCount = useParseStore((s) => s.totalFileCount);
+	const unsupportedShioriNotice = useGhostStore((s) => s.unsupportedShioriNotice);
 	const selectedFunctionName = useCatalogStore((s) => s.selectedFunctionName);
 	const selectFunction = useCatalogStore((s) => s.selectFunction);
 	const showConversation = useViewStore((s) => s.showConversation);
@@ -64,6 +66,14 @@ export function ConversationCatalog() {
 
 	if (parseError) {
 		return <div className="flex h-full items-center justify-center text-red-400">{parseError}</div>;
+	}
+
+	if ((!parseResult || entries.length === 0) && unsupportedShioriNotice) {
+		return (
+			<div className="flex h-full items-center justify-center text-zinc-500">
+				{unsupportedShioriNotice}
+			</div>
+		);
 	}
 
 	if (!parseResult || entries.length === 0) {

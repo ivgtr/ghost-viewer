@@ -2,7 +2,7 @@ import { processNarFile } from "@/lib/nar/extract";
 import { validateNarFile } from "@/lib/nar/validate";
 import { parseDescriptFromBuffer } from "@/lib/parsers/descript";
 import { isBatchParseTargetPath } from "@/lib/parsers/dictionary-path";
-import { detectShioriType } from "@/lib/parsers/shiori-detect";
+import { detectShioriType, detectUnsupportedShiori } from "@/lib/parsers/shiori-detect";
 import { requestParseSatoriBatch, requestParseYayaBatch } from "@/lib/workers/worker-client";
 import type {
 	BatchParseWorkerFile,
@@ -26,6 +26,7 @@ interface GhostState {
 	stats: GhostStats | null;
 	fileName: string | null;
 	error: string | null;
+	unsupportedShioriNotice: string | null;
 	isExtracting: boolean;
 	acceptFile: (file: File) => void;
 	setMeta: (meta: GhostMeta) => void;
@@ -45,6 +46,7 @@ const initialState: GhostDataState = {
 	stats: null,
 	fileName: null,
 	error: null,
+	unsupportedShioriNotice: null,
 	isExtracting: false,
 };
 
@@ -67,6 +69,7 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 			meta: null,
 			shioriType: "unknown",
 			stats: null,
+			unsupportedShioriNotice: null,
 			isExtracting: true,
 		});
 		useParseStore.getState().reset();
@@ -88,8 +91,27 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 					set({ meta });
 				}
 
+				const unsupportedShiori = detectUnsupportedShiori(
+					extractionResult.fileContents,
+					properties,
+				);
+				if (unsupportedShiori === "kawari") {
+					set({
+						shioriType: "unknown",
+						stats: extractionResult.stats,
+						unsupportedShioriNotice: "Kawari は対応予定です",
+						isExtracting: false,
+					});
+					return;
+				}
+
 				const shioriType = detectShioriType(extractionResult.fileContents, properties);
-				set({ shioriType, stats: extractionResult.stats, isExtracting: false });
+				set({
+					shioriType,
+					stats: extractionResult.stats,
+					unsupportedShioriNotice: null,
+					isExtracting: false,
+				});
 
 				if (shioriType !== "yaya" && shioriType !== "satori") return;
 

@@ -46,6 +46,16 @@ export function detectShioriByContent(dicTexts: string[]): ShioriType | null {
 	return yayaScore >= satoriScore ? "yaya" : "satori";
 }
 
+export function detectUnsupportedShiori(
+	fileContents: Map<string, ArrayBuffer>,
+	_properties: Record<string, string>,
+): "kawari" | null {
+	if (fileContents.has("ghost/master/kawari.ini")) {
+		return "kawari";
+	}
+	return null;
+}
+
 export function detectShioriType(
 	fileContents: Map<string, ArrayBuffer>,
 	properties: Record<string, string>,

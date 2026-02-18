@@ -1,6 +1,7 @@
 import {
 	detectShioriByContent,
 	detectShioriByDll,
+	detectUnsupportedShiori,
 	detectShioriType,
 } from "@/lib/parsers/shiori-detect";
 import { describe, expect, it } from "vitest";
@@ -120,5 +121,23 @@ describe("detectShioriType", () => {
 			["other/path/dic01.dic", toBuffer(dicContent)],
 		]);
 		expect(detectShioriType(fileContents, {})).toBe("unknown");
+	});
+});
+
+describe("detectUnsupportedShiori", () => {
+	it("ghost/master/kawari.ini が存在する場合は kawari を返す", () => {
+		const fileContents = new Map<string, ArrayBuffer>([
+			["ghost/master/kawari.ini", new TextEncoder().encode("dict : sample.txt").buffer],
+		]);
+
+		expect(detectUnsupportedShiori(fileContents, {})).toBe("kawari");
+	});
+
+	it("kawari.ini が存在しない場合は null を返す", () => {
+		const fileContents = new Map<string, ArrayBuffer>([
+			["ghost/master/descript.txt", new TextEncoder().encode("name,test").buffer],
+		]);
+
+		expect(detectUnsupportedShiori(fileContents, {})).toBeNull();
 	});
 });

@@ -1,6 +1,7 @@
 import { Layout } from "@/components/common/Layout";
 import { useCatalogStore } from "@/stores/catalog-store";
 import { useFileTreeStore } from "@/stores/file-tree-store";
+import { useGhostStore } from "@/stores/ghost-store";
 import { useParseStore } from "@/stores/parse-store";
 import { useViewStore } from "@/stores/view-store";
 import { cleanup, render, screen } from "@testing-library/react";
@@ -11,6 +12,7 @@ describe("Layout", () => {
 		useCatalogStore.getState().reset();
 		useParseStore.getState().reset();
 		useFileTreeStore.getState().reset();
+		useGhostStore.getState().reset();
 		useViewStore.getState().reset();
 	});
 	afterEach(() => {
@@ -57,5 +59,14 @@ describe("Layout", () => {
 		render(<Layout />);
 
 		expect(screen.getByText("ダイアログが見つかりません")).toBeInTheDocument();
+	});
+
+	it("非対応SHIORIの案内がある場合は会話カタログ中央に表示される", () => {
+		useGhostStore.setState({ unsupportedShioriNotice: "Kawari は対応予定です" });
+
+		render(<Layout />);
+
+		expect(screen.getByText("Kawari は対応予定です")).toBeInTheDocument();
+		expect(screen.queryByText("NAR/ZIP ファイルを読み込んでください")).not.toBeInTheDocument();
 	});
 });

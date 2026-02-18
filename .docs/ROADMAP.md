@@ -96,7 +96,7 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **会話カタログのカテゴリ分類** [S] — イベントを「ランダムトーク」「起動・終了」等のカテゴリでグルーピング表示
   - 依存: 会話カタログ UI
 
-### Phase 5: AST Parser Architecture — 6/8
+### Phase 5: AST Parser Architecture ✅ Complete
 目標: 現代的なコンパイラ設計に基づく AST ベースのパーサーパイプラインを導入し、完全なシンボル解決を実現する
 
 **対象ディレクトリ:** `src/lib/parsers/`
@@ -116,17 +116,17 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
   - 依存: 共通 AST 型定義
 - [x] **Satori 意味解析** [M] — `satori/semantic.ts` でイベント名、$(変数) 参照のシンボル解決
   - 依存: Satori AST パーサー, シンボルテーブル + スコープ管理
-- [x] **Kawari AST パーサー** [M] — `kawari/parser.ts` でエントリーベース構文の AST 生成（履歴項目。現行方針では非対応）
+- [x] **Kawari AST パーサー** [M] — `kawari/parser.ts` でエントリーベース構文の AST 生成（履歴項目。現行は非対応、将来は Phase 8 で再対応）
   - 依存: 共通 AST 型定義
 
-### Phase 6: Extension — 2/7
+### Phase 6: Extension — 4/8
 目標: 対応 SHIORI の拡張と、分析・比較・可視化機能の強化
 
 - [x] **Satori Lexer/Parser 分離** [S] — YAYA と同様の Lexer/Parser 2層構造にリファクタリング、ブロックコメント対応
   - 依存: Satori 辞書パーサー
 - [x] **Worker 解析リクエスト単一路化** [S] — `WorkerRequest` の `type: "parse"` を廃止し、解析リクエストを SHIORI ごとの明示バッチ API に統一
   - 依存: Web Worker 解析基盤, 全 .dic 一括パース, Satori 辞書パーサー
-- [x] **Kawari 意味解析** [M] — `kawari/semantic.ts` でエントリ名、${変数} 参照のシンボル解決（履歴項目。現行方針では非対応）
+- [x] **Kawari 意味解析** [M] — `kawari/semantic.ts` でエントリ名、${変数} 参照のシンボル解決（履歴項目。現行は非対応、将来は Phase 8 で再対応）
   - 依存: Kawari AST パーサー, シンボルテーブル + スコープ管理
 - [ ] **CodeMirror 6 統合** [M] — 右ペイン補助機能としてのコードビュー、行番号表示、基本的なテキスト検索
   - 依存: ソースコードジャンプ
@@ -136,6 +136,8 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
   - 依存: 会話カタログ UI
 - [ ] **統計ダッシュボード** [M] — SHIORI 種別、ファイル統計、会話パターン統計の表示
   - 依存: 全 .dic 一括パース
+- [x] **Legacy Kawari検出時の案内表示** [S] — kawari.ini 等で旧Kawariを検出した場合、会話カタログ中央に「Kawari は対応予定です」を表示
+  - 依存: SHIORI言語自動判別, 会話カタログ UI
 
 ### Phase 7: Ghost Display — 0/4
 目標: NAR 内の surface 画像を読み込み、会話プレビューと連動してゴーストの表情を切り替え表示する
@@ -148,6 +150,14 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
   - 依存: ゴースト表示パネル, 会話プレビューパネル
 - [ ] **サーフェス使用頻度ヒートマップ** [M] — どの表情がどの頻度で使われるかの可視化
   - 依存: サーフェス画像抽出
+
+### Phase 8: Legacy Kawari Re-support — 0/2
+目標: Legacy Kawari（KAWARI.kdt/7.x）を段階的に再対応し、YAYA / Satori と同等の解析導線へ復帰する
+
+- [ ] **Stage 1: Legacy Kawari 互換基盤** [M] — `dot_sakura.nar` を代表ケースとして互換コーパスを固定し、`kawari.ini` と `shiori.dll` 署名（`KAWARI.kdt/`）での判定、`dict : ...` 行の辞書収集（`\` 区切り・相対パス解決・重複除外）を実装
+  - 依存: SHIORI言語自動判別, 全 .dic 一括パース
+- [ ] **Stage 2: Legacy Kawari パーサー本体復帰** [L] — Kawari AST/意味解析を再導入し、厳格運用（重複名・未解決参照は error）で診断を出しつつ解析継続、Worker/Store/型（`ShioriType`, `parse-kawari-batch`）を復帰
+  - 依存: Stage 1: Legacy Kawari 互換基盤, Web Worker 解析基盤, シンボルテーブル + スコープ管理
 
 ---
 

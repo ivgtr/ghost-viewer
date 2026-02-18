@@ -295,4 +295,24 @@ describe("ghostStore", () => {
 		const call = vi.mocked(requestParseYayaBatch).mock.calls[0]?.[0];
 		expect(call?.files.map((f) => f.filePath)).toEqual(["ghost/master/main.dic"]);
 	});
+
+	it("kawari.ini を含む場合は案内表示用 state を設定しバッチ解析を実行しない", async () => {
+		const file = await createNarFile({
+			"ghost/master/descript.txt": "name,test\nshiori,shiori.dll",
+			"ghost/master/kawari.ini": "dict : dict-keeps.txt",
+			"ghost/master/dict-keeps.txt": 'entry : "hello"',
+		});
+
+		useGhostStore.getState().acceptFile(file);
+
+		await vi.waitFor(() => {
+			expect(useGhostStore.getState().isExtracting).toBe(false);
+		});
+
+		const state = useGhostStore.getState();
+		expect(state.shioriType).toBe("unknown");
+		expect(state.unsupportedShioriNotice).toBe("Kawari は対応予定です");
+		expect(requestParseYayaBatch).not.toHaveBeenCalled();
+		expect(requestParseSatoriBatch).not.toHaveBeenCalled();
+	});
 });
