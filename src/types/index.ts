@@ -15,9 +15,21 @@ export type {
 } from "./sakura-script";
 export type {
 	ShellSurfaceCatalog,
+	SurfaceAliasMap,
+	SurfaceAliasMapByShell,
+	SurfaceDefinition,
+	SurfaceDefinitionFile,
+	SurfaceDefinitionFilesByShell,
+	SurfaceDefinitionLoadResult,
 	SurfaceDiagnostic,
+	SurfaceElement,
 	SurfaceExtractionResult,
 	SurfaceImageAsset,
+	SurfaceInitializeInput,
+	SurfaceNotification,
+	SurfaceParseResult,
+	SurfaceResolverContext,
+	SurfaceDefinitionsByShell,
 } from "./surface";
 export type {
 	Dialogue,

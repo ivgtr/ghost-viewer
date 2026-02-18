@@ -4,6 +4,8 @@ import { parseDescriptFromBuffer } from "@/lib/parsers/descript";
 import { isBatchParseTargetPath } from "@/lib/parsers/dictionary-path";
 import { detectShioriType, detectUnsupportedShiori } from "@/lib/parsers/shiori-detect";
 import { extractSurfaceAssets } from "@/lib/surfaces/surface-asset-extractor";
+import { loadSurfaceDefinitions } from "@/lib/surfaces/surfaces-definition-loader";
+import { parseSurfacesCore } from "@/lib/surfaces/surfaces-parser-core";
 import { requestParseSatoriBatch, requestParseYayaBatch } from "@/lib/workers/worker-client";
 import type {
 	BatchParseWorkerFile,
@@ -85,9 +87,6 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 			.then((extractionResult) => {
 				useFileTreeStore.getState().setTree(extractionResult.tree);
 				useFileContentStore.getState().setFileContents(extractionResult.fileContents);
-				useSurfaceStore
-					.getState()
-					.setExtractionResult(extractSurfaceAssets(extractionResult.fileContents));
 
 				const descriptBuffer = extractionResult.fileContents.get("ghost/master/descript.txt");
 				let properties: Record<string, string> = {};
@@ -96,6 +95,26 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 					properties = meta.properties;
 					set({ meta });
 				}
+				const surfaceAssets = extractSurfaceAssets(extractionResult.fileContents);
+				const shellNames = surfaceAssets.shells.map((shell) => shell.shellName);
+				const definitionLoadResult = loadSurfaceDefinitions(
+					extractionResult.fileContents,
+					shellNames,
+				);
+				const parseResult = parseSurfacesCore(definitionLoadResult.filesByShell);
+				const surfaceDiagnostics = [
+					...surfaceAssets.diagnostics,
+					...definitionLoadResult.diagnostics,
+					...parseResult.diagnostics,
+				];
+				useSurfaceStore.getState().initialize({
+					catalog: surfaceAssets.shells,
+					initialShellName: surfaceAssets.initialShellName,
+					definitionsByShell: parseResult.definitionsByShell,
+					aliasMapByShell: parseResult.aliasMapByShell,
+					diagnostics: surfaceDiagnostics,
+					descriptProperties: properties,
+				});
 
 				const unsupportedShiori = detectUnsupportedShiori(
 					extractionResult.fileContents,

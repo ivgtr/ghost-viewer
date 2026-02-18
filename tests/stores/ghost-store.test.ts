@@ -102,15 +102,18 @@ describe("ghostStore", () => {
 	it("acceptFile 成功時に他ストアをリセットする", async () => {
 		useFileTreeStore.getState().selectNode("node-1");
 		useParseStore.getState().startBatchParse(1);
-		useSurfaceStore.getState().setExtractionResult({
-			shells: [
+		useSurfaceStore.getState().initialize({
+			catalog: [
 				{
 					shellName: "master",
 					assets: [{ id: 0, shellName: "master", pngPath: "a", pnaPath: null }],
 				},
 			],
 			initialShellName: "master",
+			definitionsByShell: new Map([["master", new Map([[0, { id: 0, elements: [] }]])]]),
+			aliasMapByShell: new Map(),
 			diagnostics: [],
+			descriptProperties: {},
 		});
 
 		const file = await createNarFile({ "test.txt": "hello" });
@@ -118,7 +121,7 @@ describe("ghostStore", () => {
 
 		expect(useFileTreeStore.getState().selectedNodeId).toBeNull();
 		expect(useParseStore.getState().isParsing).toBe(false);
-		expect(useSurfaceStore.getState().shells).toEqual([]);
+		expect(useSurfaceStore.getState().catalog).toEqual([]);
 
 		await flushPromises();
 	});
@@ -138,9 +141,10 @@ describe("ghostStore", () => {
 
 		const surfaceState = useSurfaceStore.getState();
 		expect(surfaceState.selectedShellName).toBe("master");
-		expect(surfaceState.shells).toHaveLength(1);
-		expect(surfaceState.shells[0]?.assets[0]?.pngPath).toBe("shell/master/surface0.png");
-		expect(surfaceState.shells[0]?.assets[0]?.pnaPath).toBe("shell/master/surface0.pna");
+		expect(surfaceState.catalog).toHaveLength(1);
+		expect(surfaceState.catalog[0]?.assets[0]?.pngPath).toBe("shell/master/surface0.png");
+		expect(surfaceState.catalog[0]?.assets[0]?.pnaPath).toBe("shell/master/surface0.pna");
+		expect(surfaceState.currentSurfaceByScope.get(0)).toBe(0);
 	});
 
 	it("acceptFile 成功時に前のメタ情報をクリアする", async () => {
@@ -216,22 +220,25 @@ describe("ghostStore", () => {
 	});
 
 	it("ghostStore.reset で surfaceStore も初期化される", () => {
-		useSurfaceStore.getState().setExtractionResult({
-			shells: [
+		useSurfaceStore.getState().initialize({
+			catalog: [
 				{
 					shellName: "master",
 					assets: [{ id: 0, shellName: "master", pngPath: "a", pnaPath: null }],
 				},
 			],
 			initialShellName: "master",
+			definitionsByShell: new Map([["master", new Map([[0, { id: 0, elements: [] }]])]]),
+			aliasMapByShell: new Map(),
 			diagnostics: [],
+			descriptProperties: {},
 		});
 
 		useGhostStore.getState().reset();
 
-		expect(useSurfaceStore.getState().shells).toEqual([]);
+		expect(useSurfaceStore.getState().catalog).toEqual([]);
 		expect(useSurfaceStore.getState().selectedShellName).toBeNull();
-		expect(useSurfaceStore.getState().diagnostics).toEqual([]);
+		expect(useSurfaceStore.getState().notifications).toEqual([]);
 	});
 
 	it("isExtracting 中に acceptFile を呼ぶとエラーが設定される", async () => {
