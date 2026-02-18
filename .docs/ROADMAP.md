@@ -130,34 +130,59 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
   - 依存: Kawari AST パーサー, シンボルテーブル + スコープ管理
 - [ ] **CodeMirror 6 統合** [M] — 右ペイン補助機能としてのコードビュー、行番号表示、基本的なテキスト検索
   - 依存: ソースコードジャンプ
+  - 詳細: `.docs/tasks/020-codemirror-6-integration.md`
 - [ ] **SakuraScript シンタックスハイライト定義** [M] — CodeMirror 用カスタム言語定義、キャラ切替 / サーフェス / 選択肢 / イベントの色分け
   - 依存: CodeMirror 6 統合
+  - 詳細: `.docs/tasks/021-sakura-script-syntax-highlight.md`
 - [ ] **検索・フィルター** [M] — テキスト全文検索、高度なフィルタリング
   - 依存: 会話カタログ UI
+  - 詳細: `.docs/tasks/022-search-and-filter.md`
 - [ ] **統計ダッシュボード** [M] — SHIORI 種別、ファイル統計、会話パターン統計の表示
   - 依存: 全 .dic 一括パース
+  - 詳細: `.docs/tasks/023-statistics-dashboard.md`
 - [x] **Legacy Kawari検出時の案内表示** [S] — kawari.ini 等で旧Kawariを検出した場合、会話カタログ中央に「Kawari は対応予定です」を表示
   - 依存: SHIORI言語自動判別, 会話カタログ UI
 
-### Phase 7: Ghost Display — 0/4
-目標: NAR 内の surface 画像を読み込み、会話プレビューと連動してゴーストの表情を切り替え表示する
+### Phase 7: Ghost Display & Layout — 0/9
+目標: レイアウト拡張（最大3レーン）を導入しつつ、NAR 内の surface 画像を会話と連動表示できるゴーストビューアーを実装する
 
-- [ ] **サーフェス画像抽出** [M] — shell ディレクトリの surface*.png 読み込み、surfaces.txt の ID → 画像ファイルマッピング解析
+- [ ] **3レーンスロットレイアウト基盤** [M] — 最大3レーンの設定駆動スロット化を導入し、右レーンを上下分割（初期50/50、可変）する。右上は `会話/コード` 切替維持、右下は画像ビューアー常設
+  - 依存: 3ペインレイアウト, 会話プレビューパネル, ソースコードジャンプ
+  - 詳細: `.docs/tasks/024-lane-slot-layout-architecture.md`
+- [ ] **サーフェス画像抽出** [M] — shell ディレクトリの `surface*.png` を収集し、`shell/master` 優先で初期シェルを自動選択する
   - 依存: JSZip展開 + 仮想ファイルツリー構築
-- [ ] **ゴースト表示パネル** [M] — さくら側・けろ側のキャラクター surface 画像を表示するパネル
+  - 詳細: `.docs/tasks/025-surface-asset-extraction.md`
+- [ ] **surfaces*.txt コア解析** [M] — `surface` / `surface.append` / `surface.alias` と複数 `surfaces*.txt` の連結読み込みを実装する
   - 依存: サーフェス画像抽出
-- [ ] **会話連動サーフェス切替** [M] — 会話プレビューで会話をクリックすると `\s[N]` に対応するサーフェスに切り替わる
+  - 詳細: `.docs/tasks/026-surfaces-parser-core.md`
+- [ ] **ゴースト表示パネル** [M] — さくら側・けろ側の surface 画像表示、キャラフォーカス切替、通知表示を備えた右下パネルを実装する
+  - 依存: 3レーンスロットレイアウト基盤, surfaces*.txt コア解析
+  - 詳細: `.docs/tasks/027-ghost-display-panel.md`
+- [ ] **会話連動サーフェス切替** [M] — イベント/バリアント選択時の自動同期と、会話内 `\\s[N]` クリック同期を実装する。未解決時は直前維持 + 通知
   - 依存: ゴースト表示パネル, 会話プレビューパネル
-- [ ] **サーフェス使用頻度ヒートマップ** [M] — どの表情がどの頻度で使われるかの可視化
-  - 依存: サーフェス画像抽出
+  - 詳細: `.docs/tasks/028-conversation-surface-sync.md`
+- [ ] **サーフェスサムネイルブラウザ** [M] — 上段に会話関連 surface、下段に全 surface を表示し、クリックで表示 surface を切り替える
+  - 依存: 会話連動サーフェス切替
+  - 詳細: `.docs/tasks/029-surface-thumbnail-browser.md`
+- [ ] **surfaces*.txt フル準拠解析** [L] — コア未対応構文（`animation` / `interval` / `pattern` 等）を段階的に実装し、診断を整備する
+  - 依存: surfaces*.txt コア解析
+  - 詳細: `.docs/tasks/030-surfaces-parser-full-compliance.md`
+- [ ] **サーフェス合成レンダラー** [L] — `element` 重ね合わせや補助画像を Canvas で合成し、最終 surface を描画する
+  - 依存: surfaces*.txt フル準拠解析, ゴースト表示パネル
+  - 詳細: `.docs/tasks/031-surface-composition-renderer.md`
+- [ ] **サーフェス使用頻度ヒートマップ** [M] — どの表情がどの頻度で使われるかをイベント内/全体で可視化する
+  - 依存: サーフェス画像抽出, 会話連動サーフェス切替
+  - 詳細: `.docs/tasks/032-surface-usage-heatmap.md`
 
 ### Phase 8: Legacy Kawari Re-support — 0/2
 目標: Legacy Kawari（KAWARI.kdt/7.x）を段階的に再対応し、YAYA / Satori と同等の解析導線へ復帰する
 
 - [ ] **Stage 1: Legacy Kawari 互換基盤** [M] — `dot_sakura.nar` を代表ケースとして互換コーパスを固定し、`kawari.ini` と `shiori.dll` 署名（`KAWARI.kdt/`）での判定、`dict : ...` 行の辞書収集（`\` 区切り・相対パス解決・重複除外）を実装
   - 依存: SHIORI言語自動判別, 全 .dic 一括パース
+  - 詳細: `.docs/tasks/033-legacy-kawari-stage1.md`
 - [ ] **Stage 2: Legacy Kawari パーサー本体復帰** [L] — Kawari AST/意味解析を再導入し、厳格運用（重複名・未解決参照は error）で診断を出しつつ解析継続、Worker/Store/型（`ShioriType`, `parse-kawari-batch`）を復帰
   - 依存: Stage 1: Legacy Kawari 互換基盤, Web Worker 解析基盤, シンボルテーブル + スコープ管理
+  - 詳細: `.docs/tasks/034-legacy-kawari-stage2.md`
 
 ---
 
