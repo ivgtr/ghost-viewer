@@ -208,6 +208,7 @@ describe("resolveSurfaceVisual", () => {
 		expect(result.model?.layers).toHaveLength(1);
 		expect(result.runtimePlan).not.toBeNull();
 		expect(result.runtimePlan?.tracks).toHaveLength(1);
+		expect(result.runtimePlan?.tracks[0]?.loop).toBe(true);
 		expect(result.runtimePlan?.tracks[0]?.frames[0]?.layers[0]?.sourcePath).toBe(
 			"shell/master/parts/ribbon.png",
 		);

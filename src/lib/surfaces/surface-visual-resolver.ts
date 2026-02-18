@@ -589,10 +589,10 @@ function resolveRuntimeMode(animation: SurfaceAnimation): {
 	const normalizedMode =
 		animation.interval?.runtimeMeta?.normalizedMode ?? animation.interval?.mode ?? "unknown";
 	if (normalizedMode === "bind") {
-		return { mode: "bind", loop: false, triggerEveryMs: null, triggerProbability: null };
+		return { mode: "bind", loop: true, triggerEveryMs: null, triggerProbability: null };
 	}
 	if (normalizedMode === "always") {
-		return { mode: "always", loop: false, triggerEveryMs: null, triggerProbability: null };
+		return { mode: "always", loop: true, triggerEveryMs: null, triggerProbability: null };
 	}
 	if (normalizedMode === "runonce") {
 		return { mode: "runonce", loop: false, triggerEveryMs: null, triggerProbability: null };

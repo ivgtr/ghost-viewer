@@ -3,7 +3,7 @@ import type { SurfaceAnimationRuntimePlan } from "@/types";
 import { describe, expect, it } from "vitest";
 
 describe("createSurfaceAnimationRuntime", () => {
-	it("bind/always は1巡後に停止する", () => {
+	it("bind/always はループ継続する", () => {
 		let now = 0;
 		const runtime = createSurfaceAnimationRuntime(createRuntimePlan("bind"), {
 			clock: { now: () => now },
@@ -14,8 +14,9 @@ describe("createSurfaceAnimationRuntime", () => {
 		expect(runtime.tick().layers[1]?.sourcePath).toBe("shell/master/b.png");
 		now += 50;
 		const snapshot = runtime.tick();
-		expect(snapshot.activeTrackIds).toEqual([]);
-		expect(runtime.isRunning()).toBe(false);
+		expect(snapshot.layers[1]?.sourcePath).toBe("shell/master/a.png");
+		expect(snapshot.activeTrackIds).toEqual([1]);
+		expect(runtime.isRunning()).toBe(true);
 	});
 
 	it("runonce は1巡後に停止する", () => {
@@ -63,7 +64,7 @@ describe("createSurfaceAnimationRuntime", () => {
 		expect(snapshot.layers[1]?.sourcePath).toBe("shell/master/a.png");
 	});
 
-	it("wait=0 のフレームでも無限ループせず停止できる", () => {
+	it("wait=0 のフレームでも無限ループせず実行継続できる", () => {
 		let now = 0;
 		const runtime = createSurfaceAnimationRuntime(createRuntimePlan("always", 0), {
 			clock: { now: () => now },
@@ -74,7 +75,101 @@ describe("createSurfaceAnimationRuntime", () => {
 		runtime.tick();
 		now += 1;
 		runtime.tick();
-		expect(runtime.isRunning()).toBe(false);
+		expect(runtime.isRunning()).toBe(true);
+	});
+
+	it("overlay の clear フレームでもベース/他トラックは消えない", () => {
+		let now = 0;
+		const runtime = createSurfaceAnimationRuntime(
+			{
+				surfaceId: 2,
+				shellName: "master",
+				baseLayers: [
+					{
+						sourcePath: "shell/master/base.png",
+						alphaMaskPath: null,
+						x: 0,
+						y: 0,
+						width: 100,
+						height: 100,
+					},
+				],
+				tracks: [
+					{
+						id: 51,
+						mode: "runonce",
+						loop: false,
+						triggerEveryMs: null,
+						triggerProbability: null,
+						frames: [
+							{
+								trackId: 51,
+								patternIndex: 0,
+								operation: "overlay",
+								waitMs: 100,
+								layers: [
+									{
+										sourcePath: "shell/master/4002.png",
+										alphaMaskPath: null,
+										x: 50,
+										y: 120,
+										width: 10,
+										height: 10,
+									},
+								],
+							},
+							{
+								trackId: 51,
+								patternIndex: 1,
+								operation: "clear",
+								waitMs: 100,
+								layers: [],
+							},
+						],
+					},
+					{
+						id: 100,
+						mode: "bind",
+						loop: true,
+						triggerEveryMs: null,
+						triggerProbability: null,
+						frames: [
+							{
+								trackId: 100,
+								patternIndex: 0,
+								operation: "overlay",
+								waitMs: 100,
+								layers: [
+									{
+										sourcePath: "shell/master/6000.png",
+										alphaMaskPath: null,
+										x: 90,
+										y: 100,
+										width: 20,
+										height: 20,
+									},
+								],
+							},
+						],
+					},
+				],
+				capabilities: [],
+			},
+			{
+				clock: { now: () => now },
+			},
+		);
+
+		expect(runtime.start().layers.map((layer) => layer.sourcePath)).toEqual([
+			"shell/master/base.png",
+			"shell/master/4002.png",
+			"shell/master/6000.png",
+		]);
+		now += 100;
+		expect(runtime.tick().layers.map((layer) => layer.sourcePath)).toEqual([
+			"shell/master/base.png",
+			"shell/master/6000.png",
+		]);
 	});
 });
 
@@ -99,7 +194,7 @@ function createRuntimePlan(
 			{
 				id: 1,
 				mode,
-				loop: false,
+				loop: mode === "bind" || mode === "always",
 				triggerEveryMs: mode === "sometimes" ? 3000 : null,
 				triggerProbability: mode === "sometimes" ? 0.3 : null,
 				frames: [

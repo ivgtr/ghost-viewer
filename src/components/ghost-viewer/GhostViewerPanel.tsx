@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
+import { applyAlphaMask, applyColorKeyTransparency } from "@/lib/surfaces/canvas-alpha";
 import { buildSurfaceScene } from "@/lib/surfaces/surface-scene-builder";
 import { buildSurfaceSetLayout } from "@/lib/surfaces/surface-set-layout";
 import {
@@ -622,19 +623,19 @@ function drawCanvasLayer(options: DrawCanvasLayerOptions): void {
 	options.layerCanvas.height = height;
 	options.layerContext.clearRect(0, 0, width, height);
 	options.layerContext.drawImage(options.source, 0, 0, width, height);
+	const layerImageData = options.layerContext.getImageData(0, 0, width, height);
 
 	if (options.mask) {
 		options.maskCanvas.width = width;
 		options.maskCanvas.height = height;
 		options.maskContext.clearRect(0, 0, width, height);
 		options.maskContext.drawImage(options.mask, 0, 0, width, height);
-		const layerImageData = options.layerContext.getImageData(0, 0, width, height);
 		const maskImageData = options.maskContext.getImageData(0, 0, width, height);
-		for (let index = 0; index < layerImageData.data.length; index += 4) {
-			layerImageData.data[index + 3] = maskImageData.data[index] ?? 0;
-		}
-		options.layerContext.putImageData(layerImageData, 0, 0);
+		applyAlphaMask(layerImageData, maskImageData);
+	} else {
+		applyColorKeyTransparency(layerImageData);
 	}
+	options.layerContext.putImageData(layerImageData, 0, 0);
 
 	options.context.drawImage(options.layerCanvas, options.drawX, options.drawY, width, height);
 }

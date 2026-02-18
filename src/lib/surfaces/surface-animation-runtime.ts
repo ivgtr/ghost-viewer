@@ -183,7 +183,8 @@ function composeLayers(
 	baseLayers: SurfaceRenderLayer[],
 	trackStates: TrackState[],
 ): SurfaceRenderLayer[] {
-	let composedLayers = baseLayers.map((layer) => ({ ...layer }));
+	let composedBaseLayers = baseLayers.map((layer) => ({ ...layer }));
+	const overlayLayers: SurfaceRenderLayer[] = [];
 	for (const trackState of trackStates) {
 		if (!trackState.active || trackState.track.frames.length === 0) {
 			continue;
@@ -193,16 +194,15 @@ function composeLayers(
 			continue;
 		}
 		if (frame.operation === "clear") {
-			composedLayers = [];
 			continue;
 		}
 		if (frame.operation === "replace-base") {
-			composedLayers = frame.layers.map((layer) => ({ ...layer }));
+			composedBaseLayers = frame.layers.map((layer) => ({ ...layer }));
 			continue;
 		}
-		composedLayers = [...composedLayers, ...frame.layers.map((layer) => ({ ...layer }))];
+		overlayLayers.push(...frame.layers.map((layer) => ({ ...layer })));
 	}
-	return composedLayers;
+	return [...composedBaseLayers, ...overlayLayers];
 }
 
 function normalizeRandom(value: number): number {
