@@ -96,7 +96,7 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **会話カタログのカテゴリ分類** [S] — イベントを「ランダムトーク」「起動・終了」等のカテゴリでグルーピング表示
   - 依存: 会話カタログ UI
 
-### Phase 5: AST Parser Architecture — 5/8
+### Phase 5: AST Parser Architecture — 6/8
 目標: 現代的なコンパイラ設計に基づく AST ベースのパーサーパイプラインを導入し、完全なシンボル解決を実現する
 
 **対象ディレクトリ:** `src/lib/parsers/`
@@ -112,19 +112,19 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
   - 依存: 共通 AST 型定義
 - [x] **YAYA 意味解析・シンボル解決** [L] — `yaya/semantic.ts` で関数定義・変数宣言・変数参照のシンボル登録と解決、スコープチェーン構築
   - 依存: YAYA AST パーサー, シンボルテーブル + スコープ管理, Visitor パターン基盤
-- [ ] **Satori AST パーサー** [M] — `satori/parser.ts` で Satori 固有構文（イベントブロック、単語群）の AST 生成
+- [x] **Satori AST パーサー** [M] — `satori/parser.ts` で Satori 固有構文（イベントブロック、単語群）の AST 生成
   - 依存: 共通 AST 型定義
 - [ ] **Satori 意味解析** [M] — `satori/semantic.ts` でイベント名、$(変数) 参照のシンボル解決
   - 依存: Satori AST パーサー, シンボルテーブル + スコープ管理
 - [ ] **Kawari AST パーサー** [M] — `kawari/parser.ts` でエントリーベース構文の AST 生成
   - 依存: 共通 AST 型定義
 
-### Phase 6: Extension — 1/6
+### Phase 6: Extension — 2/7
 目標: 対応 SHIORI の拡張と、分析・比較・可視化機能の強化
 
 - [x] **Satori Lexer/Parser 分離** [S] — YAYA と同様の Lexer/Parser 2層構造にリファクタリング、ブロックコメント対応
   - 依存: Satori 辞書パーサー
-- [ ] **Worker 解析リクエスト単一路化** [S] — `WorkerRequest` の `type: "parse"` を廃止し、解析リクエストを SHIORI ごとの明示バッチ API に統一
+- [x] **Worker 解析リクエスト単一路化** [S] — `WorkerRequest` の `type: "parse"` を廃止し、解析リクエストを SHIORI ごとの明示バッチ API に統一
   - 依存: Web Worker 解析基盤, 全 .dic 一括パース, Satori 辞書パーサー, Kawari 辞書パーサー
 - [ ] **Kawari 意味解析** [M] — `kawari/semantic.ts` でエントリ名、${変数} 参照のシンボル解決
   - 依存: Kawari AST パーサー, シンボルテーブル + スコープ管理

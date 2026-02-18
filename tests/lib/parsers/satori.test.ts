@@ -118,6 +118,17 @@ describe("parseSatoriDic", () => {
 		expect(result[1].name).toBe("OnClose");
 	});
 
+	it("section 内の：行はイベントの dialogue として扱わない", () => {
+		const text = "＊OnBoot\n：\\0hello\\e\n＠単語群\n：\\0ignored\\e\n＊OnClose\n：\\0bye\\e";
+		const result = parseSatoriDic(text, "test.dic");
+
+		expect(result).toHaveLength(2);
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("\\0hello\\e");
+		expect(result[1].dialogues).toHaveLength(1);
+		expect(result[1].dialogues[0].rawText).toBe("\\0bye\\e");
+	});
+
 	it("SakuraScript トークンが生成される", () => {
 		const text = "＊OnBoot\n：\\0こんにちは\\e";
 		const result = parseSatoriDic(text, "test.dic");

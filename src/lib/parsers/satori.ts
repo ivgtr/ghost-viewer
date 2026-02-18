@@ -1,60 +1,41 @@
-import { lex } from "@/lib/parsers/satori-lexer";
+import type { DialogueLine, EventDecl, SatoriLineNode } from "@/lib/parsers/satori/ast";
+import { parseSatori } from "@/lib/parsers/satori/parser";
 import { buildDicFunction } from "@/lib/parsers/shared";
 import type { Block } from "@/lib/parsers/shared";
 import { tokenize } from "@/lib/sakura-script/tokenize";
-import type { DicFunction } from "@/types";
+import type { Dialogue, DicFunction } from "@/types";
 
-export function parseSatoriDic(text: string, filePath: string): DicFunction[] {
-	const tokens = lex(text);
-	const results: DicFunction[] = [];
-	let current: Block | null = null;
+function isEventDecl(node: { type: string }): node is EventDecl {
+	return node.type === "EventDecl";
+}
 
-	for (const token of tokens) {
-		switch (token.type) {
-			case "event": {
-				if (current) {
-					results.push(buildDicFunction(current, filePath));
-				}
-				current = {
-					name: token.value,
-					startLine: token.line,
-					endLine: token.line,
-					dialogues: [],
-				};
-				break;
-			}
-			case "section": {
-				if (current) {
-					results.push(buildDicFunction(current, filePath));
-					current = null;
-				}
-				break;
-			}
-			case "dialogue": {
-				if (current) {
-					const rawText = token.value;
-					current.dialogues.push({
-						tokens: tokenize(rawText),
-						startLine: token.line,
-						endLine: token.line,
-						rawText,
-					});
-					current.endLine = token.line;
-				}
-				break;
-			}
-			case "text": {
-				if (current) {
-					current.endLine = token.line;
-				}
-				break;
-			}
-		}
-	}
+function isDialogueLine(line: SatoriLineNode): line is DialogueLine {
+	return line.type === "DialogueLine";
+}
 
-	if (current) {
-		results.push(buildDicFunction(current, filePath));
-	}
+function toDialogue(line: DialogueLine): Dialogue {
+	const rawText = line.rawText;
+	return {
+		tokens: tokenize(rawText),
+		startLine: line.loc.start.line,
+		endLine: line.loc.end.line,
+		rawText,
+	};
+}
 
-	return results;
+function toBlock(event: EventDecl): Block {
+	const dialogues = event.lines.filter(isDialogueLine).map(toDialogue);
+	return {
+		name: event.name,
+		startLine: event.loc.start.line,
+		endLine: event.loc.end.line,
+		dialogues,
+	};
+}
+
+export function parseSatoriDic(source: string, filePath: string): DicFunction[] {
+	const program = parseSatori(source, filePath);
+	return program.body
+		.filter(isEventDecl)
+		.map((event) => buildDicFunction(toBlock(event), filePath));
 }
