@@ -1,3 +1,4 @@
+import { isVisibleDialogue } from "@/lib/parsers/shared";
 import type { CatalogEntry, DicFunction } from "@/types";
 import { categorizeEvent } from "./categorize-event";
 
@@ -6,11 +7,15 @@ const PREVIEW_MAX_LENGTH = 50;
 export function buildCatalogEntries(functions: DicFunction[]): CatalogEntry[] {
 	const merged = new Map<string, DicFunction>();
 	for (const fn of functions) {
+		const visibleDialogues = fn.dialogues.filter(isVisibleDialogue);
+		if (visibleDialogues.length === 0) {
+			continue;
+		}
 		const existing = merged.get(fn.name);
 		if (existing) {
-			existing.dialogues.push(...fn.dialogues);
+			existing.dialogues.push(...visibleDialogues);
 		} else {
-			merged.set(fn.name, { ...fn, dialogues: [...fn.dialogues] });
+			merged.set(fn.name, { ...fn, dialogues: [...visibleDialogues] });
 		}
 	}
 

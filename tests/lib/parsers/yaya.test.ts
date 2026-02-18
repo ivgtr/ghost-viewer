@@ -402,7 +402,7 @@ describe("parseYayaDic", () => {
 	// --- 新規テスト: 条件式内文字列の除外 ---
 
 	it("if 条件式内の文字列はダイアログとして抽出しない", () => {
-		const text = ["OnTest {", '\tif "text" _in_ reference[1] {', '\t\t"dialogue"', "\t}", "}"].join(
+		const text = ["OnTest {", '\tif ("text" == reference[1]) {', '\t\t"dialogue"', "\t}", "}"].join(
 			"\n",
 		);
 		const result = parseYayaDic(text, "test.dic");
@@ -414,7 +414,7 @@ describe("parseYayaDic", () => {
 	it("case 内の文字列はダイアログとして抽出しない", () => {
 		const text = [
 			"OnTest {",
-			"\tswitch {",
+			"\tswitch (x) {",
 			'\t\tcase "pattern" {',
 			'\t\t\t"dialogue"',
 			"\t\t}",
@@ -522,5 +522,31 @@ describe("parseYayaDic", () => {
 		expect(result[0].dialogues).toHaveLength(2);
 		expect(result[0].dialogues[0].rawText).toBe("\\h\\s[0]hello");
 		expect(result[0].dialogues[1].rawText).toBe("\\t\\![set,choicetimeout,0]");
+	});
+
+	it("ghost/master パスのパイプラインでも元ファイル行番号を保持する", () => {
+		const text = [
+			"//============人気ランキング====================================================",
+			"ToolTip_RATEOFUSE",
+			"{",
+			'\t"ゴーストの使用ランキングを表示＆そこから起動できます"',
+			"}",
+			"",
+			"OnChoiceSelect_ADDBOOTGHOST",
+			"{",
+			'\t"\\![get,property,OnActiveGhostListCountGet,activeghostlist.count]\\![embed,OnActiveGhostListGetFirst]"',
+			"}",
+		].join("\n");
+		const result = parseYayaDic(text, "ghost/master/aya_menu.dic");
+		const tooltip = result.find((fn) => fn.name === "ToolTip_RATEOFUSE");
+		const onChoice = result.find((fn) => fn.name === "OnChoiceSelect_ADDBOOTGHOST");
+
+		expect(tooltip).toBeDefined();
+		expect(tooltip?.startLine).toBe(1);
+		expect(tooltip?.dialogues[0]?.startLine).toBe(3);
+
+		expect(onChoice).toBeDefined();
+		expect(onChoice?.startLine).toBe(6);
+		expect(onChoice?.dialogues[0]?.startLine).toBe(8);
 	});
 });

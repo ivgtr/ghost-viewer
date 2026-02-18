@@ -7,9 +7,13 @@ export interface Block {
 	dialogues: Dialogue[];
 }
 
-export function hasVisibleText(dialogue: Dialogue): boolean {
+export function isVisibleDialogue(dialogue: Dialogue): boolean {
 	return dialogue.tokens.some(
-		(t) => t.tokenType === "text" || t.tokenType === "variable" || t.tokenType === "choice",
+		(t) =>
+			t.tokenType === "text" ||
+			t.tokenType === "variable" ||
+			t.tokenType === "choice" ||
+			t.tokenType === "surface",
 	);
 }
 

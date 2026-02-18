@@ -35,6 +35,41 @@ describe("lookupDialoguesByFunctionName", () => {
 		const result = lookupDialoguesByFunctionName("OnNotExist", functions);
 		expect(result).toEqual([]);
 	});
+
+	it("不可視ダイアログを除外する", () => {
+		const functions: DicFunction[] = [
+			{
+				name: "OnBoot",
+				filePath: "test.dic",
+				startLine: 0,
+				endLine: 10,
+				dialogues: [
+					{
+						tokens: [
+							{
+								tokenType: "unknown",
+								raw: "\\![embed,OnTest]",
+								value: "\\![embed,OnTest]",
+								offset: 0,
+							},
+						],
+						startLine: 1,
+						endLine: 1,
+						rawText: "\\![embed,OnTest]",
+					},
+					{
+						tokens: [{ tokenType: "text", raw: "visible", value: "visible", offset: 0 }],
+						startLine: 2,
+						endLine: 2,
+						rawText: "visible",
+					},
+				],
+			},
+		];
+		const result = lookupDialoguesByFunctionName("OnBoot", functions);
+		expect(result).toHaveLength(1);
+		expect(result[0].rawText).toBe("visible");
+	});
 });
 
 describe("lookupSourceLocation", () => {
@@ -72,5 +107,43 @@ describe("lookupSourceLocation", () => {
 		const functions = [makeFn("OnBoot", 1)];
 		const result = lookupSourceLocation("OnNotExist", 0, functions);
 		expect(result).toBeNull();
+	});
+
+	it("不可視ダイアログを除外した index でソース位置を返す", () => {
+		const functions: DicFunction[] = [
+			{
+				name: "OnBoot",
+				filePath: "ghost/master/dic/boot.dic",
+				startLine: 0,
+				endLine: 10,
+				dialogues: [
+					{
+						tokens: [
+							{
+								tokenType: "unknown",
+								raw: "\\![embed,OnTest]",
+								value: "\\![embed,OnTest]",
+								offset: 0,
+							},
+						],
+						startLine: 3,
+						endLine: 3,
+						rawText: "\\![embed,OnTest]",
+					},
+					{
+						tokens: [{ tokenType: "text", raw: "visible", value: "visible", offset: 0 }],
+						startLine: 20,
+						endLine: 21,
+						rawText: "visible",
+					},
+				],
+			},
+		];
+		const result = lookupSourceLocation("OnBoot", 0, functions);
+		expect(result).toEqual({
+			filePath: "ghost/master/dic/boot.dic",
+			startLine: 20,
+			endLine: 21,
+		});
 	});
 });

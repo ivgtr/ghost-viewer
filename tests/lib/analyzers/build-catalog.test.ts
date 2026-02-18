@@ -61,6 +61,26 @@ describe("buildCatalogEntries", () => {
 		expect(entries).toEqual([]);
 	});
 
+	it("不可視ダイアログのみの関数は結果から除外される", () => {
+		const entries = buildCatalogEntries([
+			makeFn("OnBoot", [token("unknown", "\\![embed,OnTest]")]),
+		]);
+		expect(entries).toEqual([]);
+	});
+
+	it("不可視ダイアログは dialogueCount に含めない", () => {
+		const fn = makeFn("OnBoot", [token("text", "visible")]);
+		fn.dialogues.push({
+			tokens: [token("unknown", "\\![raise,OnTest]")],
+			startLine: 2,
+			endLine: 2,
+			rawText: "",
+		});
+		const entries = buildCatalogEntries([fn]);
+		expect(entries).toHaveLength(1);
+		expect(entries[0].dialogueCount).toBe(1);
+	});
+
 	it("会話数降順でソートする（同数なら名前順）", () => {
 		const fn1 = makeFn("Alpha", [token("text", "a")]);
 		const fn2 = makeFn("Zebra", [token("text", "z1")]);
