@@ -6,6 +6,8 @@ interface CommentStripResult {
 interface HeredocState {
 	quote: "'" | '"';
 	lines: string[];
+	startOutputIndex: number;
+	prefix: string;
 }
 
 function processLineSource(source: string): string {
@@ -18,7 +20,6 @@ function processLineSource(source: string): string {
 	const output: string[] = [];
 
 	for (const rawLine of physicalLines) {
-		let currentLine = rawLine;
 		if (heredoc) {
 			const line = rawLine.trimStart();
 			const terminator = `${heredoc.quote}>>`;
@@ -30,19 +31,22 @@ function processLineSource(source: string): string {
 				}
 
 				const content = heredoc.lines.join("\n");
-				logicalLine += JSON.stringify(content);
-				heredoc = null;
-
+				const serialized = serializeHeredocToYayaString(content);
 				const tail = line.slice(terminatorIndex + terminator.length).trim();
-				currentLine = tail;
+				output[heredoc.startOutputIndex] = `${heredoc.prefix}${serialized}${tail}`.replace(
+					/[ \t]+$/u,
+					"",
+				);
+				heredoc = null;
+				output.push("");
 			} else {
 				heredoc.lines.push(line);
 				output.push("");
-				continue;
 			}
+			continue;
 		}
 
-		const stripped = stripCommentsOutsideQuotes(currentLine, inBlockComment);
+		const stripped = stripCommentsOutsideQuotes(rawLine, inBlockComment);
 		inBlockComment = stripped.inBlockComment;
 
 		let line = stripped.text;
@@ -62,8 +66,17 @@ function processLineSource(source: string): string {
 
 		const heredocQuote = detectHeredocOpenAtLineEnd(line);
 		if (heredocQuote) {
-			line = removeTrailingHeredocMarker(line, heredocQuote);
-			heredoc = { quote: heredocQuote, lines: [] };
+			const prefix = removeTrailingHeredocMarker(line, heredocQuote);
+			const joinedPrefix = logicalLine.length > 0 ? `${logicalLine}${prefix}` : prefix;
+			logicalLine = "";
+			heredoc = {
+				quote: heredocQuote,
+				lines: [],
+				startOutputIndex: output.length,
+				prefix: joinedPrefix.replace(/[ \t]+$/u, ""),
+			};
+			output.push("");
+			continue;
 		}
 
 		const joined = logicalLine.length > 0 ? `${logicalLine}${line}` : line;
@@ -80,7 +93,8 @@ function processLineSource(source: string): string {
 
 	if (heredoc) {
 		const content = heredoc.lines.join("\n");
-		logicalLine += JSON.stringify(content);
+		const serialized = serializeHeredocToYayaString(content);
+		output[heredoc.startOutputIndex] = `${heredoc.prefix}${serialized}`.replace(/[ \t]+$/u, "");
 	}
 
 	if (logicalLine.length > 0) {
@@ -88,6 +102,11 @@ function processLineSource(source: string): string {
 	}
 
 	return output.join("\n");
+}
+
+function serializeHeredocToYayaString(raw: string): string {
+	const escaped = raw.replace(/"/gu, '\\"').replace(/\r\n|\r|\n/gu, "\\n");
+	return `"${escaped}"`;
 }
 
 function stripCommentsOutsideQuotes(

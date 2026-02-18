@@ -5,6 +5,7 @@ export type SakuraScriptTokenType =
 	| "balloon"
 	| "choice"
 	| "raise"
+	| "directive"
 	| "wait"
 	| "marker"
 	| "variable"

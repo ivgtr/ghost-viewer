@@ -57,6 +57,8 @@ export function buildChatMessages(tokens: SakuraScriptToken[]): ChatMessage[] {
 					flush();
 				}
 				break;
+			case "directive":
+				break;
 			// raise, unknown, marker(\e, \t) → skip
 		}
 	}

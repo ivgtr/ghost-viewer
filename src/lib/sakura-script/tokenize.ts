@@ -229,6 +229,108 @@ function tryParseTag(
 	return { token: createToken("unknown", raw, raw, pos), nextCursor: pos + 2 };
 }
 
+const EVAL_DIRECTIVE_PREFIX = ":eval=:";
+
+function consumeEvalDirective(
+	input: string,
+	pos: number,
+): { token: SakuraScriptToken; nextCursor: number } | null {
+	if (!input.startsWith(EVAL_DIRECTIVE_PREFIX, pos)) {
+		return null;
+	}
+
+	let cursor = pos + EVAL_DIRECTIVE_PREFIX.length;
+	let inSingle = false;
+	let inDouble = false;
+	let parenDepth = 0;
+	let bracketDepth = 0;
+	let braceDepth = 0;
+	let sawStructuredExpression = false;
+
+	while (cursor < input.length) {
+		const ch = input[cursor];
+		const next = input[cursor + 1];
+
+		if ((inSingle || inDouble) && ch === "\\") {
+			cursor += next === undefined ? 1 : 2;
+			continue;
+		}
+
+		if (!inDouble && ch === "'") {
+			inSingle = !inSingle;
+			cursor++;
+			continue;
+		}
+		if (!inSingle && ch === '"') {
+			inDouble = !inDouble;
+			cursor++;
+			continue;
+		}
+		if (inSingle || inDouble) {
+			cursor++;
+			continue;
+		}
+
+		if (ch === "(") {
+			parenDepth++;
+			sawStructuredExpression = true;
+			cursor++;
+			continue;
+		}
+		if (ch === "[") {
+			bracketDepth++;
+			sawStructuredExpression = true;
+			cursor++;
+			continue;
+		}
+		if (ch === "{") {
+			braceDepth++;
+			sawStructuredExpression = true;
+			cursor++;
+			continue;
+		}
+		if (ch === ")") {
+			parenDepth = Math.max(0, parenDepth - 1);
+			cursor++;
+			if (sawStructuredExpression && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+				break;
+			}
+			continue;
+		}
+		if (ch === "]") {
+			bracketDepth = Math.max(0, bracketDepth - 1);
+			cursor++;
+			if (sawStructuredExpression && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+				break;
+			}
+			continue;
+		}
+		if (ch === "}") {
+			braceDepth = Math.max(0, braceDepth - 1);
+			cursor++;
+			if (sawStructuredExpression && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+				break;
+			}
+			continue;
+		}
+
+		if (!sawStructuredExpression && parenDepth === 0 && bracketDepth === 0 && braceDepth === 0) {
+			if (ch === "\\" || ch === "\n" || ch === "\r" || ch === "\t" || ch === " ") {
+				break;
+			}
+		}
+
+		cursor++;
+	}
+
+	const raw = input.slice(pos, cursor);
+	const value = input.slice(pos + EVAL_DIRECTIVE_PREFIX.length, cursor).trim();
+	return {
+		token: createToken("directive", raw, value, pos),
+		nextCursor: cursor,
+	};
+}
+
 export function tokenize(input: string): SakuraScriptToken[] {
 	const tokens: SakuraScriptToken[] = [];
 	let cursor = 0;
@@ -243,7 +345,12 @@ export function tokenize(input: string): SakuraScriptToken[] {
 	}
 
 	while (cursor < input.length) {
-		if (input[cursor] === "\\") {
+		const directive = consumeEvalDirective(input, cursor);
+		if (directive) {
+			flushText(cursor);
+			tokens.push(directive.token);
+			cursor = directive.nextCursor;
+		} else if (input[cursor] === "\\") {
 			flushText(cursor);
 			const result = tryParseTag(input, cursor);
 			if (result) {

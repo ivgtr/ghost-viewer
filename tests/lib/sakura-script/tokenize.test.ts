@@ -134,6 +134,44 @@ describe("tokenize", () => {
 		});
 	});
 
+	describe(":eval=: ディレクティブ", () => {
+		it(":eval=:StartCommunicate(reference[0]) を directive として扱う", () => {
+			const result = tokenize(":eval=:StartCommunicate(reference[0])");
+			expect(result).toEqual([
+				{
+					tokenType: "directive",
+					raw: ":eval=:StartCommunicate(reference[0])",
+					value: "StartCommunicate(reference[0])",
+					offset: 0,
+				},
+			]);
+		});
+
+		it("前後テキストから :eval=: を分離する", () => {
+			const input = "え～、やだよ。:eval=:StartCommunicate(reference[0])よろしく";
+			const result = tokenize(input);
+			expect(result).toHaveLength(3);
+			expect(result[0]).toEqual({
+				tokenType: "text",
+				raw: "え～、やだよ。",
+				value: "え～、やだよ。",
+				offset: 0,
+			});
+			expect(result[1]).toEqual({
+				tokenType: "directive",
+				raw: ":eval=:StartCommunicate(reference[0])",
+				value: "StartCommunicate(reference[0])",
+				offset: "え～、やだよ。".length,
+			});
+			expect(result[2]).toEqual({
+				tokenType: "text",
+				raw: "よろしく",
+				value: "よろしく",
+				offset: input.indexOf("よろしく"),
+			});
+		});
+	});
+
 	describe("複合パターン", () => {
 		it("典型的会話", () => {
 			const input = "\\0\\s[0]こんにちは。\\w9\\1\\s[10]やあ。\\e";

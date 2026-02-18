@@ -107,6 +107,20 @@ describe("buildChatMessages", () => {
 		expect(result[0].segments).toEqual([{ type: "text", value: "テスト" }]);
 	});
 
+	it("directive が表示セグメントへ混入しない", () => {
+		const tokens = [
+			token("text", "え～、俺もやだよ。", "え～、俺もやだよ。"),
+			token("directive", ":eval=:StartCommunicate(reference[0])", "StartCommunicate(reference[0])"),
+			token("text", "よろしく", "よろしく"),
+		];
+		const result = buildChatMessages(tokens);
+		expect(result).toHaveLength(1);
+		expect(result[0].segments).toEqual([
+			{ type: "text", value: "え～、俺もやだよ。" },
+			{ type: "text", value: "よろしく" },
+		]);
+	});
+
 	it("wait がセグメントに含まれる", () => {
 		const tokens = [token("text", "待って", "待って"), token("wait", "\\w5", "5")];
 		const result = buildChatMessages(tokens);
