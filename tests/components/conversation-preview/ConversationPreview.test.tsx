@@ -37,6 +37,7 @@ describe("ConversationPreview", () => {
 			functions: [
 				{
 					name: "",
+					condition: null,
 					filePath: "ghost/master/dic08_RandomTalk.txt",
 					startLine: 10,
 					endLine: 13,
@@ -70,6 +71,7 @@ describe("ConversationPreview", () => {
 			functions: [
 				{
 					name: "OnBoot",
+					condition: "（Ｒ０）>0",
 					filePath: "ghost/master/dic01_Base.txt",
 					startLine: 1,
 					endLine: 4,
@@ -111,5 +113,37 @@ describe("ConversationPreview", () => {
 		expect(screen.getByText("狛犬")).toBeInTheDocument();
 		expect(screen.getByText("こんにちは")).toBeInTheDocument();
 		expect(screen.getByText("やあ")).toBeInTheDocument();
+		expect(screen.getByText("条件: （Ｒ０）>0")).toBeInTheDocument();
+	});
+
+	it("条件式が無い場合は条件表示を出さない", () => {
+		const parseResult: ParseResult = {
+			shioriType: "satori",
+			functions: [
+				{
+					name: "OnBoot",
+					condition: null,
+					filePath: "ghost/master/dic01_Base.txt",
+					startLine: 1,
+					endLine: 2,
+					dialogues: [
+						{
+							tokens: [makeToken("charSwitch", "\\0", "0"), makeToken("text", "hello", "hello")],
+							startLine: 1,
+							endLine: 1,
+							rawText: "hello",
+						},
+					],
+				},
+			],
+			meta: null,
+			diagnostics: [],
+		};
+
+		useParseStore.getState().succeedParse(parseResult);
+		useCatalogStore.getState().selectFunction("OnBoot");
+		render(<ConversationPreview />);
+
+		expect(screen.queryByText(/^条件:/)).not.toBeInTheDocument();
 	});
 });

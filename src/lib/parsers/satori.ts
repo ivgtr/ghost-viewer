@@ -11,6 +11,7 @@ interface SatoriTurn {
 	startLine: number;
 	endLine: number;
 }
+const COMMAND_PREFIXES = new Set(["＞", "＿", "＠", "＄", "＊"]);
 
 function isEventDecl(node: { type: string }): node is EventDecl {
 	return node.type === "EventDecl";
@@ -24,26 +25,48 @@ function toggleSpeakerId(id: 0 | 1): 0 | 1 {
 	return id === 0 ? 1 : 0;
 }
 
+function isCommandLine(value: string): boolean {
+	const prefix = value.charAt(0);
+	return COMMAND_PREFIXES.has(prefix);
+}
+
+function appendText(turn: SatoriTurn, value: string, endLine: number): void {
+	turn.text = `${turn.text}\n${value}`;
+	turn.endLine = endLine;
+}
+
 function buildTurns(lines: SatoriLineNode[]): SatoriTurn[] {
 	const turns: SatoriTurn[] = [];
-	let nextSpeakerId: 0 | 1 = 0;
+	let currentSpeakerId: 0 | 1 = 1;
 
 	for (const line of lines) {
 		if (isDialogueLine(line)) {
+			currentSpeakerId = toggleSpeakerId(currentSpeakerId);
 			turns.push({
-				speakerId: nextSpeakerId,
+				speakerId: currentSpeakerId,
 				text: line.rawText,
 				startLine: line.loc.start.line,
 				endLine: line.loc.end.line,
 			});
-			nextSpeakerId = toggleSpeakerId(nextSpeakerId);
+			continue;
+		}
+
+		if (isCommandLine(line.value)) {
 			continue;
 		}
 
 		const currentTurn = turns[turns.length - 1];
-		if (!currentTurn) continue;
-		currentTurn.text = `${currentTurn.text}\n${line.value}`;
-		currentTurn.endLine = line.loc.end.line;
+		if (currentTurn && currentTurn.speakerId === currentSpeakerId) {
+			appendText(currentTurn, line.value, line.loc.end.line);
+			continue;
+		}
+
+		turns.push({
+			speakerId: currentSpeakerId,
+			text: line.value,
+			startLine: line.loc.start.line,
+			endLine: line.loc.end.line,
+		});
 	}
 
 	return turns;
@@ -72,6 +95,7 @@ function toBlock(event: EventDecl): Block {
 	const dialogues = mergedDialogue ? [mergedDialogue] : [];
 	return {
 		name: event.name,
+		condition: event.condition,
 		startLine: event.loc.start.line,
 		endLine: event.loc.end.line,
 		dialogues,

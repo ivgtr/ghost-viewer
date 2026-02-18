@@ -11,6 +11,7 @@ export interface GhostMeta {
 
 export interface DicFunction {
 	name: string;
+	condition?: string | null;
 	filePath: string;
 	startLine: number;
 	endLine: number;

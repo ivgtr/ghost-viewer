@@ -34,6 +34,17 @@ function mergeLoc(start: SourceLocation, end: SourceLocation): SourceLocation {
 	};
 }
 
+function splitEventHeader(value: string): { name: string; condition: string | null } {
+	const tabIndex = value.indexOf("\t");
+	if (tabIndex === -1) {
+		return { name: value.trim(), condition: null };
+	}
+	return {
+		name: value.slice(0, tabIndex).trim(),
+		condition: value.slice(tabIndex + 1),
+	};
+}
+
 function createDialogueLine(token: SatoriToken): DialogueLine {
 	return {
 		type: "DialogueLine",
@@ -76,9 +87,11 @@ export function parseSatoriTokens(tokens: SatoriToken[], filePath?: string): Sat
 			case "event": {
 				closeCurrentBlock();
 				const loc = createTokenLoc(token);
+				const { name, condition } = splitEventHeader(token.value);
 				currentEvent = {
 					type: "EventDecl",
-					name: token.value,
+					name,
+					condition,
 					lines: [],
 					loc,
 				};

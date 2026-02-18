@@ -1,5 +1,6 @@
 import { isEventSelected, toEventDisplayName } from "@/lib/analyzers/event-name";
 import {
+	lookupDialogueCondition,
 	lookupDialoguesByFunctionName,
 	lookupSourceLocation,
 } from "@/lib/analyzers/lookup-dialogues";
@@ -35,6 +36,10 @@ export function ConversationPreview() {
 		if (!dialogue) return [];
 		return buildChatMessages(dialogue.tokens);
 	}, [dialogues, clampedIndex]);
+	const selectedCondition = useMemo(() => {
+		if (!isEventSelected(selectedEventName)) return null;
+		return lookupDialogueCondition(selectedEventName, clampedIndex, functions);
+	}, [selectedEventName, clampedIndex, functions]);
 
 	const characterNames = meta?.characterNames ?? {};
 
@@ -81,9 +86,14 @@ export function ConversationPreview() {
 		<div className="flex h-full flex-col overflow-hidden">
 			<div className="flex items-center justify-between border-b border-zinc-700 px-4 py-2">
 				<div className="flex items-center gap-2 min-w-0">
-					<span className="text-sm font-medium text-zinc-200 truncate">
-						{toEventDisplayName(selectedEventName)}
-					</span>
+					<div className="flex min-w-0 flex-col">
+						<span className="text-sm font-medium text-zinc-200 truncate">
+							{toEventDisplayName(selectedEventName)}
+						</span>
+						{selectedCondition ? (
+							<span className="text-xs text-zinc-400 truncate">{`条件: ${selectedCondition}`}</span>
+						) : null}
+					</div>
 					<button
 						type="button"
 						onClick={handleJumpToSource}

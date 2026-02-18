@@ -49,6 +49,14 @@ describe("parseSatoriDic", () => {
 		expect(result[0].name).toBe("");
 	});
 
+	it("イベントヘッダの条件式を保持する", () => {
+		const text = "＊OnBoot\t（Ｒ０）>0\n：\\0hello\\e";
+		const result = parseSatoriDic(text, "test.dic");
+
+		expect(result[0].name).toBe("OnBoot");
+		expect(result[0].condition).toBe("（Ｒ０）>0");
+	});
+
 	it("DicFunction の startLine/endLine が正しい", () => {
 		const text = "＊OnBoot\n：\\0こんにちは\\e\n：\\0やあ\\e";
 		const result = parseSatoriDic(text, "test.dic");
@@ -151,15 +159,18 @@ describe("parseSatoriDic", () => {
 		expect(messages[2].segments[0]).toEqual({ type: "text", value: "third" });
 	});
 
-	it("最初の：行より前の通常行は会話対象外", () => {
+	it("最初の：行より前の通常行を会話に取り込む", () => {
 		const text = "＊OnBoot\nprologue\n：hello";
 		const result = parseSatoriDic(text, "test.dic");
+		const dialogue = result[0].dialogues[0];
+		const messages = buildChatMessages(dialogue.tokens);
 
 		expect(result).toHaveLength(1);
 		expect(result[0].dialogues).toHaveLength(1);
-		expect(result[0].dialogues[0].rawText).toBe("hello");
-		expect(result[0].dialogues[0].startLine).toBe(2);
-		expect(result[0].dialogues[0].endLine).toBe(2);
+		expect(dialogue.rawText).toBe("prologue\nhello");
+		expect(dialogue.startLine).toBe(1);
+		expect(dialogue.endLine).toBe(2);
+		expect(messages.map((m) => m.characterId)).toEqual([1, 0]);
 	});
 
 	it("（n）を話者指定として扱わない", () => {
@@ -189,6 +200,39 @@ describe("parseSatoriDic", () => {
 		const result = parseSatoriDic(text, "test.dic");
 
 		expect(result[0].dialogues[0].rawText).toBe("hello world");
+	});
+
+	it("行コマンド行は会話本文に含めない", () => {
+		const text = "＊OnBoot\n＞jump\n通常行\n：返答\n＿choice\n＄var";
+		const result = parseSatoriDic(text, "test.dic");
+		const dialogue = result[0].dialogues[0];
+		const messages = buildChatMessages(dialogue.tokens);
+
+		expect(dialogue.rawText).toBe("通常行\n返答");
+		expect(messages).toHaveLength(2);
+		expect(messages.map((m) => m.characterId)).toEqual([1, 0]);
+		expect(messages[0].segments[0]).toEqual({ type: "text", value: "通常行" });
+		expect(messages[1].segments[0]).toEqual({ type: "text", value: "返答" });
+	});
+
+	it("：なし通常行イベントも会話として抽出する", () => {
+		const text = "＊OnBoot\nline1\nline2";
+		const result = parseSatoriDic(text, "test.dic");
+		const dialogue = result[0].dialogues[0];
+		const messages = buildChatMessages(dialogue.tokens);
+
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(dialogue.rawText).toBe("line1\nline2");
+		expect(messages).toHaveLength(1);
+		expect(messages[0].characterId).toBe(1);
+	});
+
+	it("：なしで行コマンドのみのイベントは dialogues が空になる", () => {
+		const text = "＊OnBoot\n＞jump\n＿choice\n＄var";
+		const result = parseSatoriDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].dialogues).toEqual([]);
 	});
 
 	it("＊のみで dialogues が空の場合もブロックを返す", () => {

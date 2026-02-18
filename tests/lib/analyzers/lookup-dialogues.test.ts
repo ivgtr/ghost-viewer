@@ -1,18 +1,24 @@
 import {
+	lookupDialogueCondition,
 	lookupDialoguesByFunctionName,
 	lookupSourceLocation,
 } from "@/lib/analyzers/lookup-dialogues";
 import type { DicFunction } from "@/types/shiori";
 import { describe, expect, it } from "vitest";
 
-function makeFn(name: string, dialogueCount: number, filePath = "test.dic"): DicFunction {
+function makeFn(
+	name: string,
+	dialogueCount: number,
+	filePath = "test.dic",
+	condition: string | null = null,
+): DicFunction {
 	const dialogues = Array.from({ length: dialogueCount }, (_, i) => ({
 		tokens: [{ tokenType: "text" as const, raw: `text${i}`, value: `text${i}`, offset: 0 }],
 		startLine: i * 10,
 		endLine: i * 10 + 5,
 		rawText: `text${i}`,
 	}));
-	return { name, filePath, startLine: 0, endLine: 10, dialogues };
+	return { name, condition, filePath, startLine: 0, endLine: 10, dialogues };
 }
 
 describe("lookupDialoguesByFunctionName", () => {
@@ -145,5 +151,24 @@ describe("lookupSourceLocation", () => {
 			startLine: 20,
 			endLine: 21,
 		});
+	});
+});
+
+describe("lookupDialogueCondition", () => {
+	it("variant index に対応する条件式を返す", () => {
+		const functions = [
+			makeFn("OnBoot", 2, "ghost/master/dic/a.txt", "（Ｒ０）>0"),
+			makeFn("OnBoot", 1, "ghost/master/dic/b.txt", "（Ｒ１）>0"),
+		];
+		expect(lookupDialogueCondition("OnBoot", 0, functions)).toBe("（Ｒ０）>0");
+		expect(lookupDialogueCondition("OnBoot", 1, functions)).toBe("（Ｒ０）>0");
+		expect(lookupDialogueCondition("OnBoot", 2, functions)).toBe("（Ｒ１）>0");
+	});
+
+	it("条件なし・空白条件・範囲外では null を返す", () => {
+		const functions = [makeFn("OnBoot", 1), makeFn("OnBoot", 1, "test2.dic", "   ")];
+		expect(lookupDialogueCondition("OnBoot", 0, functions)).toBeNull();
+		expect(lookupDialogueCondition("OnBoot", 1, functions)).toBeNull();
+		expect(lookupDialogueCondition("OnBoot", 2, functions)).toBeNull();
 	});
 });

@@ -2,6 +2,7 @@ import type { Dialogue, DicFunction } from "@/types";
 
 export interface Block {
 	name: string;
+	condition?: string | null;
 	startLine: number;
 	endLine: number;
 	dialogues: Dialogue[];
@@ -18,11 +19,15 @@ export function isVisibleDialogue(dialogue: Dialogue): boolean {
 }
 
 export function buildDicFunction(block: Block, filePath: string): DicFunction {
-	return {
+	const dicFunction: DicFunction = {
 		name: block.name,
 		filePath,
 		startLine: block.startLine,
 		endLine: block.endLine,
 		dialogues: block.dialogues,
 	};
+	if (block.condition !== undefined) {
+		dicFunction.condition = block.condition;
+	}
+	return dicFunction;
 }

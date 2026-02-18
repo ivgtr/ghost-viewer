@@ -21,9 +21,25 @@ describe("satori/parser", () => {
 		const onBoot = program.body[0] as EventDecl;
 		const onClose = program.body[1] as EventDecl;
 		expect(onBoot.name).toBe("OnBoot");
+		expect(onBoot.condition).toBeNull();
 		expect(onClose.name).toBe("OnClose");
+		expect(onClose.condition).toBeNull();
 		expect(onBoot.lines).toHaveLength(1);
 		expect(onClose.lines).toHaveLength(1);
+	});
+
+	it("イベントヘッダの条件式を分離して保持する", () => {
+		const program = parseSatori("＊OnBoot\t（Ｒ０）>0\n：hello");
+		const event = program.body[0] as EventDecl;
+		expect(event.name).toBe("OnBoot");
+		expect(event.condition).toBe("（Ｒ０）>0");
+	});
+
+	it("空イベント名と条件式を同時に保持する", () => {
+		const program = parseSatori("＊\t（Ｒ０）>0\n：hello");
+		const event = program.body[0] as EventDecl;
+		expect(event.name).toBe("");
+		expect(event.condition).toBe("（Ｒ０）>0");
 	});
 
 	it("section でイベントを終了し SectionBlock を構築する", () => {

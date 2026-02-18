@@ -41,9 +41,9 @@ describe("satori-lexer", () => {
 	});
 
 	describe("value の正確性", () => {
-		it("event の value はマーカー除去後に trim される", () => {
+		it("event の value はマーカー除去後の生値を保持する", () => {
 			const tokens = lex("＊  OnBoot  ");
-			expect(tokens[0].value).toBe("OnBoot");
+			expect(tokens[0].value).toBe("  OnBoot  ");
 		});
 
 		it("dialogue の value はマーカー除去後に trim されない", () => {
@@ -102,6 +102,27 @@ describe("satori-lexer", () => {
 			const tokens = lex("/* full line comment */\n＊OnBoot");
 			expect(tokens).toHaveLength(1);
 			expect(tokens[0].type).toBe("event");
+		});
+	});
+
+	describe("互換構文", () => {
+		it("φ 行末エスケープ時は次行を text として扱う", () => {
+			const tokens = lex("＊OnBoot\nlineφ\n＊EscapedAsText\n：hello");
+			expect(tokens).toEqual([
+				{ type: "event", value: "OnBoot", line: 0 },
+				{ type: "text", value: "lineφ", line: 1 },
+				{ type: "text", value: "＊EscapedAsText", line: 2 },
+				{ type: "dialogue", value: "hello", line: 3 },
+			]);
+		});
+
+		it("＃＃＃インラインイベント行は破棄し、次行を text として扱う", () => {
+			const tokens = lex("＊OnBoot\n＃＃＃インラインイベント\n＊InlineAsText\n：hello");
+			expect(tokens).toEqual([
+				{ type: "event", value: "OnBoot", line: 0 },
+				{ type: "text", value: "＊InlineAsText", line: 2 },
+				{ type: "dialogue", value: "hello", line: 3 },
+			]);
 		});
 	});
 

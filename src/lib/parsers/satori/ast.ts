@@ -11,6 +11,7 @@ interface SatoriProgram extends BaseNode {
 interface EventDecl extends BaseNode {
 	type: "EventDecl";
 	name: string;
+	condition: string | null;
 	lines: SatoriLineNode[];
 	loc: SourceLocation;
 }
