@@ -155,7 +155,7 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **surfaces*.txt コア解析** [M] — `surface` / `surface.append` / `surface.alias` と複数 `surfaces*.txt` の連結読み込みを実装する
   - 依存: サーフェス画像抽出
   - 詳細: `.docs/tasks/026-surfaces-parser-core.md`
-- [x] **ゴースト表示パネル** [M] — さくら側・けろ側の surface 画像表示、キャラフォーカス切替、通知表示を備えた右下パネルを実装する
+- [x] **ゴースト表示パネル** [M] — さくら/けろを1セットとして重ね表示し、キャラフォーカス切替と通知オーバーレイを備えた右下パネルを実装する
   - 依存: 3レーンスロットレイアウト基盤, surfaces*.txt コア解析
   - 詳細: `.docs/tasks/027-ghost-display-panel.md`
 - [ ] **会話連動サーフェス切替** [M] — イベント/バリアント選択時の自動同期と、会話内 `\\s[N]` クリック同期を実装する。未解決時は直前維持 + 通知
