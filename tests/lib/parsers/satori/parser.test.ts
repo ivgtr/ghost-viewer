@@ -40,9 +40,16 @@ describe("satori/parser", () => {
 		const section = program.body[1] as SectionBlock;
 		expect(firstEvent.loc.end.line).toBe(1);
 		expect(section.separator.name).toBe("単語群");
+		expect(section.separator.marker).toBe("＠");
 		expect(section.lines).toHaveLength(2);
 		expect(section.lines[0]?.type).toBe("TextLine");
 		expect(section.lines[1]?.type).toBe("TextLine");
+	});
+
+	it("＄ section の marker を保持する", () => {
+		const program = parseSatori("＄変数\na=1");
+		const section = program.body[0] as SectionBlock;
+		expect(section.separator.marker).toBe("＄");
 	});
 
 	it("dialogue/text 混在時に行順を保持し endLine を更新する", () => {

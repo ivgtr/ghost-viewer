@@ -114,7 +114,7 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
   - 依存: YAYA AST パーサー, シンボルテーブル + スコープ管理, Visitor パターン基盤
 - [x] **Satori AST パーサー** [M] — `satori/parser.ts` で Satori 固有構文（イベントブロック、単語群）の AST 生成
   - 依存: 共通 AST 型定義
-- [ ] **Satori 意味解析** [M] — `satori/semantic.ts` でイベント名、$(変数) 参照のシンボル解決
+- [x] **Satori 意味解析** [M] — `satori/semantic.ts` でイベント名、$(変数) 参照のシンボル解決
   - 依存: Satori AST パーサー, シンボルテーブル + スコープ管理
 - [ ] **Kawari AST パーサー** [M] — `kawari/parser.ts` でエントリーベース構文の AST 生成
   - 依存: 共通 AST 型定義

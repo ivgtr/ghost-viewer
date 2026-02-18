@@ -1,9 +1,59 @@
 type SatoriTokenType = "event" | "dialogue" | "section" | "text";
 
-interface SatoriToken {
-	type: SatoriTokenType;
+type SectionMarker = "＠" | "＄";
+
+interface SatoriBaseToken {
+	type: Exclude<SatoriTokenType, "section">;
 	value: string;
 	line: number;
+}
+
+interface SatoriSectionToken {
+	type: "section";
+	value: string;
+	line: number;
+	marker: SectionMarker;
+}
+
+type SatoriToken = SatoriBaseToken | SatoriSectionToken;
+
+function createToken(
+	type: Exclude<SatoriTokenType, "section">,
+	value: string,
+	line: number,
+): SatoriBaseToken {
+	return { type, value, line };
+}
+
+function createSectionToken(
+	value: string,
+	line: number,
+	marker: SectionMarker,
+): SatoriSectionToken {
+	return {
+		type: "section",
+		value,
+		line,
+		marker,
+	};
+}
+
+function isSectionMarker(marker: string): marker is SectionMarker {
+	return marker === "＠" || marker === "＄";
+}
+
+function createLineToken(content: string, line: number): SatoriToken {
+	const marker = content.charAt(0);
+	if (marker === "＊") {
+		return createToken("event", content.slice(1).trim(), line);
+	}
+	if (marker === "：") {
+		return createToken("dialogue", content.slice(1), line);
+	}
+	if (isSectionMarker(marker)) {
+		return createSectionToken(content.slice(1), line, marker);
+	}
+	return createToken("text", content, line);
 }
 
 function skipBlockComment(
@@ -73,19 +123,10 @@ export function lex(source: string): SatoriToken[] {
 			continue;
 		}
 
-		const marker = content.charAt(0);
-		if (marker === "＊") {
-			tokens.push({ type: "event", value: content.slice(1).trim(), line: lineStart });
-		} else if (marker === "：") {
-			tokens.push({ type: "dialogue", value: content.slice(1), line: lineStart });
-		} else if (marker === "＠" || marker === "＄") {
-			tokens.push({ type: "section", value: content.slice(1), line: lineStart });
-		} else {
-			tokens.push({ type: "text", value: content, line: lineStart });
-		}
+		tokens.push(createLineToken(content, lineStart));
 	}
 
 	return tokens;
 }
 
-export type { SatoriToken, SatoriTokenType };
+export type { SatoriToken, SatoriTokenType, SectionMarker };

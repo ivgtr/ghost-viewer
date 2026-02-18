@@ -23,12 +23,14 @@ describe("satori-lexer", () => {
 			const tokens = lex("＠単語群");
 			expect(tokens).toHaveLength(1);
 			expect(tokens[0].type).toBe("section");
+			expect(tokens[0]).toHaveProperty("marker", "＠");
 		});
 
 		it("＄ を section トークンとして分類する", () => {
 			const tokens = lex("＄変数");
 			expect(tokens).toHaveLength(1);
 			expect(tokens[0].type).toBe("section");
+			expect(tokens[0]).toHaveProperty("marker", "＄");
 		});
 
 		it("マーカーなしの行を text トークンとして分類する", () => {
@@ -52,6 +54,7 @@ describe("satori-lexer", () => {
 		it("section の value はマーカー除去される", () => {
 			const tokens = lex("＠単語群");
 			expect(tokens[0].value).toBe("単語群");
+			expect(tokens[0]).toHaveProperty("marker", "＠");
 		});
 
 		it("text の value はそのまま保持される", () => {
@@ -160,10 +163,10 @@ describe("satori-lexer", () => {
 			{ type: "dialogue", value: "\\0こんにちは\\e", line: 2 },
 			{ type: "event", value: "OnClose", line: 7 },
 			{ type: "dialogue", value: "\\0さようなら\\e", line: 8 },
-			{ type: "section", value: "単語群", line: 9 },
+			{ type: "section", value: "単語群", line: 9, marker: "＠" },
 			{ type: "text", value: "foo", line: 10 },
 			{ type: "text", value: "bar", line: 11 },
-			{ type: "section", value: "変数", line: 12 },
+			{ type: "section", value: "変数", line: 12, marker: "＄" },
 		]);
 	});
 });

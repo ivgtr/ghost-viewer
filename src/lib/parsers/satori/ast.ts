@@ -1,4 +1,5 @@
 import type { BaseNode, SourceLocation } from "../core/ast";
+import type { SectionMarker } from "../satori-lexer";
 
 interface SatoriProgram extends BaseNode {
 	type: "Program";
@@ -29,6 +30,7 @@ interface TextLine extends BaseNode {
 interface SectionSeparator extends BaseNode {
 	type: "SectionSeparator";
 	name: string;
+	marker: SectionMarker;
 	loc: SourceLocation;
 }
 

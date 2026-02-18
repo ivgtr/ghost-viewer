@@ -89,6 +89,7 @@ export function parseSatoriTokens(tokens: SatoriToken[], filePath?: string): Sat
 				const separator: SectionSeparator = {
 					type: "SectionSeparator",
 					name: token.value,
+					marker: token.marker,
 					loc: createTokenLoc(token),
 				};
 				currentSection = {
