@@ -11,8 +11,6 @@ describe("detectShioriByDll", () => {
 		["aya5.dll", "yaya"],
 		["aya.dll", "yaya"],
 		["satori.dll", "satori"],
-		["kawari.dll", "kawari"],
-		["kawarirc.dll", "kawari"],
 	])("%s → %s", (dll, expected) => {
 		expect(detectShioriByDll(dll)).toBe(expected);
 	});
@@ -28,6 +26,11 @@ describe("detectShioriByDll", () => {
 
 	it("未知の DLL 名は null を返す", () => {
 		expect(detectShioriByDll("unknown.dll")).toBeNull();
+	});
+
+	it("Kawari DLL 名は非対応として null を返す", () => {
+		expect(detectShioriByDll("kawari.dll")).toBeNull();
+		expect(detectShioriByDll("kawarirc.dll")).toBeNull();
 	});
 
 	it("空文字列は null を返す", () => {

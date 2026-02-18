@@ -4,7 +4,7 @@ https://ivgtr.github.io/ghost-viewer/
 
 伺か（ukagaka）ゴーストの NAR/ZIP ファイルをブラウザ上で展開・可視化し、会話パターンをツリー構造として表示する。
 
-YAYA / Satori / Kawari の SHIORI 言語に対応中。
+YAYA / Satori の SHIORI 言語に対応中。
 
 ## Setup
 

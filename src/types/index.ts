@@ -21,7 +21,6 @@ export type {
 } from "./shiori";
 export type {
 	BatchParseWorkerFile,
-	ParseKawariBatchWorkerRequest,
 	ParseSatoriBatchWorkerRequest,
 	ParseYayaBatchWorkerRequest,
 	WorkerRequest,

@@ -1,6 +1,6 @@
 import type { SakuraScriptToken } from "./sakura-script";
 
-export type ShioriType = "yaya" | "satori" | "kawari" | "unknown";
+export type ShioriType = "yaya" | "satori" | "unknown";
 
 export interface GhostMeta {
 	name: string;

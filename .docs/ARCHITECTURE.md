@@ -4,7 +4,7 @@
 
 **ghost-viewer** は、伺か（ukagaka）ゴーストの NAR ファイルをブラウザ上で展開・可視化し、会話パターンをツリー構造として分析するための SPA ツールである。
 
-SHIORI 言語（YAYA / Satori / Kawari）で記述された会話スクリプトの構造を俯瞰的に把握し、分岐・遷移のパターンを視覚的に分析できる環境を提供する。
+SHIORI 言語（YAYA / Satori）で記述された会話スクリプトの構造を俯瞰的に把握し、分岐・遷移のパターンを視覚的に分析できる環境を提供する。
 
 ---
 
@@ -61,7 +61,7 @@ ghost-viewer/
 │   │   └── common/            # 共通UIコンポーネント（レイアウト、スプリッター等）
 │   ├── lib/                   # ビジネスロジック（React非依存）
 │   │   ├── nar/               # NAR展開・バリデーション
-│   │   ├── parsers/           # SHIORI言語別パーサー（YAYA / Satori / Kawari）
+│   │   ├── parsers/           # SHIORI言語別パーサー（YAYA / Satori）
 │   │   ├── sakura-script/     # SakuraScriptトークナイザー
 │   │   └── analyzers/         # 統計・分析ロジック
 │   ├── workers/               # Web Worker定義

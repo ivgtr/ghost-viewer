@@ -1,8 +1,4 @@
-import {
-	dispatchParseKawariBatch,
-	dispatchParseSatoriBatch,
-	dispatchParseYayaBatch,
-} from "@/lib/workers/parse-dispatcher";
+import { dispatchParseSatoriBatch, dispatchParseYayaBatch } from "@/lib/workers/parse-dispatcher";
 import { describe, expect, it, vi } from "vitest";
 
 function toArrayBuffer(text: string): ArrayBuffer {
@@ -93,43 +89,6 @@ describe("dispatchParseSatoriBatch", () => {
 		const result = dispatchParseSatoriBatch({ files: [] }, onProgress);
 
 		expect(result.shioriType).toBe("satori");
-		expect(result.functions).toEqual([]);
-		expect(result.diagnostics).toEqual([]);
-		expect(result.meta).toBeNull();
-		expect(onProgress).toHaveBeenCalledTimes(2);
-		expect(onProgress).toHaveBeenNthCalledWith(1, 0);
-		expect(onProgress).toHaveBeenNthCalledWith(2, 100);
-	});
-});
-
-describe("dispatchParseKawariBatch", () => {
-	it("複数ファイルを昇順で結合してパースし progress を通知する", () => {
-		const onProgress = vi.fn();
-		const input = {
-			files: [
-				{ filePath: "b.dic", fileContent: toArrayBuffer("sentenceB : \\0B\\e") },
-				{ filePath: "a.dic", fileContent: toArrayBuffer("sentenceA : \\0A\\e") },
-			],
-		};
-
-		const result = dispatchParseKawariBatch(input, onProgress);
-
-		expect(result.shioriType).toBe("kawari");
-		expect(result.functions.map((fn) => fn.name)).toEqual(["sentenceA", "sentenceB"]);
-		expect(result.functions.map((fn) => fn.filePath)).toEqual(["a.dic", "b.dic"]);
-		expect(result.meta).toBeNull();
-		expect(result.diagnostics).toEqual([]);
-		expect(onProgress).toHaveBeenCalledTimes(3);
-		expect(onProgress).toHaveBeenNthCalledWith(1, 0);
-		expect(onProgress).toHaveBeenNthCalledWith(2, 50);
-		expect(onProgress).toHaveBeenNthCalledWith(3, 100);
-	});
-
-	it("files が空なら空結果を返し progress は 0→100", () => {
-		const onProgress = vi.fn();
-		const result = dispatchParseKawariBatch({ files: [] }, onProgress);
-
-		expect(result.shioriType).toBe("kawari");
 		expect(result.functions).toEqual([]);
 		expect(result.diagnostics).toEqual([]);
 		expect(result.meta).toBeNull();

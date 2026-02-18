@@ -71,7 +71,7 @@ const PARSE_DIAGNOSTIC_SCHEMA = object({
 });
 
 const PARSE_RESULT_SCHEMA = object({
-	shioriType: union([literal("yaya"), literal("satori"), literal("kawari"), literal("unknown")]),
+	shioriType: union([literal("yaya"), literal("satori"), literal("unknown")]),
 	functions: array(DIC_FUNCTION_SCHEMA),
 	meta: union([GHOST_META_SCHEMA, null_()]),
 	diagnostics: array(PARSE_DIAGNOSTIC_SCHEMA),
@@ -89,10 +89,6 @@ const WORKER_REQUEST_SCHEMA = union([
 	}),
 	object({
 		type: literal("parse-satori-batch"),
-		files: array(BATCH_PARSE_WORKER_FILE_SCHEMA),
-	}),
-	object({
-		type: literal("parse-kawari-batch"),
 		files: array(BATCH_PARSE_WORKER_FILE_SCHEMA),
 	}),
 ]);

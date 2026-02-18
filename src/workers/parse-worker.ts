@@ -1,9 +1,5 @@
 import { parseWorkerRequest } from "@/lib/validation/worker-message";
-import {
-	dispatchParseKawariBatch,
-	dispatchParseSatoriBatch,
-	dispatchParseYayaBatch,
-} from "@/lib/workers/parse-dispatcher";
+import { dispatchParseSatoriBatch, dispatchParseYayaBatch } from "@/lib/workers/parse-dispatcher";
 import type { ParseResult, WorkerResponse } from "@/types";
 
 self.addEventListener("message", (event: MessageEvent<unknown>) => {
@@ -18,11 +14,6 @@ self.addEventListener("message", (event: MessageEvent<unknown>) => {
 				break;
 			case "parse-satori-batch":
 				result = dispatchParseSatoriBatch(request, (percent) => {
-					self.postMessage({ type: "progress", percent } satisfies WorkerResponse);
-				});
-				break;
-			case "parse-kawari-batch":
-				result = dispatchParseKawariBatch(request, (percent) => {
 					self.postMessage({ type: "progress", percent } satisfies WorkerResponse);
 				});
 				break;

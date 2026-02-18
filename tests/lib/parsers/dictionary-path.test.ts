@@ -54,14 +54,9 @@ describe("isBatchParseTargetPath", () => {
 		expect(isBatchParseTargetPath("ghost/master/dic01.txt", "yaya")).toBe(false);
 	});
 
-	it("kawari は dic*.txt を対象に含まない", () => {
-		expect(isBatchParseTargetPath("ghost/master/dic01.txt", "kawari")).toBe(false);
-	});
-
-	it("全 SHIORI で .dic は対象", () => {
+	it("対応 SHIORI で .dic は対象", () => {
 		expect(isBatchParseTargetPath("ghost/master/main.dic", "satori")).toBe(true);
 		expect(isBatchParseTargetPath("ghost/master/main.dic", "yaya")).toBe(true);
-		expect(isBatchParseTargetPath("ghost/master/main.dic", "kawari")).toBe(true);
 	});
 });
 

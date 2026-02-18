@@ -2,7 +2,7 @@
 
 ## 1. Project Overview
 
-ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラウザ上で展開・可視化する SPA ツールである。SHIORI 言語（YAYA / Satori / Kawari）で記述された会話スクリプトをカタログ化し、会話パターンや分岐構造のインサイトを得ることを目的とする。技術スタックは TypeScript / React / Vite / Zustand / JSZip / CodeMirror 6 / Tailwind CSS で構成され、GitHub Pages にデプロイする。
+ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラウザ上で展開・可視化する SPA ツールである。SHIORI 言語（YAYA / Satori）で記述された会話スクリプトをカタログ化し、会話パターンや分岐構造のインサイトを得ることを目的とする。技術スタックは TypeScript / React / Vite / Zustand / JSZip / CodeMirror 6 / Tailwind CSS で構成され、GitHub Pages にデプロイする。
 
 ---
 
@@ -56,7 +56,7 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 **未インストール依存:** なし（純粋な TypeScript ロジック）
 
 - [x] **descript.txt パーサー** [S] — key=value 形式のメタ情報抽出、ゴースト名・作者・キャラクター名の取得
-- [x] **SHIORI言語自動判別** [S] — 同梱 DLL 名と .dic ファイルパターンから YAYA / Satori / Kawari を推定
+- [x] **SHIORI言語自動判別** [S] — 同梱 DLL 名と .dic ファイルパターンから YAYA / Satori を推定（Kawari は現行方針で unknown 扱い）
   - 依存: descript.txt パーサー
 - [x] **SakuraScript トークナイザー** [M] — SakuraScript タグ（`\0`, `\1`, `\s[]`, `\q[]`, `\![raise]` 等）をトークン配列に分解
 - [x] **Web Worker 解析基盤** [M] — Worker の定義、メインスレッドとの postMessage 通信、プログレス通知、タイムアウト制御
@@ -116,7 +116,7 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
   - 依存: 共通 AST 型定義
 - [x] **Satori 意味解析** [M] — `satori/semantic.ts` でイベント名、$(変数) 参照のシンボル解決
   - 依存: Satori AST パーサー, シンボルテーブル + スコープ管理
-- [ ] **Kawari AST パーサー** [M] — `kawari/parser.ts` でエントリーベース構文の AST 生成
+- [x] **Kawari AST パーサー** [M] — `kawari/parser.ts` でエントリーベース構文の AST 生成（履歴項目。現行方針では非対応）
   - 依存: 共通 AST 型定義
 
 ### Phase 6: Extension — 2/7
@@ -125,8 +125,8 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **Satori Lexer/Parser 分離** [S] — YAYA と同様の Lexer/Parser 2層構造にリファクタリング、ブロックコメント対応
   - 依存: Satori 辞書パーサー
 - [x] **Worker 解析リクエスト単一路化** [S] — `WorkerRequest` の `type: "parse"` を廃止し、解析リクエストを SHIORI ごとの明示バッチ API に統一
-  - 依存: Web Worker 解析基盤, 全 .dic 一括パース, Satori 辞書パーサー, Kawari 辞書パーサー
-- [ ] **Kawari 意味解析** [M] — `kawari/semantic.ts` でエントリ名、${変数} 参照のシンボル解決
+  - 依存: Web Worker 解析基盤, 全 .dic 一括パース, Satori 辞書パーサー
+- [x] **Kawari 意味解析** [M] — `kawari/semantic.ts` でエントリ名、${変数} 参照のシンボル解決（履歴項目。現行方針では非対応）
   - 依存: Kawari AST パーサー, シンボルテーブル + スコープ管理
 - [ ] **CodeMirror 6 統合** [M] — 右ペイン補助機能としてのコードビュー、行番号表示、基本的なテキスト検索
   - 依存: ソースコードジャンプ

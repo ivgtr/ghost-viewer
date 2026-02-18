@@ -15,15 +15,7 @@ export interface ParseSatoriBatchWorkerRequest {
 	files: BatchParseWorkerFile[];
 }
 
-export interface ParseKawariBatchWorkerRequest {
-	type: "parse-kawari-batch";
-	files: BatchParseWorkerFile[];
-}
-
-export type WorkerRequest =
-	| ParseYayaBatchWorkerRequest
-	| ParseSatoriBatchWorkerRequest
-	| ParseKawariBatchWorkerRequest;
+export type WorkerRequest = ParseYayaBatchWorkerRequest | ParseSatoriBatchWorkerRequest;
 
 export type WorkerResponse =
 	| { type: "parsed"; result: ParseResult }

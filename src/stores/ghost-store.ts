@@ -3,11 +3,7 @@ import { validateNarFile } from "@/lib/nar/validate";
 import { parseDescriptFromBuffer } from "@/lib/parsers/descript";
 import { isBatchParseTargetPath } from "@/lib/parsers/dictionary-path";
 import { detectShioriType } from "@/lib/parsers/shiori-detect";
-import {
-	requestParseKawariBatch,
-	requestParseSatoriBatch,
-	requestParseYayaBatch,
-} from "@/lib/workers/worker-client";
+import { requestParseSatoriBatch, requestParseYayaBatch } from "@/lib/workers/worker-client";
 import type {
 	BatchParseWorkerFile,
 	DicFunction,
@@ -95,7 +91,7 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 				const shioriType = detectShioriType(extractionResult.fileContents, properties);
 				set({ shioriType, stats: extractionResult.stats, isExtracting: false });
 
-				if (shioriType !== "yaya" && shioriType !== "satori" && shioriType !== "kawari") return;
+				if (shioriType !== "yaya" && shioriType !== "satori") return;
 
 				const dicPaths: string[] = [];
 				for (const path of extractionResult.fileContents.keys()) {
@@ -121,7 +117,7 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 async function batchParse(
 	dicPaths: string[],
 	fileContents: Map<string, ArrayBuffer>,
-	shioriType: "yaya" | "satori" | "kawari",
+	shioriType: "yaya" | "satori",
 ): Promise<void> {
 	const parseStore = useParseStore.getState();
 	parseStore.startBatchParse(dicPaths.length);
@@ -201,7 +197,7 @@ interface BatchRequestConfig {
 	fallbackErrorMessage: string;
 }
 
-function resolveBatchRequest(shioriType: "yaya" | "satori" | "kawari"): BatchRequestConfig {
+function resolveBatchRequest(shioriType: "yaya" | "satori"): BatchRequestConfig {
 	switch (shioriType) {
 		case "yaya":
 			return {
@@ -214,12 +210,6 @@ function resolveBatchRequest(shioriType: "yaya" | "satori" | "kawari"): BatchReq
 				request: requestParseSatoriBatch,
 				diagnosticCode: "SATORI_BATCH_PARSE_FAILED",
 				fallbackErrorMessage: "Satori バッチ解析に失敗しました",
-			};
-		case "kawari":
-			return {
-				request: requestParseKawariBatch,
-				diagnosticCode: "KAWARI_BATCH_PARSE_FAILED",
-				fallbackErrorMessage: "Kawari バッチ解析に失敗しました",
 			};
 		default: {
 			const _exhaustive: never = shioriType;

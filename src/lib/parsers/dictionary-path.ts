@@ -21,10 +21,7 @@ export function isSatoriDicTxtPath(path: string): boolean {
 	return SATORI_DIC_TXT_PATTERN.test(fileName);
 }
 
-export function isBatchParseTargetPath(
-	path: string,
-	shioriType: "yaya" | "satori" | "kawari",
-): boolean {
+export function isBatchParseTargetPath(path: string, shioriType: "yaya" | "satori"): boolean {
 	if (isDicPath(path)) {
 		return true;
 	}

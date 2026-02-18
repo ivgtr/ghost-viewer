@@ -1,11 +1,7 @@
 import JSZip from "jszip";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import {
-	requestParseKawariBatch,
-	requestParseSatoriBatch,
-	requestParseYayaBatch,
-} from "@/lib/workers/worker-client";
+import { requestParseSatoriBatch, requestParseYayaBatch } from "@/lib/workers/worker-client";
 import { useFileTreeStore } from "@/stores/file-tree-store";
 import { useGhostStore } from "@/stores/ghost-store";
 import { useParseStore } from "@/stores/parse-store";
@@ -13,7 +9,6 @@ import { useParseStore } from "@/stores/parse-store";
 vi.mock("@/lib/workers/worker-client", () => ({
 	requestParseYayaBatch: vi.fn(),
 	requestParseSatoriBatch: vi.fn(),
-	requestParseKawariBatch: vi.fn(),
 }));
 
 function createMockFile(name: string, size: number): File {
@@ -53,12 +48,6 @@ describe("ghostStore", () => {
 		});
 		vi.mocked(requestParseSatoriBatch).mockResolvedValue({
 			shioriType: "satori",
-			functions: [],
-			meta: null,
-			diagnostics: [],
-		});
-		vi.mocked(requestParseKawariBatch).mockResolvedValue({
-			shioriType: "kawari",
 			functions: [],
 			meta: null,
 			diagnostics: [],

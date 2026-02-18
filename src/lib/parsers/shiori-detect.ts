@@ -7,8 +7,6 @@ const DLL_MAP: Record<string, ShioriType> = {
 	"aya5.dll": "yaya",
 	"aya.dll": "yaya",
 	"satori.dll": "satori",
-	"kawari.dll": "kawari",
-	"kawarirc.dll": "kawari",
 };
 
 export function detectShioriByDll(dllName: string): ShioriType | null {

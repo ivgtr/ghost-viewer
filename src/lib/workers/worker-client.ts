@@ -32,18 +32,6 @@ export function requestParseSatoriBatch(options: ParseBatchOptions): Promise<Par
 	);
 }
 
-export function requestParseKawariBatch(options: ParseBatchOptions): Promise<ParseResult> {
-	const transferList = options.files.map((file) => file.fileContent);
-	return requestBatchWithWorker(
-		{
-			type: "parse-kawari-batch",
-			files: options.files,
-		},
-		options.onProgress,
-		transferList,
-	);
-}
-
 function requestBatchWithWorker(
 	request: WorkerRequest,
 	onProgress?: (percent: number) => void,

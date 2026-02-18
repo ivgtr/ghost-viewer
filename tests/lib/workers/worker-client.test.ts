@@ -1,8 +1,4 @@
-import {
-	requestParseKawariBatch,
-	requestParseSatoriBatch,
-	requestParseYayaBatch,
-} from "@/lib/workers/worker-client";
+import { requestParseSatoriBatch, requestParseYayaBatch } from "@/lib/workers/worker-client";
 import type { ParseResult } from "@/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -34,8 +30,8 @@ type ParseBatchRequest = (options: ParseBatchOptions) => Promise<ParseResult>;
 
 interface RequestTestCase {
 	label: string;
-	requestType: "parse-yaya-batch" | "parse-satori-batch" | "parse-kawari-batch";
-	shioriType: "yaya" | "satori" | "kawari";
+	requestType: "parse-yaya-batch" | "parse-satori-batch";
+	shioriType: "yaya" | "satori";
 	request: ParseBatchRequest;
 }
 
@@ -51,12 +47,6 @@ const REQUEST_TEST_CASES: RequestTestCase[] = [
 		requestType: "parse-satori-batch",
 		shioriType: "satori",
 		request: requestParseSatoriBatch,
-	},
-	{
-		label: "Kawari",
-		requestType: "parse-kawari-batch",
-		shioriType: "kawari",
-		request: requestParseKawariBatch,
 	},
 ];
 

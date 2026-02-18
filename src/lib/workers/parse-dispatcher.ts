@@ -1,5 +1,4 @@
 import { decodeWithAutoDetection } from "@/lib/encoding/detect";
-import { parseKawariDic } from "@/lib/parsers/kawari";
 import { parseSatoriDic } from "@/lib/parsers/satori";
 import { parseYayaDicWithDiagnostics } from "@/lib/parsers/yaya";
 import { createYayaPreprocessState } from "@/lib/parsers/yaya/internal/preprocessor";
@@ -83,41 +82,6 @@ export function dispatchParseSatoriBatch(
 
 	return {
 		shioriType: "satori",
-		functions,
-		meta: null,
-		diagnostics: [],
-	};
-}
-
-export function dispatchParseKawariBatch(
-	input: BatchParseInput,
-	onProgress: (percent: number) => void,
-): ParseResult {
-	onProgress(0);
-
-	const sortedFiles = sortFilesByPath(input.files);
-	const functions: DicFunction[] = [];
-
-	if (sortedFiles.length === 0) {
-		onProgress(100);
-		return {
-			shioriType: "kawari",
-			functions,
-			meta: null,
-			diagnostics: [],
-		};
-	}
-
-	for (const [index, file] of sortedFiles.entries()) {
-		const { text } = decodeWithAutoDetection(file.fileContent);
-		functions.push(...parseKawariDic(text, file.filePath));
-
-		const percent = Math.round(((index + 1) / sortedFiles.length) * 100);
-		onProgress(percent);
-	}
-
-	return {
-		shioriType: "kawari",
 		functions,
 		meta: null,
 		diagnostics: [],
