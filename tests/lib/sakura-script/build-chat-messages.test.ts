@@ -95,6 +95,27 @@ describe("buildChatMessages", () => {
 		]);
 	});
 
+	it("text 内の改行が lineBreak セグメントに分解される", () => {
+		const tokens = [token("text", "一行目\n二行目", "一行目\n二行目")];
+		const result = buildChatMessages(tokens);
+		expect(result[0].segments).toEqual([
+			{ type: "text", value: "一行目" },
+			{ type: "lineBreak", value: "" },
+			{ type: "text", value: "二行目" },
+		]);
+	});
+
+	it("text 内の連続改行が保持される", () => {
+		const tokens = [token("text", "一行目\n\n二行目", "一行目\n\n二行目")];
+		const result = buildChatMessages(tokens);
+		expect(result[0].segments).toEqual([
+			{ type: "text", value: "一行目" },
+			{ type: "lineBreak", value: "" },
+			{ type: "lineBreak", value: "" },
+			{ type: "text", value: "二行目" },
+		]);
+	});
+
 	it("unknown / raise / marker(\\e) がスキップされる", () => {
 		const tokens = [
 			token("text", "テスト", "テスト"),

@@ -16,6 +16,24 @@ function stripLeadingLineBreaks(segments: ChatSegment[]): ChatSegment[] {
 	return segments.filter((s, i) => i >= firstContentIndex || s.type !== "lineBreak");
 }
 
+function appendTextSegments(value: string, segments: ChatSegment[]): void {
+	const normalized = value.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+	if (!normalized.includes("\n")) {
+		segments.push({ type: "text", value: normalized });
+		return;
+	}
+
+	const lines = normalized.split("\n");
+	for (const [index, line] of lines.entries()) {
+		if (line.length > 0) {
+			segments.push({ type: "text", value: line });
+		}
+		if (index < lines.length - 1) {
+			segments.push({ type: "lineBreak", value: "" });
+		}
+	}
+}
+
 export function buildChatMessages(tokens: SakuraScriptToken[]): ChatMessage[] {
 	const messages: ChatMessage[] = [];
 	let currentCharId = 0;
@@ -36,7 +54,7 @@ export function buildChatMessages(tokens: SakuraScriptToken[]): ChatMessage[] {
 				break;
 			}
 			case "text":
-				segments.push({ type: "text", value: token.value });
+				appendTextSegments(token.value, segments);
 				break;
 			case "surface":
 				segments.push({ type: "surface", value: token.value });
