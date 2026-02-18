@@ -14,7 +14,7 @@ export const useCatalogStore = createStore<CatalogState>(
 	(set) => ({
 		selectFunction: (name) => {
 			set({ selectedFunctionName: name });
-			if (name) {
+			if (name !== null) {
 				useFileTreeStore.getState().selectNode(null);
 			}
 		},

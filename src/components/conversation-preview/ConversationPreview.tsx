@@ -1,3 +1,4 @@
+import { isEventSelected, toEventDisplayName } from "@/lib/analyzers/event-name";
 import {
 	lookupDialoguesByFunctionName,
 	lookupSourceLocation,
@@ -18,13 +19,14 @@ export function ConversationPreview() {
 	const parseResult = useParseStore((s) => s.parseResult);
 	const meta = useGhostStore((s) => s.meta);
 	const [variantIndex, setVariantIndex] = useState(0);
+	const selectedEventName = selectedFunctionName;
 
 	const functions = parseResult?.functions ?? [];
 
 	const dialogues = useMemo(() => {
-		if (!selectedFunctionName) return [];
-		return lookupDialoguesByFunctionName(selectedFunctionName, functions);
-	}, [selectedFunctionName, functions]);
+		if (!isEventSelected(selectedEventName)) return [];
+		return lookupDialoguesByFunctionName(selectedEventName, functions);
+	}, [selectedEventName, functions]);
 
 	const clampedIndex = Math.min(variantIndex, Math.max(0, dialogues.length - 1));
 
@@ -45,17 +47,17 @@ export function ConversationPreview() {
 	);
 
 	const handleJumpToSource = useCallback(() => {
-		if (!selectedFunctionName) return;
-		const source = lookupSourceLocation(selectedFunctionName, clampedIndex, functions);
+		if (!isEventSelected(selectedEventName)) return;
+		const source = lookupSourceLocation(selectedEventName, clampedIndex, functions);
 		if (!source) return;
 		useFileTreeStore.getState().selectNode(source.filePath);
 		useFileContentStore.getState().setHighlightRange({
 			startLine: source.startLine,
 			endLine: source.endLine,
 		});
-	}, [selectedFunctionName, clampedIndex, functions]);
+	}, [selectedEventName, clampedIndex, functions]);
 
-	if (!selectedFunctionName) {
+	if (!isEventSelected(selectedEventName)) {
 		return (
 			<div className="flex h-full items-center justify-center text-zinc-500">
 				イベントを選択してください
@@ -79,7 +81,9 @@ export function ConversationPreview() {
 		<div className="flex h-full flex-col overflow-hidden">
 			<div className="flex items-center justify-between border-b border-zinc-700 px-4 py-2">
 				<div className="flex items-center gap-2 min-w-0">
-					<span className="text-sm font-medium text-zinc-200 truncate">{selectedFunctionName}</span>
+					<span className="text-sm font-medium text-zinc-200 truncate">
+						{toEventDisplayName(selectedEventName)}
+					</span>
 					<button
 						type="button"
 						onClick={handleJumpToSource}

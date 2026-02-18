@@ -28,7 +28,7 @@ export function Layout() {
 			</Panel>
 			<ResizeHandle />
 			<Panel defaultSize="30%" minSize="15%">
-				{selectedFunctionName ? <ConversationPreview /> : <TextViewer />}
+				{selectedFunctionName !== null ? <ConversationPreview /> : <TextViewer />}
 			</Panel>
 		</Group>
 	);

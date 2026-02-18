@@ -1,5 +1,6 @@
 import { buildCatalogEntries } from "@/lib/analyzers/build-catalog";
 import { getCategoryOrder } from "@/lib/analyzers/categorize-event";
+import { toEventDisplayName } from "@/lib/analyzers/event-name";
 import { useCatalogStore } from "@/stores/catalog-store";
 import { useFileTreeStore } from "@/stores/file-tree-store";
 import { useParseStore } from "@/stores/parse-store";
@@ -23,7 +24,12 @@ export function ConversationCatalog() {
 	const filtered = useMemo(() => {
 		if (!searchQuery) return entries;
 		const lower = searchQuery.toLowerCase();
-		return entries.filter((e) => e.name.toLowerCase().includes(lower));
+		return entries.filter((e) => {
+			if (e.name.toLowerCase().includes(lower)) {
+				return true;
+			}
+			return toEventDisplayName(e.name).toLowerCase().includes(lower);
+		});
 	}, [entries, searchQuery]);
 
 	const grouped = useMemo(() => {

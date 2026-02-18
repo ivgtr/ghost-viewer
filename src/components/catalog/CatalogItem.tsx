@@ -1,3 +1,4 @@
+import { toEventDisplayName } from "@/lib/analyzers/event-name";
 import type { CatalogEntry } from "@/types";
 
 interface CatalogItemProps {
@@ -16,7 +17,9 @@ export function CatalogItem({ entry, selected, onClick }: CatalogItemProps) {
 			onClick={onClick}
 		>
 			<div className="flex items-center justify-between gap-2">
-				<span className="text-sm font-medium text-zinc-200 truncate">{entry.name}</span>
+				<span className="text-sm font-medium text-zinc-200 truncate">
+					{toEventDisplayName(entry.name)}
+				</span>
 				<span className="shrink-0 rounded-full bg-zinc-600 px-2 py-0.5 text-xs text-zinc-300">
 					{entry.dialogueCount}
 				</span>

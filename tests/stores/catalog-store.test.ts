@@ -16,6 +16,11 @@ describe("catalogStore", () => {
 		expect(useCatalogStore.getState().selectedFunctionName).toBe("OnBoot");
 	});
 
+	it("selectFunction で空文字イベント名を選択できる", () => {
+		useCatalogStore.getState().selectFunction("");
+		expect(useCatalogStore.getState().selectedFunctionName).toBe("");
+	});
+
 	it("selectFunction(null) で選択を解除できる", () => {
 		useCatalogStore.getState().selectFunction("OnBoot");
 		useCatalogStore.getState().selectFunction(null);
