@@ -106,6 +106,18 @@ describe("satori-lexer", () => {
 	});
 
 	describe("互換構文", () => {
+		it("COMMUNICATE の →：行は dialogue として再分類する", () => {
+			const tokens = lex("→：はい、こんにちは。");
+			expect(tokens).toEqual([{ type: "dialogue", value: "はい、こんにちは。", line: 0 }]);
+		});
+
+		it("COMMUNICATE の →text 行は text として扱い、→を除去する", () => {
+			const tokens = lex("→俺たち、何で一緒にいるんだろうな。");
+			expect(tokens).toEqual([
+				{ type: "text", value: "俺たち、何で一緒にいるんだろうな。", line: 0 },
+			]);
+		});
+
 		it("φ 行末エスケープ時は次行を text として扱う", () => {
 			const tokens = lex("＊OnBoot\nlineφ\n＊EscapedAsText\n：hello");
 			expect(tokens).toEqual([
@@ -113,6 +125,15 @@ describe("satori-lexer", () => {
 				{ type: "text", value: "lineφ", line: 1 },
 				{ type: "text", value: "＊EscapedAsText", line: 2 },
 				{ type: "dialogue", value: "hello", line: 3 },
+			]);
+		});
+
+		it("φ 行末エスケープの次行でも → 正規化が効く", () => {
+			const tokens = lex("＊OnBoot\nlineφ\n→：hello");
+			expect(tokens).toEqual([
+				{ type: "event", value: "OnBoot", line: 0 },
+				{ type: "text", value: "lineφ", line: 1 },
+				{ type: "text", value: "：hello", line: 2 },
 			]);
 		});
 

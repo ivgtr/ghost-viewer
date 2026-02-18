@@ -1,3 +1,5 @@
+import { normalizeSatoriBodyLine } from "@/lib/parsers/satori/communicate-line";
+
 type SatoriTokenType = "event" | "dialogue" | "section" | "text";
 
 type SectionMarker = "＠" | "＄";
@@ -140,13 +142,14 @@ export function lex(source: string): SatoriToken[] {
 		if (content === "" || content.startsWith("//") || content.startsWith("＃")) {
 			continue;
 		}
+		const normalizedContent = normalizeSatoriBodyLine(content);
 
 		if (forceTextForCurrentLine) {
-			tokens.push(createToken("text", content, lineStart));
+			tokens.push(createToken("text", normalizedContent, lineStart));
 		} else {
-			tokens.push(createLineToken(content, lineStart));
+			tokens.push(createLineToken(normalizedContent, lineStart));
 		}
-		if (hasOddLineEndEscape(content)) {
+		if (hasOddLineEndEscape(normalizedContent)) {
 			forceNextText = true;
 		}
 	}

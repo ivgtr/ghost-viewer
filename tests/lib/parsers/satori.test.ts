@@ -159,6 +159,30 @@ describe("parseSatoriDic", () => {
 		expect(messages[2].segments[0]).toEqual({ type: "text", value: "third" });
 	});
 
+	it("COMMUNICATE の →：行を先頭発話として正しく解釈する", () => {
+		const text = [
+			"＊「　こんにちは",
+			"→：はい、こんにちは。",
+			"：無難なだけの会話が楽しいか？",
+			"：挨拶は気持ちがいいよ。",
+		].join("\n");
+		const result = parseSatoriDic(text, "test.dic");
+		const dialogue = result[0].dialogues[0];
+		const messages = buildChatMessages(dialogue.tokens);
+
+		expect(dialogue.rawText).toBe(
+			"はい、こんにちは。\n無難なだけの会話が楽しいか？\n挨拶は気持ちがいいよ。",
+		);
+		expect(messages).toHaveLength(3);
+		expect(messages.map((m) => m.characterId)).toEqual([0, 1, 0]);
+		expect(messages[0].segments[0]).toEqual({ type: "text", value: "はい、こんにちは。" });
+		expect(messages[1].segments[0]).toEqual({
+			type: "text",
+			value: "無難なだけの会話が楽しいか？",
+		});
+		expect(messages[2].segments[0]).toEqual({ type: "text", value: "挨拶は気持ちがいいよ。" });
+	});
+
 	it("最初の：行より前の通常行を会話に取り込む", () => {
 		const text = "＊OnBoot\nprologue\n：hello";
 		const result = parseSatoriDic(text, "test.dic");
