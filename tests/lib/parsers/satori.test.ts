@@ -1,4 +1,5 @@
 import { parseSatoriDic } from "@/lib/parsers/satori";
+import { buildChatMessages } from "@/lib/sakura-script/build-chat-messages";
 import { describe, expect, it } from "vitest";
 
 describe("parseSatoriDic", () => {
@@ -16,14 +17,13 @@ describe("parseSatoriDic", () => {
 		expect(result[0].dialogues[0].rawText).toBe("\\0こんにちは\\e");
 	});
 
-	it("単一イベントと複数応答をパースする", () => {
+	it("単一イベントと複数応答を1会話に統合してパースする", () => {
 		const text = "＊OnBoot\n：\\0こんにちは\\e\n：\\0やあ\\e";
 		const result = parseSatoriDic(text, "test.dic");
 
 		expect(result).toHaveLength(1);
-		expect(result[0].dialogues).toHaveLength(2);
-		expect(result[0].dialogues[0].rawText).toBe("\\0こんにちは\\e");
-		expect(result[0].dialogues[1].rawText).toBe("\\0やあ\\e");
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("\\0こんにちは\\e\n\\0やあ\\e");
 	});
 
 	it("複数ブロックをパースする", () => {
@@ -62,9 +62,7 @@ describe("parseSatoriDic", () => {
 		const result = parseSatoriDic(text, "test.dic");
 
 		expect(result[0].dialogues[0].startLine).toBe(1);
-		expect(result[0].dialogues[0].endLine).toBe(1);
-		expect(result[0].dialogues[1].startLine).toBe(2);
-		expect(result[0].dialogues[1].endLine).toBe(2);
+		expect(result[0].dialogues[0].endLine).toBe(2);
 	});
 
 	it("filePath が全結果に反映される", () => {
@@ -127,6 +125,53 @@ describe("parseSatoriDic", () => {
 		expect(result[0].dialogues[0].rawText).toBe("\\0hello\\e");
 		expect(result[1].dialogues).toHaveLength(1);
 		expect(result[1].dialogues[0].rawText).toBe("\\0bye\\e");
+	});
+
+	it("非：行が混在した場合は直前の：行に連結する", () => {
+		const text = "＊OnBoot\n：first\ntext-line\n：second";
+		const result = parseSatoriDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("first\ntext-line\nsecond");
+		expect(result[0].dialogues[0].startLine).toBe(1);
+		expect(result[0].dialogues[0].endLine).toBe(3);
+	});
+
+	it("：行ごとに話者を0/1で交互推定する", () => {
+		const text = "＊OnBoot\n：first\n：second\n：third";
+		const result = parseSatoriDic(text, "test.dic");
+		const dialogue = result[0].dialogues[0];
+		const messages = buildChatMessages(dialogue.tokens);
+
+		expect(messages).toHaveLength(3);
+		expect(messages.map((m) => m.characterId)).toEqual([0, 1, 0]);
+		expect(messages[0].segments[0]).toEqual({ type: "text", value: "first" });
+		expect(messages[1].segments[0]).toEqual({ type: "text", value: "second" });
+		expect(messages[2].segments[0]).toEqual({ type: "text", value: "third" });
+	});
+
+	it("最初の：行より前の通常行は会話対象外", () => {
+		const text = "＊OnBoot\nprologue\n：hello";
+		const result = parseSatoriDic(text, "test.dic");
+
+		expect(result).toHaveLength(1);
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("hello");
+		expect(result[0].dialogues[0].startLine).toBe(2);
+		expect(result[0].dialogues[0].endLine).toBe(2);
+	});
+
+	it("（n）を話者指定として扱わない", () => {
+		const text = "＊OnBoot\n：（１）first\n：second";
+		const result = parseSatoriDic(text, "test.dic");
+		const dialogue = result[0].dialogues[0];
+		const messages = buildChatMessages(dialogue.tokens);
+
+		expect(messages).toHaveLength(2);
+		expect(messages.map((m) => m.characterId)).toEqual([0, 1]);
+		expect(messages[0].segments[0]).toEqual({ type: "text", value: "（１）first" });
+		expect(messages[1].segments[0]).toEqual({ type: "text", value: "second" });
 	});
 
 	it("SakuraScript トークンが生成される", () => {
