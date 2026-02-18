@@ -96,13 +96,36 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **会話カタログのカテゴリ分類** [S] — イベントを「ランダムトーク」「起動・終了」等のカテゴリでグルーピング表示
   - 依存: 会話カタログ UI
 
-### Phase 5: Extension — 1/6
+### Phase 5: AST Parser Architecture — 5/8
+目標: 現代的なコンパイラ設計に基づく AST ベースのパーサーパイプラインを導入し、完全なシンボル解決を実現する
+
+**対象ディレクトリ:** `src/lib/parsers/`
+**設計方針:** Lexer → Parser → AST → Semantic Analyzer の多段パイプライン、Visitor パターンによる AST 走査、シンボルテーブルによるスコープ管理
+
+- [x] **共通 AST 型定義** [M] — `core/ast.ts` に BaseNode, Program, FunctionDef, VariableDecl, Identifier, StringLiteral 等の共通 AST ノード型を定義
+  - 依存: なし
+- [x] **シンボルテーブル + スコープ管理** [M] — `core/symbol-table.ts` に Symbol, Scope インターフェース、スコープチェーン、シンボル登録・検索ロジックを実装
+  - 依存: 共通 AST 型定義
+- [x] **Visitor パターン基盤** [S] — `core/visitor.ts` に AST Visitor インターフェース、トラバーサルユーティリティを定義
+  - 依存: 共通 AST 型定義
+- [x] **YAYA AST パーサー** [L] — `yaya/parser.ts` で再帰下降パーサーを実装、トークン列から YAYA 固有 AST を生成
+  - 依存: 共通 AST 型定義
+- [x] **YAYA 意味解析・シンボル解決** [L] — `yaya/semantic.ts` で関数定義・変数宣言・変数参照のシンボル登録と解決、スコープチェーン構築
+  - 依存: YAYA AST パーサー, シンボルテーブル + スコープ管理, Visitor パターン基盤
+- [ ] **Satori AST パーサー** [M] — `satori/parser.ts` で Satori 固有構文（イベントブロック、単語群）の AST 生成
+  - 依存: 共通 AST 型定義
+- [ ] **Satori 意味解析** [M] — `satori/semantic.ts` でイベント名、$(変数) 参照のシンボル解決
+  - 依存: Satori AST パーサー, シンボルテーブル + スコープ管理
+- [ ] **Kawari AST パーサー** [M] — `kawari/parser.ts` でエントリーベース構文の AST 生成
+  - 依存: 共通 AST 型定義
+
+### Phase 6: Extension — 1/6
 目標: 対応 SHIORI の拡張と、分析・比較・可視化機能の強化
 
 - [x] **Satori Lexer/Parser 分離** [S] — YAYA と同様の Lexer/Parser 2層構造にリファクタリング、ブロックコメント対応
   - 依存: Satori 辞書パーサー
-- [ ] **Kawari 辞書パーサー** [M] — エントリーベースの key/value 解析、バージョン差異への対応
-  - 依存: SakuraScript トークナイザー, Web Worker 解析基盤
+- [ ] **Kawari 意味解析** [M] — `kawari/semantic.ts` でエントリ名、${変数} 参照のシンボル解決
+  - 依存: Kawari AST パーサー, シンボルテーブル + スコープ管理
 - [ ] **CodeMirror 6 統合** [M] — 右ペイン補助機能としてのコードビュー、行番号表示、基本的なテキスト検索
   - 依存: ソースコードジャンプ
 - [ ] **SakuraScript シンタックスハイライト定義** [M] — CodeMirror 用カスタム言語定義、キャラ切替 / サーフェス / 選択肢 / イベントの色分け
@@ -112,7 +135,7 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [ ] **統計ダッシュボード** [M] — SHIORI 種別、ファイル統計、会話パターン統計の表示
   - 依存: 全 .dic 一括パース
 
-### Phase 6: Ghost Display — 0/4
+### Phase 7: Ghost Display — 0/4
 目標: NAR 内の surface 画像を読み込み、会話プレビューと連動してゴーストの表情を切り替え表示する
 
 - [ ] **サーフェス画像抽出** [M] — shell ディレクトリの surface*.png 読み込み、surfaces.txt の ID → 画像ファイルマッピング解析
