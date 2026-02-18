@@ -83,32 +83,56 @@ export interface SurfaceInitializeInput {
 	definitionsByShell: SurfaceDefinitionsByShell;
 	aliasMapByShell: SurfaceAliasMapByShell;
 	diagnostics: SurfaceDiagnostic[];
-	descriptProperties: Record<string, string>;
+	ghostDescriptProperties: Record<string, string>;
 	rng?: () => number;
 }
 
-export interface SurfacePositionSource {
+export type SurfaceAlignmentMode = "none" | "free";
+
+export type SurfacePositionValueSource = "shell" | "ghost" | "fallback";
+
+export interface SurfacePositionResolved {
 	scopeId: number;
-	x: number;
-	y: number;
+	centerX: number;
+	bottomY: number;
 	xKey: string | null;
 	yKey: string | null;
+	xSource: SurfacePositionValueSource;
+	ySource: SurfacePositionValueSource;
 	isFallback: boolean;
+}
+
+export interface SurfaceSceneNode {
+	scopeId: number;
+	surfaceId: number | null;
+	fileName: string | null;
+	width: number;
+	height: number;
+	worldLeft: number;
+	worldBottom: number;
+	position: SurfacePositionResolved;
+}
+
+export interface SurfaceScene {
+	nodes: SurfaceSceneNode[];
+	alignmentMode: SurfaceAlignmentMode;
+	defaultLeft: number;
+	defaultTop: number;
 }
 
 export interface SurfaceCharacterPlacement {
 	scopeId: number;
 	surfaceId: number | null;
 	fileName: string | null;
-	worldX: number;
-	worldY: number;
+	worldLeft: number;
+	worldBottom: number;
 	width: number;
 	height: number;
 	screenX: number;
 	screenY: number;
 	screenWidth: number;
 	screenHeight: number;
-	positionSource: SurfacePositionSource;
+	position: SurfacePositionResolved;
 }
 
 export interface SurfaceSetLayout {

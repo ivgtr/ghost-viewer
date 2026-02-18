@@ -4,12 +4,14 @@ import type {
 	SurfaceDefinitionsByShell,
 	SurfaceInitializeInput,
 } from "@/types";
+import { useFileContentStore } from "@/stores/file-content-store";
 import { useSurfaceStore } from "@/stores/surface-store";
 import { beforeEach, describe, expect, it } from "vitest";
 
 describe("surfaceStore", () => {
 	beforeEach(() => {
 		useSurfaceStore.getState().reset();
+		useFileContentStore.getState().reset();
 	});
 
 	it("初期状態が正しい", () => {
@@ -20,12 +22,14 @@ describe("surfaceStore", () => {
 		expect(state.currentSurfaceByScope.get(1)).toBeNull();
 		expect(state.focusedScope).toBe(0);
 		expect(state.notifications).toEqual([]);
+		expect(state.ghostDescriptProperties).toEqual({});
+		expect(state.shellDescriptCacheByName).toEqual({});
 	});
 
 	it("defaultsurface を優先して初期 surface を決定する", () => {
 		useSurfaceStore.getState().initialize(
 			createInitializeInput({
-				descriptProperties: {
+				ghostDescriptProperties: {
 					"sakura.seriko.defaultsurface": "15",
 					"kero.seriko.defaultsurface": "10",
 				},
@@ -56,6 +60,42 @@ describe("surfaceStore", () => {
 		useSurfaceStore.getState().initialize(createInitializeInput());
 		useSurfaceStore.getState().setFocusedScope(1);
 		expect(useSurfaceStore.getState().focusedScope).toBe(1);
+	});
+
+	it("shell descript を遅延読込してキャッシュする", () => {
+		const shellDescript = new TextEncoder().encode("defaultx,123\ndefaulty,456").buffer;
+		const fileContents = new Map<string, ArrayBuffer>([
+			["shell/master/descript.txt", shellDescript],
+		]);
+		useFileContentStore.getState().setFileContents(fileContents);
+
+		useSurfaceStore.getState().initialize(createInitializeInput());
+		useSurfaceStore.getState().ensureShellDescriptLoaded("master");
+
+		const state = useSurfaceStore.getState();
+		expect(state.shellDescriptCacheByName.master?.defaultx).toBe("123");
+		expect(state.shellDescriptCacheByName.master?.defaulty).toBe("456");
+	});
+
+	it("shell切替時に shell descript を読込んで現在 surface を再計算する", () => {
+		const shellDescript = new TextEncoder().encode("sakura.seriko.defaultsurface,20").buffer;
+		const fileContents = new Map<string, ArrayBuffer>([["shell/alt/descript.txt", shellDescript]]);
+		useFileContentStore.getState().setFileContents(fileContents);
+
+		useSurfaceStore.getState().initialize(
+			createInitializeInput({
+				catalog: [createShell("master", [0, 10]), createShell("alt", [0, 10, 20])],
+				definitionsByShell: new Map([
+					["master", createDefinitionMap([0, 10])],
+					["alt", createDefinitionMap([0, 10, 20])],
+				]),
+			}),
+		);
+
+		useSurfaceStore.getState().selectShell("alt");
+		const state = useSurfaceStore.getState();
+		expect(state.selectedShellName).toBe("alt");
+		expect(state.currentSurfaceByScope.get(0)).toBe(20);
 	});
 
 	it("画像未解決時は前回表示を維持して通知する", () => {
@@ -89,7 +129,7 @@ function createInitializeInput(
 		definitionsByShell: createDefinitionsByShell("master", [0, 10]),
 		aliasMapByShell: new Map<string, Map<number, Map<number, number[]>>>(),
 		diagnostics: [],
-		descriptProperties: {},
+		ghostDescriptProperties: {},
 		...overrides,
 	};
 }

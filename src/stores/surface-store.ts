@@ -1,3 +1,4 @@
+import { parseDescriptFromBuffer } from "@/lib/parsers/descript";
 import { resolveSurfaceId } from "@/lib/surfaces/surface-resolver";
 import type {
 	ShellSurfaceCatalog,
@@ -10,6 +11,7 @@ import type {
 	SurfaceNotification,
 } from "@/types";
 import { createStore } from "./create-store";
+import { useFileContentStore } from "./file-content-store";
 
 interface SurfaceState {
 	selectedShellName: string | null;
@@ -18,11 +20,13 @@ interface SurfaceState {
 	aliasMap: SurfaceAliasMapByShell;
 	diagnostics: SurfaceDiagnostic[];
 	notifications: SurfaceNotification[];
-	descriptProperties: Record<string, string>;
+	ghostDescriptProperties: Record<string, string>;
+	shellDescriptCacheByName: Record<string, Record<string, string>>;
 	currentSurfaceByScope: Map<number, number | null>;
 	focusedScope: number;
 	initialize: (input: SurfaceInitializeInput) => void;
 	selectShell: (shellName: string | null) => void;
+	ensureShellDescriptLoaded: (shellName: string | null) => void;
 	setFocusedScope: (scopeId: number) => void;
 	reset: () => void;
 }
@@ -42,7 +46,8 @@ export const useSurfaceStore = createStore<SurfaceState>(
 		aliasMap: new Map<string, SurfaceAliasMap>(),
 		diagnostics: [],
 		notifications: [],
-		descriptProperties: {},
+		ghostDescriptProperties: {},
+		shellDescriptCacheByName: {},
 		currentSurfaceByScope: DEFAULT_CURRENT_SURFACE_BY_SCOPE,
 		focusedScope: 0,
 	},
@@ -56,7 +61,8 @@ export const useSurfaceStore = createStore<SurfaceState>(
 				catalog: input.catalog,
 				definitionsByShell: input.definitionsByShell,
 				aliasMapByShell: input.aliasMapByShell,
-				descriptProperties: input.descriptProperties,
+				ghostDescriptProperties: input.ghostDescriptProperties,
+				shellDescriptProperties: {},
 				previousSurfaceByScope: DEFAULT_CURRENT_SURFACE_BY_SCOPE,
 				rng: resolverRng,
 			});
@@ -68,7 +74,8 @@ export const useSurfaceStore = createStore<SurfaceState>(
 				aliasMap: input.aliasMapByShell,
 				diagnostics: input.diagnostics,
 				notifications: [...baseNotifications, ...resolved.notifications],
-				descriptProperties: input.descriptProperties,
+				ghostDescriptProperties: input.ghostDescriptProperties,
+				shellDescriptCacheByName: {},
 				currentSurfaceByScope: resolved.currentSurfaceByScope,
 				focusedScope: 0,
 			});
@@ -89,19 +96,63 @@ export const useSurfaceStore = createStore<SurfaceState>(
 				return;
 			}
 
+			get().ensureShellDescriptLoaded(shellName);
+			const refreshedState = get();
 			const resolved = resolveCurrentSurfaces({
 				shellName,
-				catalog: state.catalog,
-				definitionsByShell: state.definitions,
-				aliasMapByShell: state.aliasMap,
-				descriptProperties: state.descriptProperties,
-				previousSurfaceByScope: state.currentSurfaceByScope,
+				catalog: refreshedState.catalog,
+				definitionsByShell: refreshedState.definitions,
+				aliasMapByShell: refreshedState.aliasMap,
+				ghostDescriptProperties: refreshedState.ghostDescriptProperties,
+				shellDescriptProperties: refreshedState.shellDescriptCacheByName[shellName] ?? {},
+				previousSurfaceByScope: refreshedState.currentSurfaceByScope,
 				rng: resolverRng,
 			});
 			set({
 				selectedShellName: shellName,
 				currentSurfaceByScope: resolved.currentSurfaceByScope,
-				notifications: [...toNotifications(state.diagnostics), ...resolved.notifications],
+				notifications: [...toNotifications(refreshedState.diagnostics), ...resolved.notifications],
+			});
+		},
+		ensureShellDescriptLoaded: (shellName) => {
+			if (shellName === null) {
+				return;
+			}
+			const state = get();
+			if (state.shellDescriptCacheByName[shellName] !== undefined) {
+				return;
+			}
+
+			const path = `shell/${shellName}/descript.txt`;
+			const buffer = useFileContentStore.getState().fileContents.get(path);
+			let properties: Record<string, string> = {};
+			let decodeNotification: SurfaceNotification | null = null;
+
+			if (buffer) {
+				try {
+					properties = parseDescriptFromBuffer(buffer).properties;
+				} catch {
+					decodeNotification = {
+						level: "warning",
+						code: "SHELL_DESCRIPT_DECODE_FAILED",
+						message: `shell descript の解析に失敗しました: ${path}`,
+						shellName,
+						scopeId: null,
+						surfaceId: null,
+					};
+				}
+			}
+
+			const nextCache = {
+				...get().shellDescriptCacheByName,
+				[shellName]: properties,
+			};
+			const nextNotifications = decodeNotification
+				? [...get().notifications, decodeNotification]
+				: get().notifications;
+			set({
+				shellDescriptCacheByName: nextCache,
+				notifications: nextNotifications,
 			});
 		},
 		setFocusedScope: (scopeId) => {
@@ -126,7 +177,8 @@ interface ResolveCurrentSurfaceOptions {
 	catalog: ShellSurfaceCatalog[];
 	definitionsByShell: SurfaceDefinitionsByShell;
 	aliasMapByShell: SurfaceAliasMapByShell;
-	descriptProperties: Record<string, string>;
+	ghostDescriptProperties: Record<string, string>;
+	shellDescriptProperties: Record<string, string>;
 	previousSurfaceByScope: Map<number, number | null>;
 	rng: () => number;
 }
@@ -177,7 +229,7 @@ function resolveSurfaceForScope(
 	const requestedId = resolveRequestedSurfaceId(
 		scopeId,
 		availableSurfaceIds,
-		options.descriptProperties,
+		mergeDescriptProperties(options.ghostDescriptProperties, options.shellDescriptProperties),
 	);
 	if (requestedId === null) {
 		return null;
@@ -309,4 +361,14 @@ function toNotifications(diagnostics: SurfaceDiagnostic[]): SurfaceNotification[
 		scopeId: null,
 		surfaceId: null,
 	}));
+}
+
+function mergeDescriptProperties(
+	ghostDescriptProperties: Record<string, string>,
+	shellDescriptProperties: Record<string, string>,
+): Record<string, string> {
+	return {
+		...ghostDescriptProperties,
+		...shellDescriptProperties,
+	};
 }

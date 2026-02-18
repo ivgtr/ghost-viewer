@@ -1,68 +1,22 @@
 import { buildSurfaceSetLayout } from "@/lib/surfaces/surface-set-layout";
+import type { SurfaceScene } from "@/types";
 import { describe, expect, it } from "vitest";
 
 describe("buildSurfaceSetLayout", () => {
-	it("descript座標を優先し、複数キーを解決する", () => {
-		const layout = buildSurfaceSetLayout({
-			viewportWidth: 800,
-			viewportHeight: 600,
-			descriptProperties: {
-				"sakura.defaultx": "10",
-				"sakura.defaulty": "20",
-				"char1.defaultx": "200",
-				"char1.defaulty": "40",
-			},
-			characters: [
-				{ scopeId: 0, surfaceId: 0, fileName: "surface0.png", width: 100, height: 200 },
-				{ scopeId: 1, surfaceId: 10, fileName: "surface10.png", width: 80, height: 120 },
-			],
-		});
-
-		const scope0 = layout.placements.find((placement) => placement.scopeId === 0);
-		const scope1 = layout.placements.find((placement) => placement.scopeId === 1);
-		expect(scope0?.positionSource.xKey).toBe("sakura.defaultx");
-		expect(scope0?.positionSource.yKey).toBe("sakura.defaulty");
-		expect(scope1?.positionSource.xKey).toBe("char1.defaultx");
-		expect(scope1?.positionSource.yKey).toBe("char1.defaulty");
-		expect(scope1?.worldX).toBe(200);
-		expect(scope1?.worldY).toBe(40);
-	});
-
-	it("scope1座標が未指定の場合は scope0 右隣 + 下揃えでフォールバックする", () => {
-		const layout = buildSurfaceSetLayout({
-			viewportWidth: 800,
-			viewportHeight: 600,
-			descriptProperties: {
-				"char0.defaultx": "50",
-				"char0.defaulty": "25",
-			},
-			characters: [
-				{ scopeId: 0, surfaceId: 0, fileName: "surface0.png", width: 120, height: 200 },
-				{ scopeId: 1, surfaceId: 10, fileName: "surface10.png", width: 90, height: 140 },
-			],
-			gap: 24,
-		});
-
-		const scope1 = layout.placements.find((placement) => placement.scopeId === 1);
-		expect(scope1?.worldX).toBe(50 + 120 + 24);
-		expect(scope1?.worldY).toBe(25);
-		expect(scope1?.positionSource.isFallback).toBe(true);
-	});
-
-	it("外接矩形をビューアー領域に全体fitする", () => {
+	it("scene ノード外接矩形をビューアー領域へ全体 fit する", () => {
 		const layout = buildSurfaceSetLayout({
 			viewportWidth: 500,
 			viewportHeight: 300,
-			descriptProperties: {},
-			characters: [
-				{ scopeId: 0, surfaceId: 0, fileName: "surface0.png", width: 200, height: 200 },
-				{ scopeId: 1, surfaceId: 10, fileName: "surface10.png", width: 100, height: 100 },
-			],
-			gap: 20,
+			scene: createScene({
+				nodes: [
+					{ scopeId: 0, worldLeft: 100, worldBottom: 0, width: 200, height: 200 },
+					{ scopeId: 1, worldLeft: 0, worldBottom: 0, width: 100, height: 100 },
+				],
+			}),
 			padding: 10,
 		});
 
-		expect(layout.worldWidth).toBe(320);
+		expect(layout.worldWidth).toBe(300);
 		expect(layout.worldHeight).toBe(200);
 		expect(layout.scale).toBeCloseTo(1.4, 5);
 		for (const placement of layout.placements) {
@@ -72,4 +26,56 @@ describe("buildSurfaceSetLayout", () => {
 			expect(placement.screenY + placement.screenHeight).toBeLessThanOrEqual(300);
 		}
 	});
+
+	it("alignment=free のとき defaultleft/defaulttop をオフセットに反映する", () => {
+		const base = buildSurfaceSetLayout({
+			viewportWidth: 500,
+			viewportHeight: 300,
+			scene: createScene(),
+		});
+		const shifted = buildSurfaceSetLayout({
+			viewportWidth: 500,
+			viewportHeight: 300,
+			scene: createScene({
+				alignmentMode: "free",
+				defaultLeft: 20,
+				defaultTop: 30,
+			}),
+		});
+
+		expect(shifted.offsetX).toBeCloseTo(base.offsetX + 20, 5);
+		expect(shifted.offsetY).toBeCloseTo(base.offsetY + 30, 5);
+		expect(shifted.placements[0]?.screenX).toBeCloseTo((base.placements[0]?.screenX ?? 0) + 20, 5);
+		expect(shifted.placements[0]?.screenY).toBeCloseTo((base.placements[0]?.screenY ?? 0) + 30, 5);
+	});
 });
+
+function createScene(overrides: Partial<SurfaceScene> = {}): SurfaceScene {
+	return {
+		nodes: [
+			{
+				scopeId: 0,
+				surfaceId: 0,
+				fileName: "surface0.png",
+				width: 200,
+				height: 200,
+				worldLeft: 0,
+				worldBottom: 0,
+				position: {
+					scopeId: 0,
+					centerX: 100,
+					bottomY: 0,
+					xKey: null,
+					yKey: null,
+					xSource: "fallback",
+					ySource: "fallback",
+					isFallback: true,
+				},
+			},
+		],
+		alignmentMode: "none",
+		defaultLeft: 0,
+		defaultTop: 0,
+		...overrides,
+	};
+}

@@ -113,7 +113,7 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 					definitionsByShell: parseResult.definitionsByShell,
 					aliasMapByShell: parseResult.aliasMapByShell,
 					diagnostics: surfaceDiagnostics,
-					descriptProperties: properties,
+					ghostDescriptProperties: properties,
 				});
 
 				const unsupportedShiori = detectUnsupportedShiori(

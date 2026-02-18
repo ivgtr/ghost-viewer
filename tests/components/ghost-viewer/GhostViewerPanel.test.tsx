@@ -69,6 +69,34 @@ describe("GhostViewerPanel", () => {
 		fireEvent.pointerDown(document.body);
 		expect(screen.queryByTestId("surface-notification-overlay")).not.toBeInTheDocument();
 	});
+
+	it("フォールバック配置では kero(scope1) が sakura(scope0) より左に表示される", () => {
+		initializePanelState({ ghostDescriptProperties: {} });
+		render(<GhostViewerPanel />);
+
+		const sakuraNode = screen.getByTestId("surface-node-0");
+		const keroNode = screen.getByTestId("surface-node-1");
+		const sakuraLeft = Number.parseFloat(sakuraNode.style.left || "0");
+		const keroLeft = Number.parseFloat(keroNode.style.left || "0");
+		expect(keroLeft).toBeLessThan(sakuraLeft);
+	});
+
+	it("明示座標がある場合はフォールバックより明示座標を優先する", () => {
+		initializePanelState({
+			ghostDescriptProperties: {},
+			shellDescriptProperties: {
+				"kero.defaultx": "420",
+				"kero.defaulty": "20",
+			},
+		});
+		render(<GhostViewerPanel />);
+
+		const sakuraNode = screen.getByTestId("surface-node-0");
+		const keroNode = screen.getByTestId("surface-node-1");
+		const sakuraLeft = Number.parseFloat(sakuraNode.style.left || "0");
+		const keroLeft = Number.parseFloat(keroNode.style.left || "0");
+		expect(keroLeft).toBeGreaterThan(sakuraLeft);
+	});
 });
 
 function initializePanelState(
@@ -80,6 +108,8 @@ function initializePanelState(
 			shellName: string | null;
 			path: string | null;
 		}>;
+		ghostDescriptProperties?: Record<string, string>;
+		shellDescriptProperties?: Record<string, string>;
 	} = {},
 ) {
 	const fileContents = new Map<string, ArrayBuffer>([
@@ -119,13 +149,16 @@ function initializePanelState(
 		]),
 		aliasMapByShell: new Map(),
 		diagnostics: overrides.diagnostics ?? [],
-		descriptProperties: {
-			"sakura.defaultx": "0",
-			"sakura.defaulty": "0",
-			"kero.defaultx": "200",
-			"kero.defaulty": "0",
-		},
+		ghostDescriptProperties: overrides.ghostDescriptProperties ?? {},
 	});
+
+	if (overrides.shellDescriptProperties) {
+		useSurfaceStore.setState({
+			shellDescriptCacheByName: {
+				master: overrides.shellDescriptProperties,
+			},
+		});
+	}
 }
 
 function createPngHeaderBuffer(width: number, height: number): ArrayBuffer {

@@ -1,37 +1,23 @@
-import type { SurfaceCharacterPlacement, SurfacePositionSource, SurfaceSetLayout } from "@/types";
-
-interface SurfaceLayoutCharacterInput {
-	scopeId: number;
-	surfaceId: number | null;
-	fileName: string | null;
-	width: number;
-	height: number;
-}
+import type { SurfaceCharacterPlacement, SurfaceScene, SurfaceSetLayout } from "@/types";
 
 interface BuildSurfaceSetLayoutOptions {
 	viewportWidth: number;
 	viewportHeight: number;
-	descriptProperties: Record<string, string>;
-	characters: SurfaceLayoutCharacterInput[];
+	scene: SurfaceScene;
 	padding?: number;
-	gap?: number;
 }
 
 const DEFAULT_VIEWPORT_WIDTH = 640;
 const DEFAULT_VIEWPORT_HEIGHT = 360;
 const DEFAULT_PADDING = 16;
-const DEFAULT_GAP = 24;
 
 export function buildSurfaceSetLayout(options: BuildSurfaceSetLayoutOptions): SurfaceSetLayout {
 	const viewportWidth = normalizeViewportSize(options.viewportWidth, DEFAULT_VIEWPORT_WIDTH);
 	const viewportHeight = normalizeViewportSize(options.viewportHeight, DEFAULT_VIEWPORT_HEIGHT);
 	const padding = normalizeNonNegative(options.padding, DEFAULT_PADDING);
-	const gap = normalizeNonNegative(options.gap, DEFAULT_GAP);
-	const characters = options.characters.filter(
-		(character) => character.width > 0 && character.height > 0,
-	);
+	const nodes = options.scene.nodes;
 
-	if (characters.length === 0) {
+	if (nodes.length === 0) {
 		return {
 			viewportWidth,
 			viewportHeight,
@@ -48,51 +34,7 @@ export function buildSurfaceSetLayout(options: BuildSurfaceSetLayoutOptions): Su
 		};
 	}
 
-	const characterByScope = new Map<number, SurfaceLayoutCharacterInput>();
-	for (const character of characters) {
-		characterByScope.set(character.scopeId, character);
-	}
-
-	const scope0Character = characterByScope.get(0);
-	const scope0Source = resolvePositionSource({
-		scopeId: 0,
-		descriptProperties: options.descriptProperties,
-		fallbackX: 0,
-		fallbackY: 0,
-	});
-	const scope1Source = resolvePositionSource({
-		scopeId: 1,
-		descriptProperties: options.descriptProperties,
-		fallbackX: scope0Source.x + (scope0Character?.width ?? 0) + gap,
-		fallbackY: scope0Source.y,
-	});
-
-	const positionSourceByScope = new Map<number, SurfacePositionSource>([
-		[0, scope0Source],
-		[1, scope1Source],
-	]);
-
-	const worldPlacements = characters.map((character) => {
-		const positionSource =
-			positionSourceByScope.get(character.scopeId) ??
-			createFallbackPositionSource(character.scopeId, 0, 0);
-		return {
-			scopeId: character.scopeId,
-			surfaceId: character.surfaceId,
-			fileName: character.fileName,
-			worldX: positionSource.x,
-			worldY: positionSource.y,
-			width: character.width,
-			height: character.height,
-			screenX: 0,
-			screenY: 0,
-			screenWidth: 0,
-			screenHeight: 0,
-			positionSource,
-		} satisfies SurfaceCharacterPlacement;
-	});
-
-	const worldBounds = resolveWorldBounds(worldPlacements);
+	const worldBounds = resolveWorldBounds(nodes);
 	const scale = resolveScale({
 		viewportWidth,
 		viewportHeight,
@@ -102,23 +44,35 @@ export function buildSurfaceSetLayout(options: BuildSurfaceSetLayoutOptions): Su
 	});
 	const scaledWidth = worldBounds.worldWidth * scale;
 	const scaledHeight = worldBounds.worldHeight * scale;
-	const offsetX = (viewportWidth - scaledWidth) / 2;
-	const offsetY = (viewportHeight - scaledHeight) / 2;
+	const baseOffsetX = (viewportWidth - scaledWidth) / 2;
+	const baseOffsetY = (viewportHeight - scaledHeight) / 2;
+	const freeOffsetX = options.scene.alignmentMode === "free" ? options.scene.defaultLeft : 0;
+	const freeOffsetY = options.scene.alignmentMode === "free" ? options.scene.defaultTop : 0;
 
-	const placements = worldPlacements.map((placement) => ({
-		...placement,
-		screenX: (placement.worldX - worldBounds.worldMinX) * scale + offsetX,
-		screenY: (worldBounds.worldMaxY - (placement.worldY + placement.height)) * scale + offsetY,
-		screenWidth: placement.width * scale,
-		screenHeight: placement.height * scale,
-	}));
+	const placements: SurfaceCharacterPlacement[] = nodes.map((node) => {
+		const worldTop = node.worldBottom + node.height;
+		return {
+			scopeId: node.scopeId,
+			surfaceId: node.surfaceId,
+			fileName: node.fileName,
+			worldLeft: node.worldLeft,
+			worldBottom: node.worldBottom,
+			width: node.width,
+			height: node.height,
+			screenX: (node.worldLeft - worldBounds.worldMinX) * scale + baseOffsetX + freeOffsetX,
+			screenY: (worldBounds.worldMaxY - worldTop) * scale + baseOffsetY + freeOffsetY,
+			screenWidth: node.width * scale,
+			screenHeight: node.height * scale,
+			position: node.position,
+		};
+	});
 
 	return {
 		viewportWidth,
 		viewportHeight,
 		scale,
-		offsetX,
-		offsetY,
+		offsetX: baseOffsetX + freeOffsetX,
+		offsetY: baseOffsetY + freeOffsetY,
 		worldMinX: worldBounds.worldMinX,
 		worldMinY: worldBounds.worldMinY,
 		worldMaxX: worldBounds.worldMaxX,
@@ -129,83 +83,7 @@ export function buildSurfaceSetLayout(options: BuildSurfaceSetLayoutOptions): Su
 	};
 }
 
-interface ResolvePositionSourceOptions {
-	scopeId: number;
-	descriptProperties: Record<string, string>;
-	fallbackX: number;
-	fallbackY: number;
-}
-
-function resolvePositionSource(options: ResolvePositionSourceOptions): SurfacePositionSource {
-	const xResolved = resolvePositionValue(
-		resolveCoordinateKeys(options.scopeId, "x"),
-		options.descriptProperties,
-	);
-	const yResolved = resolvePositionValue(
-		resolveCoordinateKeys(options.scopeId, "y"),
-		options.descriptProperties,
-	);
-
-	return {
-		scopeId: options.scopeId,
-		x: xResolved.value ?? options.fallbackX,
-		y: yResolved.value ?? options.fallbackY,
-		xKey: xResolved.key,
-		yKey: yResolved.key,
-		isFallback: xResolved.value === null || yResolved.value === null,
-	};
-}
-
-function createFallbackPositionSource(
-	scopeId: number,
-	x: number,
-	y: number,
-): SurfacePositionSource {
-	return {
-		scopeId,
-		x,
-		y,
-		xKey: null,
-		yKey: null,
-		isFallback: true,
-	};
-}
-
-function resolveCoordinateKeys(scopeId: number, axis: "x" | "y"): string[] {
-	if (scopeId === 0) {
-		return [`sakura.default${axis}`, `char0.default${axis}`];
-	}
-	if (scopeId === 1) {
-		return [`kero.default${axis}`, `char1.default${axis}`];
-	}
-	return [`char${scopeId}.default${axis}`];
-}
-
-function resolvePositionValue(
-	keys: string[],
-	descriptProperties: Record<string, string>,
-): { value: number | null; key: string | null } {
-	for (const key of keys) {
-		const rawValue = descriptProperties[key];
-		if (rawValue === undefined) {
-			continue;
-		}
-		const parsed = Number(rawValue.trim());
-		if (!Number.isFinite(parsed)) {
-			continue;
-		}
-		return {
-			value: parsed,
-			key,
-		};
-	}
-	return {
-		value: null,
-		key: null,
-	};
-}
-
-function resolveWorldBounds(placements: SurfaceCharacterPlacement[]): {
+function resolveWorldBounds(nodes: SurfaceScene["nodes"]): {
 	worldMinX: number;
 	worldMinY: number;
 	worldMaxX: number;
@@ -218,11 +96,11 @@ function resolveWorldBounds(placements: SurfaceCharacterPlacement[]): {
 	let worldMaxX = Number.NEGATIVE_INFINITY;
 	let worldMaxY = Number.NEGATIVE_INFINITY;
 
-	for (const placement of placements) {
-		worldMinX = Math.min(worldMinX, placement.worldX);
-		worldMinY = Math.min(worldMinY, placement.worldY);
-		worldMaxX = Math.max(worldMaxX, placement.worldX + placement.width);
-		worldMaxY = Math.max(worldMaxY, placement.worldY + placement.height);
+	for (const node of nodes) {
+		worldMinX = Math.min(worldMinX, node.worldLeft);
+		worldMinY = Math.min(worldMinY, node.worldBottom);
+		worldMaxX = Math.max(worldMaxX, node.worldLeft + node.width);
+		worldMaxY = Math.max(worldMaxY, node.worldBottom + node.height);
 	}
 
 	if (!Number.isFinite(worldMinX) || !Number.isFinite(worldMinY)) {

@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
 import { readPngMetadata } from "@/lib/surfaces/png-metadata";
+import { buildSurfaceScene } from "@/lib/surfaces/surface-scene-builder";
 import { buildSurfaceSetLayout } from "@/lib/surfaces/surface-set-layout";
 import { useFileContentStore } from "@/stores/file-content-store";
 import { useSurfaceStore } from "@/stores/surface-store";
@@ -16,6 +17,14 @@ interface SurfaceRenderInfo {
 	metadataInvalid: boolean;
 }
 
+interface UseDismissOverlayOptions {
+	isOpen: boolean;
+	onClose: () => void;
+	panelRef: RefObject<HTMLDivElement | null>;
+	notificationButtonRef: RefObject<HTMLButtonElement | null>;
+	notificationOverlayRef: RefObject<HTMLDivElement | null>;
+}
+
 const FALLBACK_IMAGE_WIDTH = 240;
 const FALLBACK_IMAGE_HEIGHT = 360;
 
@@ -25,8 +34,10 @@ export function GhostViewerPanel() {
 	const currentSurfaceByScope = useSurfaceStore((state) => state.currentSurfaceByScope);
 	const focusedScope = useSurfaceStore((state) => state.focusedScope);
 	const notifications = useSurfaceStore((state) => state.notifications);
-	const descriptProperties = useSurfaceStore((state) => state.descriptProperties);
+	const ghostDescriptProperties = useSurfaceStore((state) => state.ghostDescriptProperties);
+	const shellDescriptCacheByName = useSurfaceStore((state) => state.shellDescriptCacheByName);
 	const selectShell = useSurfaceStore((state) => state.selectShell);
+	const ensureShellDescriptLoaded = useSurfaceStore((state) => state.ensureShellDescriptLoaded);
 	const setFocusedScope = useSurfaceStore((state) => state.setFocusedScope);
 	const fileContents = useFileContentStore((state) => state.fileContents);
 
@@ -37,10 +48,21 @@ export function GhostViewerPanel() {
 	const stageRef = useRef<HTMLDivElement>(null);
 	const stageSize = useElementSize(stageRef);
 
+	useEffect(() => {
+		ensureShellDescriptLoaded(selectedShellName);
+	}, [ensureShellDescriptLoaded, selectedShellName]);
+
 	const selectedShell = useMemo(
 		() => catalog.find((entry) => entry.shellName === selectedShellName) ?? null,
 		[catalog, selectedShellName],
 	);
+	const shellDescriptProperties = useMemo(() => {
+		if (selectedShellName === null) {
+			return {};
+		}
+		return shellDescriptCacheByName[selectedShellName] ?? {};
+	}, [selectedShellName, shellDescriptCacheByName]);
+
 	const scope0SurfaceId = currentSurfaceByScope.get(0) ?? null;
 	const scope1SurfaceId = currentSurfaceByScope.get(1) ?? null;
 
@@ -79,15 +101,23 @@ export function GhostViewerPanel() {
 		() => [...notifications, ...metadataNotifications],
 		[notifications, metadataNotifications],
 	);
+	const scene = useMemo(
+		() =>
+			buildSurfaceScene({
+				characters: scopeRenderInfos,
+				shellDescriptProperties,
+				ghostDescriptProperties,
+			}),
+		[ghostDescriptProperties, scopeRenderInfos, shellDescriptProperties],
+	);
 	const placementByScope = useMemo(() => {
 		const layout = buildSurfaceSetLayout({
 			viewportWidth: stageSize.width,
 			viewportHeight: stageSize.height,
-			descriptProperties,
-			characters: scopeRenderInfos,
+			scene,
 		});
 		return new Map(layout.placements.map((placement) => [placement.scopeId, placement]));
-	}, [descriptProperties, scopeRenderInfos, stageSize.height, stageSize.width]);
+	}, [scene, stageSize.height, stageSize.width]);
 	const hasRenderableImage = scopeRenderInfos.some(
 		(scopeRenderInfo) => scopeRenderInfo.imageUrl !== null,
 	);
@@ -133,7 +163,11 @@ export function GhostViewerPanel() {
 					<select
 						id="shell-select"
 						value={selectedShellName ?? ""}
-						onChange={(event) => selectShell(event.target.value || null)}
+						onChange={(event) => {
+							const shellName = event.target.value || null;
+							selectShell(shellName);
+							ensureShellDescriptLoaded(shellName);
+						}}
 						className="rounded border border-zinc-600 bg-zinc-800 px-2 py-1 text-xs text-zinc-200"
 					>
 						{catalog.map((shell) => (
@@ -240,14 +274,6 @@ function SurfaceLayer({ placement, imageUrl, isFocused, onFocus }: SurfaceLayerP
 			/>
 		</button>
 	);
-}
-
-interface UseDismissOverlayOptions {
-	isOpen: boolean;
-	onClose: () => void;
-	panelRef: React.RefObject<HTMLDivElement | null>;
-	notificationButtonRef: React.RefObject<HTMLButtonElement | null>;
-	notificationOverlayRef: React.RefObject<HTMLDivElement | null>;
 }
 
 function useDismissOverlay(options: UseDismissOverlayOptions): void {
@@ -418,7 +444,7 @@ function useObjectUrl(buffer: ArrayBuffer | null): string | null {
 	return url;
 }
 
-function useElementSize(ref: React.RefObject<HTMLDivElement | null>): {
+function useElementSize(ref: RefObject<HTMLDivElement | null>): {
 	width: number;
 	height: number;
 } {

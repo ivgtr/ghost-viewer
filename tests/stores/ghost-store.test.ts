@@ -113,7 +113,7 @@ describe("ghostStore", () => {
 			definitionsByShell: new Map([["master", new Map([[0, { id: 0, elements: [] }]])]]),
 			aliasMapByShell: new Map(),
 			diagnostics: [],
-			descriptProperties: {},
+			ghostDescriptProperties: {},
 		});
 
 		const file = await createNarFile({ "test.txt": "hello" });
@@ -231,7 +231,7 @@ describe("ghostStore", () => {
 			definitionsByShell: new Map([["master", new Map([[0, { id: 0, elements: [] }]])]]),
 			aliasMapByShell: new Map(),
 			diagnostics: [],
-			descriptProperties: {},
+			ghostDescriptProperties: {},
 		});
 
 		useGhostStore.getState().reset();
