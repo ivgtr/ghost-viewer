@@ -55,7 +55,26 @@ describe("buildChatMessages", () => {
 	it("surface が正しいセグメント型に変換される", () => {
 		const tokens = [token("surface", "\\s[5]", "5"), token("text", "にこにこ", "にこにこ")];
 		const result = buildChatMessages(tokens);
-		expect(result[0].segments[0]).toEqual({ type: "surface", value: "5" });
+		expect(result[0].segments[0]).toMatchObject({
+			type: "surface",
+			value: "5",
+			surfaceId: 5,
+			scopeId: 0,
+		});
+		if (result[0].segments[0]?.type === "surface") {
+			expect(result[0].segments[0].syncId).toBe("0:0");
+		}
+	});
+
+	it("不正な surface 値は surfaceId=null で保持される", () => {
+		const tokens = [token("surface", "\\s[hoge]", "hoge"), token("text", "にこにこ", "にこにこ")];
+		const result = buildChatMessages(tokens);
+		expect(result[0].segments[0]).toMatchObject({
+			type: "surface",
+			value: "hoge",
+			surfaceId: null,
+			scopeId: 0,
+		});
 	});
 
 	it("choice が正しいセグメント型に変換される", () => {
@@ -215,7 +234,12 @@ describe("buildChatMessages", () => {
 		const result = buildChatMessages(tokens);
 		expect(result).toHaveLength(1);
 		expect(result[0].segments).toEqual([
-			{ type: "surface", value: "4" },
+			expect.objectContaining({
+				type: "surface",
+				value: "4",
+				surfaceId: 4,
+				scopeId: 0,
+			}),
 			{ type: "text", value: "テキスト" },
 		]);
 	});
@@ -230,7 +254,12 @@ describe("buildChatMessages", () => {
 		const result = buildChatMessages(tokens);
 		expect(result).toHaveLength(1);
 		expect(result[0].segments).toEqual([
-			{ type: "surface", value: "204" },
+			expect.objectContaining({
+				type: "surface",
+				value: "204",
+				surfaceId: 204,
+				scopeId: 0,
+			}),
 			{ type: "text", value: "テキスト" },
 		]);
 	});
@@ -245,7 +274,12 @@ describe("buildChatMessages", () => {
 		const result = buildChatMessages(tokens);
 		expect(result).toHaveLength(1);
 		expect(result[0].segments).toEqual([
-			{ type: "surface", value: "4" },
+			expect.objectContaining({
+				type: "surface",
+				value: "4",
+				surfaceId: 4,
+				scopeId: 0,
+			}),
 			{ type: "text", value: "テキスト" },
 		]);
 	});
@@ -281,14 +315,24 @@ describe("buildChatMessages", () => {
 		expect(result[0]).toEqual({
 			characterId: 0,
 			segments: [
-				{ type: "surface", value: "0" },
+				expect.objectContaining({
+					type: "surface",
+					value: "0",
+					surfaceId: 0,
+					scopeId: 0,
+				}),
 				{ type: "text", value: "こんにちは" },
 			],
 		});
 		expect(result[1]).toEqual({
 			characterId: 1,
 			segments: [
-				{ type: "surface", value: "10" },
+				expect.objectContaining({
+					type: "surface",
+					value: "10",
+					surfaceId: 10,
+					scopeId: 1,
+				}),
 				{ type: "text", value: "やあ" },
 			],
 		});

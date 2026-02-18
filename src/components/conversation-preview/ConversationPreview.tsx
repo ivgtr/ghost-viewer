@@ -10,8 +10,9 @@ import { useFileContentStore } from "@/stores/file-content-store";
 import { useFileTreeStore } from "@/stores/file-tree-store";
 import { useGhostStore } from "@/stores/ghost-store";
 import { useParseStore } from "@/stores/parse-store";
+import { useSurfaceStore } from "@/stores/surface-store";
 import { useViewStore } from "@/stores/view-store";
-import { useCallback, useMemo } from "react";
+import { useCallback, useEffect, useMemo } from "react";
 import { ChatMessageBubble } from "./ChatMessageBubble";
 import { VariantSelector } from "./VariantSelector";
 
@@ -20,6 +21,9 @@ export function ConversationPreview() {
 	const selectFunction = useCatalogStore((s) => s.selectFunction);
 	const parseResult = useParseStore((s) => s.parseResult);
 	const meta = useGhostStore((s) => s.meta);
+	const setSurfaceForScope = useSurfaceStore((s) => s.setSurfaceForScope);
+	const syncFromConversation = useSurfaceStore((s) => s.syncFromConversation);
+	const restartRuntimeForScopes = useSurfaceStore((s) => s.restartRuntimeForScopes);
 	const setVariantIndex = useViewStore((s) => s.setVariantIndex);
 	const showCode = useViewStore((s) => s.showCode);
 	const setJumpContext = useViewStore((s) => s.setJumpContext);
@@ -45,6 +49,7 @@ export function ConversationPreview() {
 		if (!dialogue) return [];
 		return buildChatMessages(dialogue.tokens);
 	}, [dialogues, clampedIndex]);
+	const firstSurfaceEntries = useMemo(() => collectFirstSurfaceByScope(messages), [messages]);
 	const selectedCondition = useMemo(() => {
 		if (!isEventSelected(selectedEventName)) return null;
 		return lookupDialogueCondition(selectedEventName, clampedIndex, functions);
@@ -58,6 +63,12 @@ export function ConversationPreview() {
 			setVariantIndex(targetFn, 0);
 		},
 		[selectFunction, setVariantIndex],
+	);
+	const handleSurfaceClick = useCallback(
+		(scopeId: number, surfaceId: number) => {
+			setSurfaceForScope(scopeId, surfaceId, "manual");
+		},
+		[setSurfaceForScope],
 	);
 
 	const handleJumpToSource = useCallback(() => {
@@ -78,6 +89,23 @@ export function ConversationPreview() {
 		});
 		showCode();
 	}, [selectedEventName, clampedIndex, functions, setJumpContext, showCode]);
+
+	useEffect(() => {
+		if (!isEventSelected(selectedEventName) || dialogues.length === 0) {
+			return;
+		}
+		if (firstSurfaceEntries.length === 0) {
+			restartRuntimeForScopes([0, 1]);
+			return;
+		}
+		syncFromConversation(firstSurfaceEntries, "auto");
+	}, [
+		dialogues.length,
+		firstSurfaceEntries,
+		restartRuntimeForScopes,
+		selectedEventName,
+		syncFromConversation,
+	]);
 
 	if (!isEventSelected(selectedEventName)) {
 		return (
@@ -153,9 +181,32 @@ export function ConversationPreview() {
 						characterNames={characterNames}
 						properties={meta?.properties ?? {}}
 						onChoiceClick={handleChoiceClick}
+						onSurfaceClick={handleSurfaceClick}
 					/>
 				))}
 			</div>
 		</div>
 	);
+}
+
+function collectFirstSurfaceByScope(messages: ReturnType<typeof buildChatMessages>): Array<{
+	scopeId: number;
+	requestedSurfaceId: number;
+}> {
+	const firstSurfaceByScope = new Map<number, number>();
+	for (const message of messages) {
+		for (const segment of message.segments) {
+			if (segment.type !== "surface" || segment.surfaceId === null) {
+				continue;
+			}
+			if (firstSurfaceByScope.has(segment.scopeId)) {
+				continue;
+			}
+			firstSurfaceByScope.set(segment.scopeId, segment.surfaceId);
+		}
+	}
+	return [...firstSurfaceByScope.entries()].map(([scopeId, requestedSurfaceId]) => ({
+		scopeId,
+		requestedSurfaceId,
+	}));
 }

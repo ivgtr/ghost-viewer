@@ -8,13 +8,30 @@ describe("GhostViewerPanel", () => {
 	beforeEach(() => {
 		useSurfaceStore.getState().reset();
 		useFileContentStore.getState().reset();
-		vi.spyOn(URL, "createObjectURL").mockImplementation(() => "blob:mock-url");
-		vi.spyOn(URL, "revokeObjectURL").mockImplementation(() => undefined);
+		vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(() => {
+			return {
+				clearRect: () => undefined,
+				setTransform: () => undefined,
+				drawImage: () => undefined,
+				getImageData: () => ({ data: new Uint8ClampedArray(4) }),
+				putImageData: () => undefined,
+			} as unknown as CanvasRenderingContext2D;
+		});
+		vi.stubGlobal("createImageBitmap", async () => {
+			return {
+				width: 1,
+				height: 1,
+				close: () => undefined,
+			} as ImageBitmap;
+		});
 	});
 
 	afterEach(() => {
 		cleanup();
+		useSurfaceStore.getState().reset();
+		useFileContentStore.getState().reset();
 		vi.restoreAllMocks();
+		vi.unstubAllGlobals();
 	});
 
 	it("単一ステージで2キャラを重ね表示し、旧2カードUIを表示しない", () => {
@@ -23,10 +40,12 @@ describe("GhostViewerPanel", () => {
 		render(<GhostViewerPanel />);
 
 		expect(screen.getByTestId("surface-stage")).toBeInTheDocument();
+		expect(screen.getByTestId("surface-canvas")).toBeInTheDocument();
 		expect(screen.queryByText("さくら / scope 0")).not.toBeInTheDocument();
 		expect(screen.queryByText("けろ / scope 1")).not.toBeInTheDocument();
-		expect(screen.getAllByRole("img")).toHaveLength(2);
-		expect(screen.getByText("surface0.png")).toBeInTheDocument();
+		expect(screen.getByTestId("surface-node-0")).toBeInTheDocument();
+		expect(screen.getByTestId("surface-node-1")).toBeInTheDocument();
+		expect(screen.getByText("surface0000.composite")).toBeInTheDocument();
 	});
 
 	it("画像クリックで focusedScope を切り替え、ファイル名ラベルを更新する", () => {
@@ -35,7 +54,7 @@ describe("GhostViewerPanel", () => {
 
 		fireEvent.click(screen.getByTestId("surface-node-1"));
 		expect(useSurfaceStore.getState().focusedScope).toBe(1);
-		expect(screen.getByText("surface10.png")).toBeInTheDocument();
+		expect(screen.getByText("surface0010.composite")).toBeInTheDocument();
 	});
 
 	it("ベルボタンで通知オーバーレイを開閉する", () => {
@@ -60,7 +79,7 @@ describe("GhostViewerPanel", () => {
 
 		render(<GhostViewerPanel />);
 
-		const bellButton = screen.getByRole("button", { name: "通知 (2)" });
+		const bellButton = screen.getByRole("button", { name: /通知 \(\d+\)/ });
 		fireEvent.click(bellButton);
 		expect(screen.getByTestId("surface-notification-overlay")).toBeInTheDocument();
 		expect(screen.getByText("SURFACE_WARN")).toBeInTheDocument();
@@ -68,6 +87,36 @@ describe("GhostViewerPanel", () => {
 
 		fireEvent.pointerDown(document.body);
 		expect(screen.queryByTestId("surface-notification-overlay")).not.toBeInTheDocument();
+	});
+
+	it("通知オーバーレイに root cause の scope/surface/candidates を表示する", () => {
+		initializePanelState();
+		useSurfaceStore.setState({
+			notifications: [
+				{
+					level: "warning",
+					code: "SURFACE_PATH_CANDIDATE_MISS",
+					message:
+						"画像パスを解決できませんでした: surface5.png (candidates: shell/master/surface5.png, shell/master/surface0005.png)",
+					shellName: "master",
+					scopeId: 0,
+					surfaceId: 5,
+					stage: "path",
+					fatal: true,
+					details: {
+						candidates: "shell/master/surface5.png, shell/master/surface0005.png",
+					},
+				},
+			],
+		});
+
+		render(<GhostViewerPanel />);
+
+		fireEvent.click(screen.getByRole("button", { name: /通知 \(\d+\)/ }));
+		expect(screen.getByText("scope: 0 / surface: 5")).toBeInTheDocument();
+		expect(
+			screen.getByText("candidates: shell/master/surface5.png, shell/master/surface0005.png"),
+		).toBeInTheDocument();
 	});
 
 	it("フォールバック配置では kero(scope1) が sakura(scope0) より左に表示される", () => {
@@ -97,6 +146,23 @@ describe("GhostViewerPanel", () => {
 		const keroLeft = Number.parseFloat(keroNode.style.left || "0");
 		expect(keroLeft).toBeGreaterThan(sakuraLeft);
 	});
+
+	it("surface定義だけがあるIDを composite として描画できる", () => {
+		initializePanelState();
+		useSurfaceStore.getState().setSurfaceForScope(0, 5, "manual");
+		render(<GhostViewerPanel />);
+
+		expect(screen.getByText("surface0005.composite")).toBeInTheDocument();
+		expect(screen.getByTestId("surface-canvas")).toBeInTheDocument();
+	});
+
+	it("pna マスク付きlayerを描画できる", () => {
+		initializePanelState({ withPna: true });
+		render(<GhostViewerPanel />);
+
+		expect(screen.getByTestId("surface-canvas")).toBeInTheDocument();
+		expect(screen.getByTestId("surface-node-0")).toBeInTheDocument();
+	});
 });
 
 function initializePanelState(
@@ -110,12 +176,17 @@ function initializePanelState(
 		}>;
 		ghostDescriptProperties?: Record<string, string>;
 		shellDescriptProperties?: Record<string, string>;
+		withPna?: boolean;
 	} = {},
 ) {
 	const fileContents = new Map<string, ArrayBuffer>([
 		["shell/master/surface0.png", createPngHeaderBuffer(220, 300)],
 		["shell/master/surface10.png", createPngHeaderBuffer(180, 240)],
+		["shell/master/parts/ribbon.png", createPngHeaderBuffer(80, 100)],
 	]);
+	if (overrides.withPna) {
+		fileContents.set("shell/master/surface0.pna", createPngHeaderBuffer(220, 300));
+	}
 	useFileContentStore.getState().setFileContents(fileContents);
 	useSurfaceStore.getState().initialize({
 		catalog: [
@@ -126,7 +197,7 @@ function initializePanelState(
 						id: 0,
 						shellName: "master",
 						pngPath: "shell/master/surface0.png",
-						pnaPath: null,
+						pnaPath: overrides.withPna ? "shell/master/surface0.pna" : null,
 					},
 					{
 						id: 10,
@@ -142,8 +213,20 @@ function initializePanelState(
 			[
 				"master",
 				new Map([
-					[0, { id: 0, elements: [] }],
-					[10, { id: 10, elements: [] }],
+					[0, { id: 0, elements: [], animations: [], regions: [] }],
+					[10, { id: 10, elements: [], animations: [], regions: [] }],
+					[
+						5,
+						{
+							id: 5,
+							elements: [
+								{ id: 1, kind: "overlay", path: "surface0.png", x: 0, y: 0 },
+								{ id: 2, kind: "overlay", path: "parts/ribbon.png", x: -16, y: 24 },
+							],
+							animations: [],
+							regions: [],
+						},
+					],
 				]),
 			],
 		]),

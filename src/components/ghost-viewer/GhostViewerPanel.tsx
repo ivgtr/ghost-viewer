@@ -1,21 +1,14 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { readPngMetadata } from "@/lib/surfaces/png-metadata";
 import { buildSurfaceScene } from "@/lib/surfaces/surface-scene-builder";
 import { buildSurfaceSetLayout } from "@/lib/surfaces/surface-set-layout";
+import {
+	countAlertNotifications,
+	createSurfaceNotification,
+	splitNotificationLevels,
+} from "@/lib/surfaces/surface-notification-policy";
 import { useFileContentStore } from "@/stores/file-content-store";
 import { useSurfaceStore } from "@/stores/surface-store";
-import type { ShellSurfaceCatalog, SurfaceCharacterPlacement, SurfaceNotification } from "@/types";
-
-interface SurfaceRenderInfo {
-	scopeId: number;
-	surfaceId: number | null;
-	imageUrl: string | null;
-	fileName: string | null;
-	pngPath: string | null;
-	width: number;
-	height: number;
-	metadataInvalid: boolean;
-}
+import type { SurfaceCharacterPlacement, SurfaceNotification, SurfaceVisualModel } from "@/types";
 
 interface UseDismissOverlayOptions {
 	isOpen: boolean;
@@ -25,13 +18,24 @@ interface UseDismissOverlayOptions {
 	notificationOverlayRef: RefObject<HTMLDivElement | null>;
 }
 
-const FALLBACK_IMAGE_WIDTH = 240;
-const FALLBACK_IMAGE_HEIGHT = 360;
+interface ScopeVisualState {
+	scopeId: number;
+	surfaceId: number | null;
+	model: SurfaceVisualModel | null;
+}
+
+interface SurfaceLayerProps {
+	placement: SurfaceCharacterPlacement;
+	model: SurfaceVisualModel;
+	isFocused: boolean;
+	onFocus: () => void;
+}
 
 export function GhostViewerPanel() {
 	const catalog = useSurfaceStore((state) => state.catalog);
 	const selectedShellName = useSurfaceStore((state) => state.selectedShellName);
 	const currentSurfaceByScope = useSurfaceStore((state) => state.currentSurfaceByScope);
+	const visualByScope = useSurfaceStore((state) => state.visualByScope);
 	const focusedScope = useSurfaceStore((state) => state.focusedScope);
 	const notifications = useSurfaceStore((state) => state.notifications);
 	const ghostDescriptProperties = useSurfaceStore((state) => state.ghostDescriptProperties);
@@ -42,10 +46,12 @@ export function GhostViewerPanel() {
 	const fileContents = useFileContentStore((state) => state.fileContents);
 
 	const [isNotificationOpen, setNotificationOpen] = useState(false);
+	const [isInfoExpanded, setInfoExpanded] = useState(false);
 	const panelRef = useRef<HTMLDivElement>(null);
 	const notificationButtonRef = useRef<HTMLButtonElement>(null);
 	const notificationOverlayRef = useRef<HTMLDivElement>(null);
 	const stageRef = useRef<HTMLDivElement>(null);
+	const canvasRef = useRef<HTMLCanvasElement>(null);
 	const stageSize = useElementSize(stageRef);
 
 	useEffect(() => {
@@ -63,52 +69,51 @@ export function GhostViewerPanel() {
 		return shellDescriptCacheByName[selectedShellName] ?? {};
 	}, [selectedShellName, shellDescriptCacheByName]);
 
-	const scope0SurfaceId = currentSurfaceByScope.get(0) ?? null;
-	const scope1SurfaceId = currentSurfaceByScope.get(1) ?? null;
+	const scopeVisuals = useMemo(
+		() =>
+			[0, 1].map((scopeId) => ({
+				scopeId,
+				surfaceId: currentSurfaceByScope.get(scopeId) ?? null,
+				model: visualByScope.get(scopeId) ?? null,
+			})),
+		[currentSurfaceByScope, visualByScope],
+	);
+	const imagePaths = useMemo(() => collectImagePaths(scopeVisuals), [scopeVisuals]);
+	const { bitmapByPath, notifications: bitmapNotifications } = useBitmapMap(
+		imagePaths,
+		fileContents,
+	);
+	const visibleScopeVisuals = useMemo(
+		() => scopeVisuals.filter((scopeVisual) => scopeVisual.model !== null),
+		[scopeVisuals],
+	);
+	const mergedNotifications = useMemo(
+		() => deduplicateNotifications([...notifications, ...bitmapNotifications]),
+		[bitmapNotifications, notifications],
+	);
+	const notificationGroups = useMemo(
+		() => splitNotificationLevels(mergedNotifications),
+		[mergedNotifications],
+	);
+	const alertCount = useMemo(
+		() => countAlertNotifications(notificationGroups.alerts),
+		[notificationGroups.alerts],
+	);
 
-	const scope0Buffer = useMemo(
-		() => resolveSurfacePngBuffer(selectedShell, scope0SurfaceId, fileContents),
-		[selectedShell, scope0SurfaceId, fileContents],
-	);
-	const scope1Buffer = useMemo(
-		() => resolveSurfacePngBuffer(selectedShell, scope1SurfaceId, fileContents),
-		[selectedShell, scope1SurfaceId, fileContents],
-	);
-	const scope0ImageUrl = useObjectUrl(scope0Buffer);
-	const scope1ImageUrl = useObjectUrl(scope1Buffer);
-
-	const scopeRenderInfos = useMemo(
-		() => [
-			resolveSurfaceRenderInfo(0, scope0SurfaceId, selectedShell, scope0Buffer, scope0ImageUrl),
-			resolveSurfaceRenderInfo(1, scope1SurfaceId, selectedShell, scope1Buffer, scope1ImageUrl),
-		],
-		[
-			scope0Buffer,
-			scope0ImageUrl,
-			scope0SurfaceId,
-			scope1Buffer,
-			scope1ImageUrl,
-			scope1SurfaceId,
-			selectedShell,
-		],
-	);
-
-	const metadataNotifications = useMemo(
-		() => buildMetadataNotifications(scopeRenderInfos, selectedShellName),
-		[scopeRenderInfos, selectedShellName],
-	);
-	const visibleNotifications = useMemo(
-		() => [...notifications, ...metadataNotifications],
-		[notifications, metadataNotifications],
-	);
 	const scene = useMemo(
 		() =>
 			buildSurfaceScene({
-				characters: scopeRenderInfos,
+				characters: visibleScopeVisuals.map((scopeVisual) => ({
+					scopeId: scopeVisual.scopeId,
+					surfaceId: scopeVisual.model?.surfaceId ?? null,
+					fileName: scopeVisual.model?.fileName ?? null,
+					width: scopeVisual.model?.width ?? 0,
+					height: scopeVisual.model?.height ?? 0,
+				})),
 				shellDescriptProperties,
 				ghostDescriptProperties,
 			}),
-		[ghostDescriptProperties, scopeRenderInfos, shellDescriptProperties],
+		[ghostDescriptProperties, shellDescriptProperties, visibleScopeVisuals],
 	);
 	const placementByScope = useMemo(() => {
 		const layout = buildSurfaceSetLayout({
@@ -118,9 +123,78 @@ export function GhostViewerPanel() {
 		});
 		return new Map(layout.placements.map((placement) => [placement.scopeId, placement]));
 	}, [scene, stageSize.height, stageSize.width]);
-	const hasRenderableImage = scopeRenderInfos.some(
-		(scopeRenderInfo) => scopeRenderInfo.imageUrl !== null,
-	);
+	const hasRenderableImage = visibleScopeVisuals.length > 0;
+
+	useEffect(() => {
+		if (bitmapByPath.size === 0) {
+			return;
+		}
+		const canvas = canvasRef.current;
+		if (!canvas) {
+			return;
+		}
+		const context = canvas.getContext("2d");
+		if (!context) {
+			return;
+		}
+
+		const width = Math.max(1, Math.floor(stageSize.width));
+		const height = Math.max(1, Math.floor(stageSize.height));
+		const dpr = window.devicePixelRatio || 1;
+		canvas.width = Math.max(1, Math.floor(width * dpr));
+		canvas.height = Math.max(1, Math.floor(height * dpr));
+		canvas.style.width = `${width}px`;
+		canvas.style.height = `${height}px`;
+		context.setTransform(dpr, 0, 0, dpr, 0, 0);
+		context.clearRect(0, 0, width, height);
+
+		const layerCanvas = createScratchCanvas(1, 1);
+		const maskCanvas = createScratchCanvas(1, 1);
+		const layerContext = layerCanvas.getContext("2d");
+		const maskContext = maskCanvas.getContext("2d");
+		if (!layerContext || !maskContext) {
+			return;
+		}
+
+		for (const scopeVisual of visibleScopeVisuals) {
+			if (!scopeVisual.model) {
+				continue;
+			}
+			const placement = placementByScope.get(scopeVisual.scopeId);
+			if (!placement) {
+				continue;
+			}
+			const scaleX =
+				scopeVisual.model.width > 0 ? placement.screenWidth / scopeVisual.model.width : 1;
+			const scaleY =
+				scopeVisual.model.height > 0 ? placement.screenHeight / scopeVisual.model.height : 1;
+
+			for (const layer of scopeVisual.model.layers) {
+				const source = bitmapByPath.get(layer.path);
+				if (!source) {
+					continue;
+				}
+				const drawX = placement.screenX + layer.x * scaleX;
+				const drawY = placement.screenY + layer.y * scaleY;
+				const drawWidth = Math.max(1, layer.width * scaleX);
+				const drawHeight = Math.max(1, layer.height * scaleY);
+				const mask = layer.alphaMaskPath ? (bitmapByPath.get(layer.alphaMaskPath) ?? null) : null;
+				drawCanvasLayer({
+					context,
+					layerContext,
+					maskContext,
+					layerCanvas,
+					maskCanvas,
+					source,
+					mask,
+					drawX,
+					drawY,
+					drawWidth,
+					drawHeight,
+				});
+			}
+		}
+	}, [bitmapByPath, placementByScope, stageSize.height, stageSize.width, visibleScopeVisuals]);
 
 	useDismissOverlay({
 		isOpen: isNotificationOpen,
@@ -145,12 +219,12 @@ export function GhostViewerPanel() {
 					ref={notificationButtonRef}
 					type="button"
 					onClick={() => setNotificationOpen((previous) => !previous)}
-					aria-label={`通知 (${visibleNotifications.length})`}
+					aria-label={`通知 (${alertCount})`}
 					className="relative rounded border border-zinc-600 bg-zinc-800 p-1.5 text-zinc-300 transition-colors hover:border-zinc-500 hover:text-zinc-100"
 				>
 					<BellIcon />
 					<span className="absolute -right-1.5 -top-1.5 rounded-full bg-emerald-500 px-1.5 py-0 text-[10px] font-semibold text-zinc-950">
-						{visibleNotifications.length}
+						{alertCount}
 					</span>
 				</button>
 			</div>
@@ -185,23 +259,31 @@ export function GhostViewerPanel() {
 					data-testid="surface-stage"
 					className="relative h-full w-full overflow-hidden rounded border border-zinc-700 bg-zinc-900/70"
 				>
+					<canvas
+						ref={canvasRef}
+						data-testid="surface-canvas"
+						className="absolute inset-0 h-full w-full"
+					/>
 					{hasRenderableImage ? null : (
-						<div className="flex h-full items-center justify-center text-xs text-zinc-500">
+						<div className="absolute inset-0 flex items-center justify-center text-xs text-zinc-500">
 							画像なし
 						</div>
 					)}
-					{scopeRenderInfos.map((scopeRenderInfo) => {
-						const placement = placementByScope.get(scopeRenderInfo.scopeId);
-						if (!placement || scopeRenderInfo.imageUrl === null) {
+					{visibleScopeVisuals.map((scopeVisual) => {
+						if (scopeVisual.model === null) {
+							return null;
+						}
+						const placement = placementByScope.get(scopeVisual.scopeId);
+						if (!placement) {
 							return null;
 						}
 						return (
 							<SurfaceLayer
-								key={scopeRenderInfo.scopeId}
+								key={scopeVisual.scopeId}
 								placement={placement}
-								imageUrl={scopeRenderInfo.imageUrl}
-								isFocused={focusedScope === scopeRenderInfo.scopeId}
-								onFocus={() => setFocusedScope(scopeRenderInfo.scopeId)}
+								model={scopeVisual.model}
+								isFocused={focusedScope === scopeVisual.scopeId}
+								onFocus={() => setFocusedScope(scopeVisual.scopeId)}
 							/>
 						);
 					})}
@@ -215,20 +297,30 @@ export function GhostViewerPanel() {
 					className="absolute right-3 top-12 z-20 w-[min(92%,420px)] rounded border border-zinc-700 bg-zinc-900/95 p-3 shadow-xl"
 				>
 					<p className="mb-2 text-xs font-medium text-zinc-200">通知</p>
-					{visibleNotifications.length === 0 ? (
+					{notificationGroups.alerts.length === 0 && notificationGroups.infos.length === 0 ? (
 						<p className="text-xs text-zinc-500">通知はありません</p>
 					) : (
-						<ul className="max-h-64 space-y-2 overflow-auto">
-							{visibleNotifications.map((notification, index) => (
-								<li
-									key={`${notification.code}-${index}`}
-									className="rounded border border-zinc-700 bg-zinc-800/80 p-2 text-xs text-zinc-300"
-								>
-									<p className="font-medium">{notification.code}</p>
-									<p>{notification.message}</p>
-								</li>
-							))}
-						</ul>
+						<div className="max-h-64 space-y-2 overflow-auto">
+							<NotificationList notifications={notificationGroups.alerts} />
+							{notificationGroups.infos.length > 0 ? (
+								<div className="rounded border border-zinc-700 bg-zinc-800/60 p-2">
+									<button
+										type="button"
+										className="w-full text-left text-[11px] text-zinc-300 hover:text-zinc-100"
+										onClick={() => setInfoExpanded((previous) => !previous)}
+									>
+										{isInfoExpanded
+											? "info を隠す"
+											: `info を表示 (${notificationGroups.infos.length})`}
+									</button>
+									{isInfoExpanded ? (
+										<div className="mt-2">
+											<NotificationList notifications={notificationGroups.infos} />
+										</div>
+									) : null}
+								</div>
+							) : null}
+						</div>
 					)}
 				</div>
 			) : null}
@@ -236,14 +328,85 @@ export function GhostViewerPanel() {
 	);
 }
 
-interface SurfaceLayerProps {
-	placement: SurfaceCharacterPlacement;
-	imageUrl: string;
-	isFocused: boolean;
-	onFocus: () => void;
+function collectImagePaths(scopeVisuals: ScopeVisualState[]): string[] {
+	const paths = new Set<string>();
+	for (const scopeVisual of scopeVisuals) {
+		for (const layer of scopeVisual.model?.layers ?? []) {
+			paths.add(layer.path);
+			if (layer.alphaMaskPath) {
+				paths.add(layer.alphaMaskPath);
+			}
+		}
+	}
+	return [...paths].sort((a, b) => a.localeCompare(b));
 }
 
-function SurfaceLayer({ placement, imageUrl, isFocused, onFocus }: SurfaceLayerProps) {
+function deduplicateNotifications(notifications: SurfaceNotification[]): SurfaceNotification[] {
+	const seen = new Set<string>();
+	const deduplicated: SurfaceNotification[] = [];
+	for (const notification of notifications) {
+		const key = [
+			notification.level,
+			notification.code,
+			notification.stage,
+			notification.fatal ? "1" : "0",
+			notification.shellName ?? "",
+			notification.scopeId ?? "",
+			notification.surfaceId ?? "",
+			notification.message,
+			notification.details ? JSON.stringify(notification.details) : "",
+		].join(":");
+		if (seen.has(key)) {
+			continue;
+		}
+		seen.add(key);
+		deduplicated.push(notification);
+	}
+	return deduplicated;
+}
+
+function NotificationList(props: { notifications: SurfaceNotification[] }) {
+	return (
+		<ul className="space-y-2">
+			{props.notifications.map((notification, index) => {
+				const candidates = resolveCandidates(notification);
+				return (
+					<li
+						key={`${notification.level}-${notification.code}-${index}`}
+						className="rounded border border-zinc-700 bg-zinc-800/80 p-2 text-xs text-zinc-300"
+					>
+						<p className="font-medium">{notification.code}</p>
+						<p className="text-[11px] text-zinc-400">
+							stage: {notification.stage} / fatal: {notification.fatal ? "yes" : "no"}
+						</p>
+						<p className="text-[11px] text-zinc-400">
+							scope: {notification.scopeId ?? "-"} / surface: {notification.surfaceId ?? "-"}
+						</p>
+						{candidates ? (
+							<p className="text-[11px] text-zinc-400">candidates: {candidates}</p>
+						) : null}
+						<p>{notification.message}</p>
+					</li>
+				);
+			})}
+		</ul>
+	);
+}
+
+function resolveCandidates(notification: SurfaceNotification): string | null {
+	const detailCandidates = notification.details?.candidates;
+	if (typeof detailCandidates === "string" && detailCandidates.length > 0) {
+		return detailCandidates;
+	}
+	const detailCandidate = notification.details?.candidate;
+	if (typeof detailCandidate === "string" && detailCandidate.length > 0) {
+		return detailCandidate;
+	}
+	const match = notification.message.match(/\(candidates:\s*(.+)\)$/);
+	return match?.[1] ?? null;
+}
+
+function SurfaceLayer({ placement, model, isFocused, onFocus }: SurfaceLayerProps) {
 	return (
 		<button
 			type="button"
@@ -264,14 +427,9 @@ function SurfaceLayer({ placement, imageUrl, isFocused, onFocus }: SurfaceLayerP
 		>
 			{isFocused ? (
 				<span className="pointer-events-none absolute -top-6 left-0 whitespace-nowrap rounded border border-emerald-500/70 bg-zinc-900/95 px-1.5 py-0.5 text-[10px] text-emerald-200">
-					{placement.fileName ?? "unknown.png"}
+					{model.fileName ?? "unknown.png"}
 				</span>
 			) : null}
-			<img
-				src={imageUrl}
-				alt={`surface ${placement.scopeId}`}
-				className="pointer-events-none h-full w-full object-contain"
-			/>
 		</button>
 	);
 }
@@ -312,136 +470,183 @@ function useDismissOverlay(options: UseDismissOverlayOptions): void {
 	}, [isOpen, notificationButtonRef, notificationOverlayRef, onClose, panelRef]);
 }
 
-function resolveSurfacePngBuffer(
-	shellCatalog: ShellSurfaceCatalog | null,
-	surfaceId: number | null,
+function useBitmapMap(
+	imagePaths: string[],
 	fileContents: Map<string, ArrayBuffer>,
-): ArrayBuffer | null {
-	if (shellCatalog === null || surfaceId === null) {
-		return null;
-	}
-	const asset = shellCatalog.assets.find((entry) => entry.id === surfaceId);
-	if (!asset) {
-		return null;
-	}
-	return fileContents.get(asset.pngPath) ?? null;
-}
-
-function resolveSurfaceRenderInfo(
-	scopeId: number,
-	surfaceId: number | null,
-	shellCatalog: ShellSurfaceCatalog | null,
-	pngBuffer: ArrayBuffer | null,
-	imageUrl: string | null,
-): SurfaceRenderInfo {
-	if (shellCatalog === null || surfaceId === null) {
-		return {
-			scopeId,
-			surfaceId,
-			imageUrl,
-			fileName: null,
-			pngPath: null,
-			width: 0,
-			height: 0,
-			metadataInvalid: false,
-		};
-	}
-
-	const asset = shellCatalog.assets.find((entry) => entry.id === surfaceId);
-	if (!asset || pngBuffer === null || imageUrl === null) {
-		return {
-			scopeId,
-			surfaceId,
-			imageUrl,
-			fileName: asset ? toFileName(asset.pngPath) : null,
-			pngPath: asset?.pngPath ?? null,
-			width: 0,
-			height: 0,
-			metadataInvalid: false,
-		};
-	}
-
-	const metadata = readPngMetadata(pngBuffer);
-	if (metadata) {
-		return {
-			scopeId,
-			surfaceId,
-			imageUrl,
-			fileName: toFileName(asset.pngPath),
-			pngPath: asset.pngPath,
-			width: metadata.width,
-			height: metadata.height,
-			metadataInvalid: false,
-		};
-	}
-
-	return {
-		scopeId,
-		surfaceId,
-		imageUrl,
-		fileName: toFileName(asset.pngPath),
-		pngPath: asset.pngPath,
-		width: FALLBACK_IMAGE_WIDTH,
-		height: FALLBACK_IMAGE_HEIGHT,
-		metadataInvalid: true,
-	};
-}
-
-function buildMetadataNotifications(
-	scopeRenderInfos: SurfaceRenderInfo[],
-	shellName: string | null,
-): SurfaceNotification[] {
-	const metadataNotifications: SurfaceNotification[] = [];
-	for (const scopeRenderInfo of scopeRenderInfos) {
-		if (!scopeRenderInfo.metadataInvalid) {
-			continue;
-		}
-		metadataNotifications.push({
-			level: "warning",
-			code: "SURFACE_PNG_METADATA_INVALID",
-			message: `PNGメタ情報を解決できないためフォールバックサイズで表示します: ${scopeRenderInfo.fileName ?? "unknown.png"}`,
-			shellName,
-			scopeId: scopeRenderInfo.scopeId,
-			surfaceId: scopeRenderInfo.surfaceId,
-		});
-	}
-	return metadataNotifications;
-}
-
-function toFileName(path: string): string {
-	const segments = path.split("/");
-	return segments[segments.length - 1] ?? path;
-}
-
-function useObjectUrl(buffer: ArrayBuffer | null): string | null {
-	const [url, setUrl] = useState<string | null>(null);
-	const currentUrlRef = useRef<string | null>(null);
+): {
+	bitmapByPath: Map<string, ImageBitmap>;
+	notifications: SurfaceNotification[];
+} {
+	const [bitmapByPath, setBitmapByPath] = useState<Map<string, ImageBitmap>>(new Map());
+	const [notifications, setNotifications] = useState<SurfaceNotification[]>([]);
+	const cacheRef = useRef<{
+		fileContents: Map<string, ArrayBuffer> | null;
+		bitmapByPath: Map<string, ImageBitmap>;
+	}>({
+		fileContents: null,
+		bitmapByPath: new Map(),
+	});
+	const imagePathKey = useMemo(() => imagePaths.join("\n"), [imagePaths]);
 
 	useEffect(() => {
-		if (buffer === null) {
-			return;
+		let cancelled = false;
+		const cache = cacheRef.current;
+		if (cache.fileContents !== fileContents) {
+			for (const bitmap of cache.bitmapByPath.values()) {
+				bitmap.close();
+			}
+			cache.bitmapByPath = new Map();
+			cache.fileContents = fileContents;
 		}
 
-		const objectUrl = URL.createObjectURL(new Blob([buffer], { type: "image/png" }));
-		const previousUrl = currentUrlRef.current;
-		if (previousUrl) {
-			URL.revokeObjectURL(previousUrl);
+		const targetPaths = imagePathKey === "" ? [] : imagePathKey.split("\n");
+		if (targetPaths.length === 0) {
+			setBitmapByPath(new Map());
+			setNotifications([]);
+			return () => {
+				cancelled = true;
+			};
 		}
-		currentUrlRef.current = objectUrl;
-		setUrl(objectUrl);
-	}, [buffer]);
+		if (typeof createImageBitmap !== "function") {
+			setBitmapByPath(new Map());
+			setNotifications([]);
+			return () => {
+				cancelled = true;
+			};
+		}
+
+		void (async () => {
+			const nextNotifications: SurfaceNotification[] = [];
+			for (const path of targetPaths) {
+				if (cache.bitmapByPath.has(path)) {
+					continue;
+				}
+				const buffer = fileContents.get(path);
+				if (!buffer) {
+					nextNotifications.push(
+						createSurfaceNotification({
+							level: "warning",
+							code: "SURFACE_IMAGE_BUFFER_MISSING",
+							message: `画像バッファを解決できませんでした: ${path}`,
+							shellName: null,
+							scopeId: null,
+							surfaceId: null,
+							stage: "store",
+							fatal: true,
+							details: {
+								candidate: path,
+							},
+						}),
+					);
+					continue;
+				}
+				try {
+					const bitmap = await createImageBitmap(new Blob([buffer], { type: "image/png" }));
+					if (cancelled) {
+						bitmap.close();
+						continue;
+					}
+					cache.bitmapByPath.set(path, bitmap);
+				} catch {
+					nextNotifications.push(
+						createSurfaceNotification({
+							level: "warning",
+							code: "SURFACE_IMAGE_DECODE_FAILED",
+							message: `画像デコードに失敗しました: ${path}`,
+							shellName: null,
+							scopeId: null,
+							surfaceId: null,
+							stage: "store",
+							fatal: true,
+							details: {
+								candidate: path,
+							},
+						}),
+					);
+				}
+			}
+			if (cancelled) {
+				return;
+			}
+			const nextBitmapByPath = new Map<string, ImageBitmap>();
+			for (const path of targetPaths) {
+				const bitmap = cache.bitmapByPath.get(path);
+				if (bitmap) {
+					nextBitmapByPath.set(path, bitmap);
+				}
+			}
+			setBitmapByPath(nextBitmapByPath);
+			setNotifications(nextNotifications);
+		})();
+
+		return () => {
+			cancelled = true;
+		};
+	}, [fileContents, imagePathKey]);
 
 	useEffect(() => {
 		return () => {
-			const currentUrl = currentUrlRef.current;
-			if (currentUrl) {
-				URL.revokeObjectURL(currentUrl);
+			const cache = cacheRef.current;
+			for (const bitmap of cache.bitmapByPath.values()) {
+				bitmap.close();
 			}
-			currentUrlRef.current = null;
+			cache.bitmapByPath.clear();
+			cache.fileContents = null;
 		};
 	}, []);
 
-	return url;
+	return {
+		bitmapByPath,
+		notifications,
+	};
+}
+
+interface DrawCanvasLayerOptions {
+	context: CanvasRenderingContext2D;
+	layerContext: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+	maskContext: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
+	layerCanvas: OffscreenCanvas | HTMLCanvasElement;
+	maskCanvas: OffscreenCanvas | HTMLCanvasElement;
+	source: ImageBitmap;
+	mask: ImageBitmap | null;
+	drawX: number;
+	drawY: number;
+	drawWidth: number;
+	drawHeight: number;
+}
+
+function drawCanvasLayer(options: DrawCanvasLayerOptions): void {
+	const width = Math.max(1, Math.floor(options.drawWidth));
+	const height = Math.max(1, Math.floor(options.drawHeight));
+	options.layerCanvas.width = width;
+	options.layerCanvas.height = height;
+	options.layerContext.clearRect(0, 0, width, height);
+	options.layerContext.drawImage(options.source, 0, 0, width, height);
+
+	if (options.mask) {
+		options.maskCanvas.width = width;
+		options.maskCanvas.height = height;
+		options.maskContext.clearRect(0, 0, width, height);
+		options.maskContext.drawImage(options.mask, 0, 0, width, height);
+		const layerImageData = options.layerContext.getImageData(0, 0, width, height);
+		const maskImageData = options.maskContext.getImageData(0, 0, width, height);
+		for (let index = 0; index < layerImageData.data.length; index += 4) {
+			layerImageData.data[index + 3] = maskImageData.data[index] ?? 0;
+		}
+		options.layerContext.putImageData(layerImageData, 0, 0);
+	}
+
+	options.context.drawImage(options.layerCanvas, options.drawX, options.drawY, width, height);
+}
+
+function createScratchCanvas(width: number, height: number): OffscreenCanvas | HTMLCanvasElement {
+	if (typeof OffscreenCanvas !== "undefined") {
+		return new OffscreenCanvas(width, height);
+	}
+	const canvas = document.createElement("canvas");
+	canvas.width = width;
+	canvas.height = height;
+	return canvas;
 }
 
 function useElementSize(ref: RefObject<HTMLDivElement | null>): {

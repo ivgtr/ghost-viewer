@@ -46,14 +46,87 @@ export interface SurfaceElement {
 	y: number;
 }
 
+export type SurfaceAnimationIntervalMode =
+	| "bind"
+	| "runonce"
+	| "random"
+	| "periodic"
+	| "always"
+	| "never"
+	| "talk"
+	| "yen-e"
+	| "unknown";
+
+export interface SurfaceIntervalSpec {
+	raw: string;
+	mode: SurfaceAnimationIntervalMode;
+	args: number[];
+	runtimeMeta: SurfaceIntervalRuntimeMeta;
+}
+
+export interface SurfaceIntervalRuntimeMeta {
+	raw: string;
+	normalizedMode: SurfaceAnimationIntervalMode;
+	isDialect: boolean;
+	args: number[];
+}
+
+export type SurfaceAnimationPatternMethod =
+	| "base"
+	| "overlay"
+	| "add"
+	| "replace"
+	| "interpolate"
+	| "asis"
+	| "move"
+	| "reduce"
+	| "stop"
+	| "start"
+	| "alternativestart"
+	| "alternativestop"
+	| "insert"
+	| "unknown";
+
+export interface SurfaceAnimationPattern {
+	index: number;
+	method: SurfaceAnimationPatternMethod;
+	rawMethod: string;
+	surfaceRef: number | null;
+	wait: number | null;
+	x: number;
+	y: number;
+	optionals: number[];
+}
+
+export interface SurfaceAnimation {
+	id: number;
+	interval: SurfaceIntervalSpec | null;
+	patterns: SurfaceAnimationPattern[];
+}
+
+export interface SurfaceRegion {
+	id: number;
+	kind: "collision" | "collisionex" | "point";
+	name: string | null;
+	shape: string | null;
+	values: number[];
+	raw: string;
+}
+
 export interface SurfaceDefinition {
 	id: number;
 	elements: SurfaceElement[];
+	animations: SurfaceAnimation[];
+	regions: SurfaceRegion[];
 }
 
 export type SurfaceDefinitionsByShell = Map<string, Map<number, SurfaceDefinition>>;
 
-export type SurfaceAliasMap = Map<number, Map<number, number[]>>;
+export type SurfaceAliasKey = number | string;
+
+export type SurfaceAliasByScope = Map<SurfaceAliasKey, number[]>;
+
+export type SurfaceAliasMap = Map<number, SurfaceAliasByScope>;
 
 export type SurfaceAliasMapByShell = Map<string, SurfaceAliasMap>;
 
@@ -69,13 +142,18 @@ export interface SurfaceResolverContext {
 }
 
 export interface SurfaceNotification {
-	level: "warning" | "error";
+	level: "info" | "warning" | "error";
 	code: string;
 	message: string;
 	shellName: string | null;
 	scopeId: number | null;
 	surfaceId: number | null;
+	stage: SurfaceNotificationStage;
+	fatal: boolean;
+	details: Record<string, string | number | boolean | null> | null;
 }
+
+export type SurfaceSyncReason = "auto" | "manual";
 
 export interface SurfaceInitializeInput {
 	catalog: ShellSurfaceCatalog[];
@@ -148,4 +226,125 @@ export interface SurfaceSetLayout {
 	worldWidth: number;
 	worldHeight: number;
 	placements: SurfaceCharacterPlacement[];
+}
+
+export interface SurfaceVisualLayer {
+	path: string;
+	alphaMaskPath: string | null;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	imageUrl: string;
+	alphaMaskUrl: string | null;
+}
+
+export interface SurfaceRenderLayer {
+	sourcePath: string;
+	x: number;
+	y: number;
+	width: number;
+	height: number;
+	alphaMaskPath: string | null;
+}
+
+export interface SurfaceStaticEvaluationResult {
+	layers: SurfaceRenderLayer[];
+	diagnostics: SurfaceNotification[];
+}
+
+export interface SurfaceVisualModel {
+	surfaceId: number;
+	fileName: string | null;
+	mode: "asset" | "composite";
+	width: number;
+	height: number;
+	layers: SurfaceVisualLayer[];
+}
+
+export interface SurfaceVisualResolveResult {
+	ok: boolean;
+	model: SurfaceVisualModel | null;
+	notifications: SurfaceNotification[];
+	trace: SurfaceResolutionTrace;
+	runtimePlan: SurfaceAnimationRuntimePlan | null;
+}
+
+export interface SurfacePathResolution {
+	ok: boolean;
+	resolvedPath: string | null;
+	attemptedCandidates: string[];
+	reason: string | null;
+}
+
+export type SurfaceResolveStage = "definition" | "path" | "static-eval" | "direct-asset" | "pna";
+
+export interface SurfaceResolveStep {
+	stage: SurfaceResolveStage;
+	ok: boolean;
+	details: string;
+	fatal: boolean;
+}
+
+export interface SurfaceResolutionTrace {
+	surfaceId: number;
+	steps: SurfaceResolveStep[];
+	notifications: SurfaceNotification[];
+}
+
+export type SurfaceNotificationStage =
+	| "alias"
+	| "path"
+	| "static-eval"
+	| "runtime-eval"
+	| "direct-asset"
+	| "pna"
+	| "store";
+
+export type SurfaceAnimationRuntimeMode =
+	| "bind"
+	| "always"
+	| "runonce"
+	| "sometimes"
+	| "unsupported";
+
+export type SurfaceAnimationFrameOperation = "overlay" | "replace-base" | "clear";
+
+export interface SurfaceAnimationFrame {
+	trackId: number;
+	patternIndex: number;
+	operation: SurfaceAnimationFrameOperation;
+	waitMs: number;
+	layers: SurfaceRenderLayer[];
+}
+
+export interface SurfaceAnimationTrack {
+	id: number;
+	mode: SurfaceAnimationRuntimeMode;
+	loop: boolean;
+	triggerEveryMs: number | null;
+	triggerProbability: number | null;
+	frames: SurfaceAnimationFrame[];
+}
+
+export interface SurfaceRuntimeCapability {
+	code: string;
+	message: string;
+	supported: boolean;
+	mode: string;
+}
+
+export interface SurfaceAnimationRuntimePlan {
+	surfaceId: number;
+	shellName: string;
+	baseLayers: SurfaceRenderLayer[];
+	tracks: SurfaceAnimationTrack[];
+	capabilities: SurfaceRuntimeCapability[];
+}
+
+export interface SurfaceRuntimeSnapshot {
+	surfaceId: number;
+	timestampMs: number;
+	layers: SurfaceRenderLayer[];
+	activeTrackIds: number[];
 }

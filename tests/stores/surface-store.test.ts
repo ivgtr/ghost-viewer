@@ -6,10 +6,15 @@ import type {
 } from "@/types";
 import { useFileContentStore } from "@/stores/file-content-store";
 import { useSurfaceStore } from "@/stores/surface-store";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 describe("surfaceStore", () => {
 	beforeEach(() => {
+		useSurfaceStore.getState().reset();
+		useFileContentStore.getState().reset();
+	});
+
+	afterEach(() => {
 		useSurfaceStore.getState().reset();
 		useFileContentStore.getState().reset();
 	});
@@ -79,7 +84,14 @@ describe("surfaceStore", () => {
 
 	it("shell切替時に shell descript を読込んで現在 surface を再計算する", () => {
 		const shellDescript = new TextEncoder().encode("sakura.seriko.defaultsurface,20").buffer;
-		const fileContents = new Map<string, ArrayBuffer>([["shell/alt/descript.txt", shellDescript]]);
+		const fileContents = new Map<string, ArrayBuffer>([
+			["shell/alt/descript.txt", shellDescript],
+			["shell/master/surface0.png", createPngHeaderBuffer(120, 180)],
+			["shell/master/surface10.png", createPngHeaderBuffer(120, 180)],
+			["shell/alt/surface0.png", createPngHeaderBuffer(120, 180)],
+			["shell/alt/surface10.png", createPngHeaderBuffer(120, 180)],
+			["shell/alt/surface20.png", createPngHeaderBuffer(120, 180)],
+		]);
 		useFileContentStore.getState().setFileContents(fileContents);
 
 		useSurfaceStore.getState().initialize(
@@ -117,21 +129,179 @@ describe("surfaceStore", () => {
 		expect(
 			state.notifications.some((notification) => notification.code === "SURFACE_IMAGE_UNRESOLVED"),
 		).toBe(true);
+		expect(
+			state.notifications.some((notification) => notification.code !== "SURFACE_IMAGE_UNRESOLVED"),
+		).toBe(true);
+	});
+
+	it("setSurfaceForScope は実surfaceが解決可能な場合に alias より実IDを優先する", () => {
+		useSurfaceStore.getState().initialize(
+			createInitializeInput({
+				catalog: [createShell("master", [0, 10, 101])],
+				definitionsByShell: createDefinitionsByShell("master", [0, 10, 101]),
+				aliasMapByShell: new Map([["master", new Map([[0, new Map([[0, [101]]])]])]]),
+				rng: () => 0,
+			}),
+		);
+
+		useSurfaceStore.getState().setSurfaceForScope(0, 0, "manual");
+		expect(useSurfaceStore.getState().currentSurfaceByScope.get(0)).toBe(0);
+	});
+
+	it("setSurfaceForScope は実surfaceが未解決なら alias をフォールバック採用する", () => {
+		useSurfaceStore.getState().initialize(
+			createInitializeInput({
+				catalog: [createShell("master", [101])],
+				definitionsByShell: createDefinitionsByShell("master", [101]),
+				aliasMapByShell: new Map([["master", new Map([[0, new Map([[0, [101]]])]])]]),
+				rng: () => 0,
+			}),
+		);
+
+		useSurfaceStore.getState().setSurfaceForScope(0, 0, "manual");
+		expect(useSurfaceStore.getState().currentSurfaceByScope.get(0)).toBe(101);
+	});
+
+	it("surfaceN.png がなくても definition の element で解決できれば切り替える", () => {
+		useFileContentStore
+			.getState()
+			.setFileContents(new Map([["shell/master/surface0.png", createPngHeaderBuffer(120, 180)]]));
+		useSurfaceStore.getState().initialize(
+			createInitializeInput({
+				catalog: [createShell("master", [0, 10])],
+				definitionsByShell: new Map([
+					[
+						"master",
+						new Map([
+							[0, { id: 0, elements: [], animations: [], regions: [] }],
+							[10, { id: 10, elements: [], animations: [], regions: [] }],
+							[
+								5,
+								{
+									id: 5,
+									elements: [{ id: 1, kind: "overlay", path: "surface0.png", x: 0, y: 0 }],
+									animations: [],
+									regions: [],
+								},
+							],
+						]),
+					],
+				]),
+			}),
+		);
+
+		useSurfaceStore.getState().setSurfaceForScope(0, 5, "manual");
+		expect(useSurfaceStore.getState().currentSurfaceByScope.get(0)).toBe(5);
+	});
+
+	it("surfaceN.png がなくても animation 経由で静的解決できれば切り替える", () => {
+		useFileContentStore.getState().setFileContents(
+			new Map([
+				["shell/master/surface0.png", createPngHeaderBuffer(120, 180)],
+				["shell/master/overlay.png", createPngHeaderBuffer(24, 24)],
+			]),
+		);
+		useSurfaceStore.getState().initialize(
+			createInitializeInput({
+				catalog: [createShell("master", [0, 10])],
+				definitionsByShell: new Map([
+					[
+						"master",
+						new Map([
+							[0, { id: 0, elements: [], animations: [], regions: [] }],
+							[10, { id: 10, elements: [], animations: [], regions: [] }],
+							[
+								30,
+								{
+									id: 30,
+									elements: [],
+									animations: [
+										{
+											id: 1,
+											interval: { raw: "bind", mode: "bind", args: [] },
+											patterns: [
+												{
+													index: 0,
+													method: "overlay",
+													surfaceRef: 0,
+													wait: 0,
+													x: 0,
+													y: 0,
+													optionals: [],
+												},
+											],
+										},
+									],
+									regions: [],
+								},
+							],
+						]),
+					],
+				]),
+			}),
+		);
+
+		useSurfaceStore.getState().setSurfaceForScope(0, 30, "manual");
+		expect(useSurfaceStore.getState().currentSurfaceByScope.get(0)).toBe(30);
+	});
+
+	it("setSurfaceForScope の未解決時は直前を維持して warning を積む", () => {
+		useSurfaceStore.getState().initialize(
+			createInitializeInput({
+				catalog: [createShell("master", [0, 10])],
+				definitionsByShell: createDefinitionsByShell("master", [0, 10]),
+			}),
+		);
+
+		useSurfaceStore.getState().setSurfaceForScope(0, 9999, "manual");
+		const state = useSurfaceStore.getState();
+		expect(state.currentSurfaceByScope.get(0)).toBe(0);
+		expect(
+			state.notifications.some((notification) => notification.code === "SURFACE_IMAGE_UNRESOLVED"),
+		).toBe(true);
+		expect(
+			state.notifications.some((notification) => notification.code !== "SURFACE_IMAGE_UNRESOLVED"),
+		).toBe(true);
+	});
+
+	it("syncFromConversation で scope>1 を currentSurfaceByScope に保持できる", () => {
+		useSurfaceStore.getState().initialize(
+			createInitializeInput({
+				catalog: [createShell("master", [0, 10, 30])],
+				definitionsByShell: createDefinitionsByShell("master", [0, 10, 30]),
+			}),
+		);
+
+		useSurfaceStore.getState().syncFromConversation(
+			[
+				{ scopeId: 0, requestedSurfaceId: 0 },
+				{ scopeId: 2, requestedSurfaceId: 30 },
+			],
+			"auto",
+		);
+		const state = useSurfaceStore.getState();
+		expect(state.currentSurfaceByScope.get(0)).toBe(0);
+		expect(state.currentSurfaceByScope.get(2)).toBe(30);
 	});
 });
 
 function createInitializeInput(
 	overrides: Partial<SurfaceInitializeInput> = {},
 ): SurfaceInitializeInput {
-	return {
+	const input: SurfaceInitializeInput = {
 		catalog: [createShell("master", [0, 10])],
 		initialShellName: "master",
 		definitionsByShell: createDefinitionsByShell("master", [0, 10]),
-		aliasMapByShell: new Map<string, Map<number, Map<number, number[]>>>(),
+		aliasMapByShell: new Map<string, Map<number, Map<number | string, number[]>>>(),
 		diagnostics: [],
 		ghostDescriptProperties: {},
 		...overrides,
 	};
+	const currentFileContents = useFileContentStore.getState().fileContents;
+	if (currentFileContents.size === 0) {
+		useFileContentStore.getState().setFileContents(createFileContentsFromCatalog(input.catalog));
+	}
+	return input;
 }
 
 function createShell(shellName: string, surfaceIds: number[]): ShellSurfaceCatalog {
@@ -162,7 +332,33 @@ function createDefinitionMap(surfaceIds: number[]): Map<number, SurfaceDefinitio
 			{
 				id: surfaceId,
 				elements: [],
+				animations: [],
+				regions: [],
 			},
 		]),
 	);
+}
+
+function createPngHeaderBuffer(width: number, height: number): ArrayBuffer {
+	const bytes = new Uint8Array(24);
+	bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
+	bytes.set([0x00, 0x00, 0x00, 0x0d], 8);
+	bytes.set([0x49, 0x48, 0x44, 0x52], 12);
+	const view = new DataView(bytes.buffer);
+	view.setUint32(16, width);
+	view.setUint32(20, height);
+	return bytes.buffer;
+}
+
+function createFileContentsFromCatalog(catalog: ShellSurfaceCatalog[]): Map<string, ArrayBuffer> {
+	const fileContents = new Map<string, ArrayBuffer>();
+	for (const shell of catalog) {
+		for (const asset of shell.assets) {
+			fileContents.set(asset.pngPath, createPngHeaderBuffer(120, 180));
+			if (asset.pnaPath) {
+				fileContents.set(asset.pnaPath, createPngHeaderBuffer(120, 180));
+			}
+		}
+	}
+	return fileContents;
 }

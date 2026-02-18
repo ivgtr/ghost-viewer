@@ -15,7 +15,8 @@ describe("parseSurfacesCore", () => {
 						text: [
 							"surface0{",
 							"element0,base,surface0.png,0,0",
-							"animation0,always,1",
+							"animation0.interval,always",
+							"animation0.pattern0,overlay,100,0,0,0",
 							"}",
 							"surface.append0{",
 							"element1,overlay,parts.png,10,20",
@@ -33,7 +34,8 @@ describe("parseSurfacesCore", () => {
 			{ id: 0, kind: "base", path: "surface0.png", x: 0, y: 0 },
 			{ id: 1, kind: "overlay", path: "parts.png", x: 10, y: 20 },
 		]);
-		expect(result.diagnostics.some((d) => d.code === "SURFACE_CORE_UNSUPPORTED_SYNTAX")).toBe(true);
+		expect(definition?.animations[0]?.interval?.mode).toBe("always");
+		expect(definition?.animations[0]?.patterns[0]?.surfaceRef).toBe(100);
 		expect(result.diagnostics.some((d) => d.code === "SURFACE_CORE_UNKNOWN_SYNTAX")).toBe(true);
 	});
 

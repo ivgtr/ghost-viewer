@@ -1,4 +1,4 @@
-import type { ChatMessage, ChatSegment } from "@/types/chat-message";
+import type { ChatMessage, ChatSegment, ChatSurfaceSegment } from "@/types/chat-message";
 import type { SakuraScriptToken } from "@/types/sakura-script";
 
 function hasContent(segments: ChatSegment[]): boolean {
@@ -56,9 +56,16 @@ export function buildChatMessages(tokens: SakuraScriptToken[]): ChatMessage[] {
 			case "text":
 				appendTextSegments(token.value, segments);
 				break;
-			case "surface":
-				segments.push({ type: "surface", value: token.value });
+			case "surface": {
+				const nextSurfaceSegment = createSurfaceSegment({
+					value: token.value,
+					scopeId: currentCharId,
+					messageIndex: messages.length,
+					segmentIndex: segments.length,
+				});
+				segments.push(nextSurfaceSegment);
 				break;
+			}
 			case "choice":
 				segments.push({ type: "choice", value: token.value });
 				break;
@@ -83,4 +90,24 @@ export function buildChatMessages(tokens: SakuraScriptToken[]): ChatMessage[] {
 
 	flush();
 	return messages;
+}
+
+interface CreateSurfaceSegmentOptions {
+	value: string;
+	scopeId: number;
+	messageIndex: number;
+	segmentIndex: number;
+}
+
+function createSurfaceSegment(options: CreateSurfaceSegmentOptions): ChatSurfaceSegment {
+	const normalizedValue = options.value.trim();
+	const parsedSurfaceId = Number(normalizedValue);
+	const surfaceId = Number.isInteger(parsedSurfaceId) ? parsedSurfaceId : null;
+	return {
+		type: "surface",
+		value: options.value,
+		surfaceId,
+		scopeId: options.scopeId,
+		syncId: `${options.messageIndex}:${options.segmentIndex}`,
+	};
 }

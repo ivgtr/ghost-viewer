@@ -16,6 +16,7 @@ interface ChatMessageBubbleProps {
 	characterNames: Record<number, string>;
 	properties: Record<string, string>;
 	onChoiceClick?: (targetFn: string) => void;
+	onSurfaceClick?: (scopeId: number, surfaceId: number, syncId: string) => void;
 }
 
 export function ChatMessageBubble({
@@ -24,6 +25,7 @@ export function ChatMessageBubble({
 	characterNames,
 	properties,
 	onChoiceClick,
+	onSurfaceClick,
 }: ChatMessageBubbleProps) {
 	const alignment = message.characterId === 0 ? "items-start" : "items-end";
 	const colorIndex = message.characterId % COLOR_PALETTES.length;
@@ -46,10 +48,25 @@ export function ChatMessageBubble({
 						case "lineBreak":
 							return <br key={key} />;
 						case "surface":
+							if (segment.surfaceId !== null && onSurfaceClick) {
+								const surfaceId = segment.surfaceId;
+								return (
+									<button
+										key={key}
+										type="button"
+										aria-label={`s[${segment.value}]`}
+										data-testid={`surface-sync-${segment.syncId}`}
+										className="mx-0.5 inline-block cursor-pointer rounded bg-zinc-600 px-1.5 py-0.5 text-xs text-zinc-300 transition-colors hover:bg-zinc-500"
+										onClick={() => onSurfaceClick(segment.scopeId, surfaceId, segment.syncId)}
+									>
+										s[{segment.value}]
+									</button>
+								);
+							}
 							return (
 								<span
 									key={key}
-									className="mx-0.5 inline-block rounded bg-zinc-600 px-1.5 py-0.5 text-xs text-zinc-300"
+									className="mx-0.5 inline-block rounded bg-zinc-700 px-1.5 py-0.5 text-xs text-zinc-400"
 								>
 									s[{segment.value}]
 								</span>

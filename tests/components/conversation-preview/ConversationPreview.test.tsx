@@ -4,9 +4,10 @@ import { useFileContentStore } from "@/stores/file-content-store";
 import { useFileTreeStore } from "@/stores/file-tree-store";
 import { useGhostStore } from "@/stores/ghost-store";
 import { useParseStore } from "@/stores/parse-store";
+import { useSurfaceStore } from "@/stores/surface-store";
 import { useViewStore } from "@/stores/view-store";
 import type { GhostMeta, ParseResult, SakuraScriptToken } from "@/types";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 function makeToken(
@@ -30,7 +31,9 @@ describe("ConversationPreview", () => {
 		useFileTreeStore.getState().reset();
 		useGhostStore.getState().reset();
 		useParseStore.getState().reset();
+		useSurfaceStore.getState().reset();
 		useViewStore.getState().reset();
+		initializeSurfaceStore();
 	});
 
 	it("空イベント名選択時もプレビューを表示し、無名ラベルを表示する", () => {
@@ -239,4 +242,146 @@ describe("ConversationPreview", () => {
 		expect(screen.getByText("second")).toBeInTheDocument();
 		expect(useViewStore.getState().variantIndexByFunction.get("OnBoot")).toBe(1);
 	});
+
+	it("イベント選択時に各scopeの最初の s[N] で自動同期する", async () => {
+		const parseResult: ParseResult = {
+			shioriType: "satori",
+			functions: [
+				{
+					name: "OnBoot",
+					condition: null,
+					filePath: "ghost/master/dic01_Base.txt",
+					startLine: 1,
+					endLine: 4,
+					dialogues: [
+						{
+							tokens: [
+								makeToken("charSwitch", "\\0", "0"),
+								makeToken("surface", "\\s[0]", "0"),
+								makeToken("surface", "\\s[5]", "5"),
+								makeToken("charSwitch", "\\1", "1"),
+								makeToken("surface", "\\s[10]", "10"),
+							],
+							startLine: 2,
+							endLine: 3,
+							rawText: "\\0\\s[0]\\s[5]\\1\\s[10]",
+						},
+					],
+				},
+			],
+			meta: null,
+			diagnostics: [],
+		};
+		useParseStore.getState().succeedParse(parseResult);
+		useCatalogStore.getState().selectFunction("OnBoot");
+
+		render(<ConversationPreview />);
+
+		await waitFor(() => {
+			expect(useSurfaceStore.getState().currentSurfaceByScope.get(0)).toBe(0);
+			expect(useSurfaceStore.getState().currentSurfaceByScope.get(1)).toBe(10);
+		});
+	});
+
+	it("バリアント切替で自動再同期し、手動クリックで即時切替できる", async () => {
+		const parseResult: ParseResult = {
+			shioriType: "satori",
+			functions: [
+				{
+					name: "OnBoot",
+					condition: null,
+					filePath: "ghost/master/dic01_Base.txt",
+					startLine: 1,
+					endLine: 8,
+					dialogues: [
+						{
+							tokens: [
+								makeToken("charSwitch", "\\0", "0"),
+								makeToken("surface", "\\s[0]", "0"),
+								makeToken("surface", "\\s[20]", "20"),
+							],
+							startLine: 2,
+							endLine: 3,
+							rawText: "\\0\\s[0]\\s[20]",
+						},
+						{
+							tokens: [makeToken("charSwitch", "\\0", "0"), makeToken("surface", "\\s[10]", "10")],
+							startLine: 5,
+							endLine: 5,
+							rawText: "\\0\\s[10]",
+						},
+					],
+				},
+			],
+			meta: null,
+			diagnostics: [],
+		};
+		useParseStore.getState().succeedParse(parseResult);
+		useCatalogStore.getState().selectFunction("OnBoot");
+
+		render(<ConversationPreview />);
+
+		await waitFor(() => {
+			expect(useSurfaceStore.getState().currentSurfaceByScope.get(0)).toBe(0);
+		});
+
+		fireEvent.click(screen.getByRole("button", { name: "s[20]" }));
+		expect(useSurfaceStore.getState().currentSurfaceByScope.get(0)).toBe(20);
+
+		fireEvent.click(screen.getByLabelText("次のバリアント"));
+		await waitFor(() => {
+			expect(useSurfaceStore.getState().currentSurfaceByScope.get(0)).toBe(10);
+		});
+	});
 });
+
+function initializeSurfaceStore(): void {
+	const fileContents = new Map<string, ArrayBuffer>([
+		["shell/master/surface0.png", createPngHeaderBuffer(200, 320)],
+		["shell/master/surface5.png", createPngHeaderBuffer(200, 320)],
+		["shell/master/surface10.png", createPngHeaderBuffer(180, 240)],
+		["shell/master/surface20.png", createPngHeaderBuffer(220, 280)],
+	]);
+	useFileContentStore.getState().setFileContents(fileContents);
+
+	useSurfaceStore.getState().initialize({
+		catalog: [
+			{
+				shellName: "master",
+				assets: [
+					{ id: 0, shellName: "master", pngPath: "shell/master/surface0.png", pnaPath: null },
+					{ id: 5, shellName: "master", pngPath: "shell/master/surface5.png", pnaPath: null },
+					{ id: 10, shellName: "master", pngPath: "shell/master/surface10.png", pnaPath: null },
+					{ id: 20, shellName: "master", pngPath: "shell/master/surface20.png", pnaPath: null },
+				],
+			},
+		],
+		initialShellName: "master",
+		definitionsByShell: new Map([
+			[
+				"master",
+				new Map([
+					[0, { id: 0, elements: [], animations: [], regions: [] }],
+					[5, { id: 5, elements: [], animations: [], regions: [] }],
+					[10, { id: 10, elements: [], animations: [], regions: [] }],
+					[20, { id: 20, elements: [], animations: [], regions: [] }],
+				]),
+			],
+		]),
+		aliasMapByShell: new Map(),
+		diagnostics: [],
+		ghostDescriptProperties: {},
+		rng: () => 0,
+	});
+}
+
+function createPngHeaderBuffer(width: number, height: number): ArrayBuffer {
+	const bytes = new Uint8Array(24);
+	bytes.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a], 0);
+	bytes.set([0x00, 0x00, 0x00, 0x0d], 8);
+	bytes.set([0x49, 0x48, 0x44, 0x52], 12);
+	const view = new DataView(bytes.buffer);
+	view.setUint32(16, width);
+	view.setUint32(20, height);
+	return bytes.buffer;
+}

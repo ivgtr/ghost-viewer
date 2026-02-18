@@ -143,7 +143,7 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **Legacy Kawari検出時の案内表示** [S] — kawari.ini 等で旧Kawariを検出した場合、会話カタログ中央に「Kawari は対応予定です」を表示
   - 依存: SHIORI言語自動判別, 会話カタログ UI
 
-### Phase 7: Ghost Display & Layout — 4/9
+### Phase 7: Ghost Display & Layout — 7/10
 目標: レイアウト拡張（最大3レーン）を導入しつつ、NAR 内の surface 画像を会話と連動表示できるゴーストビューアーを実装する
 
 - [x] **3レーンスロットレイアウト基盤** [M] — 最大3レーンの設定駆動スロット化を導入し、右レーンを上下分割（初期50/50、可変）する。右上は `会話/コード` 切替維持、右下は画像ビューアー常設
@@ -158,18 +158,21 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **ゴースト表示パネル** [M] — さくら/けろを1セットとして重ね表示し、UKADOC準拠の位置解決（shell優先・`kero左/sakura右` フォールバック）と通知オーバーレイを備えた右下パネルを実装する
   - 依存: 3レーンスロットレイアウト基盤, surfaces*.txt コア解析
   - 詳細: `.docs/tasks/027-ghost-display-panel.md`
-- [ ] **会話連動サーフェス切替** [M] — イベント/バリアント選択時の自動同期と、会話内 `\\s[N]` クリック同期を実装する。未解決時は直前維持 + 通知
+- [x] **会話連動サーフェス切替** [M] — イベント/バリアント選択時の自動同期と、会話内 `\\s[N]` クリック同期を実装する。未解決時は直前維持 + 通知
   - 依存: ゴースト表示パネル, 会話プレビューパネル
   - 詳細: `.docs/tasks/028-conversation-surface-sync.md`
 - [ ] **サーフェスサムネイルブラウザ** [M] — 上段に会話関連 surface、下段に全 surface を表示し、クリックで表示 surface を切り替える
   - 依存: 会話連動サーフェス切替
   - 詳細: `.docs/tasks/029-surface-thumbnail-browser.md`
-- [ ] **surfaces*.txt フル準拠解析** [L] — コア未対応構文（`animation` / `interval` / `pattern` 等）を段階的に実装し、診断を整備する
+- [x] **surfaces*.txt フル準拠解析** [L] — `animation` / `interval` / `pattern` / `collision` / `point` 系を解析し、`surface.append` 安定マージと alias 文字列キー保持まで対応
   - 依存: surfaces*.txt コア解析
   - 詳細: `.docs/tasks/030-surfaces-parser-full-compliance.md`
-- [ ] **サーフェス合成レンダラー** [L] — `element` 重ね合わせや補助画像を Canvas で合成し、最終 surface を描画する
+- [x] **サーフェス合成レンダラー** [L] — `element` + 静的 `animation/pattern` を評価したレイヤー合成描画と `png+pna` マスク適用まで対応（実時間アニメーション再生は後続）
   - 依存: surfaces*.txt フル準拠解析, ゴースト表示パネル
   - 詳細: `.docs/tasks/031-surface-composition-renderer.md`
+- [ ] **サーフェス診断詳細表示 + 実時間アニメーション再生** [L] — 通知を root-cause ベース（path/static-eval/alias/pna）で可視化し、`animation.interval/pattern` のタイマー駆動再生（bind/always/runonce/sometimes を優先）を実装する
+  - 依存: surfaces*.txt フル準拠解析, サーフェス合成レンダラー, 会話連動サーフェス切替
+  - 詳細: `.docs/tasks/035-surface-runtime-animation-and-diagnostics.md`
 - [ ] **サーフェス使用頻度ヒートマップ** [M] — どの表情がどの頻度で使われるかをイベント内/全体で可視化する
   - 依存: サーフェス画像抽出, 会話連動サーフェス切替
   - 詳細: `.docs/tasks/032-surface-usage-heatmap.md`

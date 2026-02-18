@@ -110,7 +110,9 @@ describe("ghostStore", () => {
 				},
 			],
 			initialShellName: "master",
-			definitionsByShell: new Map([["master", new Map([[0, { id: 0, elements: [] }]])]]),
+			definitionsByShell: new Map([
+				["master", new Map([[0, { id: 0, elements: [], animations: [], regions: [] }]])],
+			]),
 			aliasMapByShell: new Map(),
 			diagnostics: [],
 			ghostDescriptProperties: {},
@@ -228,7 +230,9 @@ describe("ghostStore", () => {
 				},
 			],
 			initialShellName: "master",
-			definitionsByShell: new Map([["master", new Map([[0, { id: 0, elements: [] }]])]]),
+			definitionsByShell: new Map([
+				["master", new Map([[0, { id: 0, elements: [], animations: [], regions: [] }]])],
+			]),
 			aliasMapByShell: new Map(),
 			diagnostics: [],
 			ghostDescriptProperties: {},
