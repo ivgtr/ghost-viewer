@@ -4,8 +4,9 @@ import { useFileContentStore } from "@/stores/file-content-store";
 import { useFileTreeStore } from "@/stores/file-tree-store";
 import { useGhostStore } from "@/stores/ghost-store";
 import { useParseStore } from "@/stores/parse-store";
+import { useViewStore } from "@/stores/view-store";
 import type { GhostMeta, ParseResult, SakuraScriptToken } from "@/types";
-import { cleanup, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
 
 function makeToken(
@@ -29,6 +30,7 @@ describe("ConversationPreview", () => {
 		useFileTreeStore.getState().reset();
 		useGhostStore.getState().reset();
 		useParseStore.getState().reset();
+		useViewStore.getState().reset();
 	});
 
 	it("空イベント名選択時もプレビューを表示し、無名ラベルを表示する", () => {
@@ -145,5 +147,48 @@ describe("ConversationPreview", () => {
 		render(<ConversationPreview />);
 
 		expect(screen.queryByText(/^条件:/)).not.toBeInTheDocument();
+	});
+
+	it("ソースコードジャンプで会話選択を維持しつつコード表示へ切り替える", () => {
+		const parseResult: ParseResult = {
+			shioriType: "satori",
+			functions: [
+				{
+					name: "OnBoot",
+					condition: null,
+					filePath: "ghost/master/dic01_Base.txt",
+					startLine: 0,
+					endLine: 4,
+					dialogues: [
+						{
+							tokens: [makeToken("charSwitch", "\\0", "0"), makeToken("text", "hello", "hello")],
+							startLine: 1,
+							endLine: 3,
+							rawText: "hello",
+						},
+					],
+				},
+			],
+			meta: null,
+			diagnostics: [],
+		};
+
+		useParseStore.getState().succeedParse(parseResult);
+		useCatalogStore.getState().selectFunction("OnBoot");
+
+		render(<ConversationPreview />);
+		fireEvent.click(screen.getByTitle("ソースコードにジャンプ"));
+
+		expect(useCatalogStore.getState().selectedFunctionName).toBe("OnBoot");
+		expect(useViewStore.getState().activeRightPane).toBe("code");
+		expect(useViewStore.getState().jumpContext).toEqual({
+			functionName: "OnBoot",
+			variantIndex: 0,
+			filePath: "ghost/master/dic01_Base.txt",
+			startLine: 1,
+			endLine: 3,
+		});
+		expect(useFileTreeStore.getState().selectedNodeId).toBe("ghost/master/dic01_Base.txt");
+		expect(useFileContentStore.getState().highlightRange).toEqual({ startLine: 1, endLine: 3 });
 	});
 });

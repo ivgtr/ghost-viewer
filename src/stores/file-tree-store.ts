@@ -1,5 +1,4 @@
 import type { FileTreeNode } from "@/types";
-import { useCatalogStore } from "./catalog-store";
 import { createStore } from "./create-store";
 import { useFileContentStore } from "./file-content-store";
 
@@ -31,13 +30,19 @@ export const useFileTreeStore = createStore<FileTreeState>(
 		},
 		selectNode: (nodeId) => {
 			const prev = get().selectedNodeId;
-			set({ selectedNodeId: nodeId });
 			if (nodeId) {
-				useCatalogStore.getState().selectFunction(null);
+				const expandedNodeIds = new Set(get().expandedNodeIds);
+				const ancestors = findAncestorDirectoryIds(get().tree, nodeId);
+				for (const ancestor of ancestors) {
+					expandedNodeIds.add(ancestor);
+				}
+				set({ selectedNodeId: nodeId, expandedNodeIds });
 				if (nodeId !== prev) {
 					useFileContentStore.getState().decodeFile(nodeId);
 				}
+				return;
 			}
+			set({ selectedNodeId: nodeId });
 		},
 		toggleNodeExpansion: (nodeId) => {
 			const next = new Set(get().expandedNodeIds);
@@ -50,3 +55,30 @@ export const useFileTreeStore = createStore<FileTreeState>(
 		},
 	}),
 );
+
+function findAncestorDirectoryIds(tree: FileTreeNode[], targetId: string): string[] {
+	return findAncestorDirectoryIdsInNodes(tree, targetId, []) ?? [];
+}
+
+function findAncestorDirectoryIdsInNodes(
+	nodes: FileTreeNode[],
+	targetId: string,
+	ancestors: string[],
+): string[] | null {
+	for (const node of nodes) {
+		if (node.id === targetId) {
+			return ancestors;
+		}
+		if (node.kind !== "directory") {
+			continue;
+		}
+		const result = findAncestorDirectoryIdsInNodes(node.children, targetId, [
+			...ancestors,
+			node.id,
+		]);
+		if (result) {
+			return result;
+		}
+	}
+	return null;
+}

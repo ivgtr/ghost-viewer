@@ -2,8 +2,8 @@ import { buildCatalogEntries } from "@/lib/analyzers/build-catalog";
 import { getCategoryOrder } from "@/lib/analyzers/categorize-event";
 import { toEventDisplayName } from "@/lib/analyzers/event-name";
 import { useCatalogStore } from "@/stores/catalog-store";
-import { useFileTreeStore } from "@/stores/file-tree-store";
 import { useParseStore } from "@/stores/parse-store";
+import { useViewStore } from "@/stores/view-store";
 import type { CatalogEntry } from "@/types/catalog";
 import { useMemo, useState } from "react";
 import { CatalogItem } from "./CatalogItem";
@@ -16,6 +16,7 @@ export function ConversationCatalog() {
 	const totalFileCount = useParseStore((s) => s.totalFileCount);
 	const selectedFunctionName = useCatalogStore((s) => s.selectedFunctionName);
 	const selectFunction = useCatalogStore((s) => s.selectFunction);
+	const showConversation = useViewStore((s) => s.showConversation);
 
 	const [searchQuery, setSearchQuery] = useState("");
 
@@ -49,8 +50,8 @@ export function ConversationCatalog() {
 	}, [filtered]);
 
 	const handleItemClick = (name: string) => {
-		useFileTreeStore.getState().selectNode(null);
 		selectFunction(name);
+		showConversation();
 	};
 
 	if (isParsing) {

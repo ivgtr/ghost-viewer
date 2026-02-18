@@ -1,5 +1,4 @@
 import { createStore } from "./create-store";
-import { useFileTreeStore } from "./file-tree-store";
 
 interface CatalogState {
 	selectedFunctionName: string | null;
@@ -14,9 +13,6 @@ export const useCatalogStore = createStore<CatalogState>(
 	(set) => ({
 		selectFunction: (name) => {
 			set({ selectedFunctionName: name });
-			if (name !== null) {
-				useFileTreeStore.getState().selectNode(null);
-			}
 		},
 	}),
 );

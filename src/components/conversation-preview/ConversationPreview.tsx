@@ -10,7 +10,8 @@ import { useFileContentStore } from "@/stores/file-content-store";
 import { useFileTreeStore } from "@/stores/file-tree-store";
 import { useGhostStore } from "@/stores/ghost-store";
 import { useParseStore } from "@/stores/parse-store";
-import { useCallback, useMemo, useState } from "react";
+import { useViewStore } from "@/stores/view-store";
+import { useCallback, useMemo } from "react";
 import { ChatMessageBubble } from "./ChatMessageBubble";
 import { VariantSelector } from "./VariantSelector";
 
@@ -19,7 +20,15 @@ export function ConversationPreview() {
 	const selectFunction = useCatalogStore((s) => s.selectFunction);
 	const parseResult = useParseStore((s) => s.parseResult);
 	const meta = useGhostStore((s) => s.meta);
-	const [variantIndex, setVariantIndex] = useState(0);
+	const setVariantIndex = useViewStore((s) => s.setVariantIndex);
+	const showCode = useViewStore((s) => s.showCode);
+	const setJumpContext = useViewStore((s) => s.setJumpContext);
+	const variantIndex = useViewStore((s) => {
+		if (selectedFunctionName === null) {
+			return 0;
+		}
+		return s.variantIndexByFunction.get(selectedFunctionName) ?? 0;
+	});
 	const selectedEventName = selectedFunctionName;
 
 	const functions = parseResult?.functions ?? [];
@@ -46,9 +55,9 @@ export function ConversationPreview() {
 	const handleChoiceClick = useCallback(
 		(targetFn: string) => {
 			selectFunction(targetFn);
-			setVariantIndex(0);
+			setVariantIndex(targetFn, 0);
 		},
-		[selectFunction],
+		[selectFunction, setVariantIndex],
 	);
 
 	const handleJumpToSource = useCallback(() => {
@@ -60,7 +69,15 @@ export function ConversationPreview() {
 			startLine: source.startLine,
 			endLine: source.endLine,
 		});
-	}, [selectedEventName, clampedIndex, functions]);
+		setJumpContext({
+			functionName: selectedEventName,
+			variantIndex: clampedIndex,
+			filePath: source.filePath,
+			startLine: source.startLine,
+			endLine: source.endLine,
+		});
+		showCode();
+	}, [selectedEventName, clampedIndex, functions, setJumpContext, showCode]);
 
 	if (!isEventSelected(selectedEventName)) {
 		return (
@@ -79,7 +96,10 @@ export function ConversationPreview() {
 	}
 
 	const handleVariantChange = (index: number) => {
-		setVariantIndex(index);
+		if (!isEventSelected(selectedEventName)) {
+			return;
+		}
+		setVariantIndex(selectedEventName, index);
 	};
 
 	return (

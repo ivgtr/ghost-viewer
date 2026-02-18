@@ -22,6 +22,7 @@ import { createStore } from "./create-store";
 import { useFileContentStore } from "./file-content-store";
 import { useFileTreeStore } from "./file-tree-store";
 import { useParseStore } from "./parse-store";
+import { useViewStore } from "./view-store";
 
 interface GhostState {
 	meta: GhostMeta | null;
@@ -76,6 +77,7 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 		useFileTreeStore.getState().reset();
 		useFileContentStore.getState().reset();
 		useCatalogStore.getState().reset();
+		useViewStore.getState().reset();
 
 		processNarFile(file)
 			.then((extractionResult) => {

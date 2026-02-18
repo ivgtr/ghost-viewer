@@ -1,8 +1,9 @@
 import { FileTree } from "@/components/file-tree/FileTree";
 import { useFileTreeStore } from "@/stores/file-tree-store";
+import { useViewStore } from "@/stores/view-store";
 import type { FileTreeNode } from "@/types";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const sampleTree: FileTreeNode[] = [
 	{
@@ -48,8 +49,16 @@ const sampleTree: FileTreeNode[] = [
 ];
 
 describe("FileTree", () => {
+	const scrollIntoViewMock = vi.fn();
+
 	beforeEach(() => {
 		useFileTreeStore.getState().reset();
+		useViewStore.getState().reset();
+		scrollIntoViewMock.mockReset();
+		Object.defineProperty(HTMLElement.prototype, "scrollIntoView", {
+			value: scrollIntoViewMock,
+			configurable: true,
+		});
 	});
 
 	afterEach(() => {
@@ -106,5 +115,14 @@ describe("FileTree", () => {
 
 		fireEvent.click(screen.getByText("ghost"));
 		expect(ghostItem).toHaveAttribute("aria-expanded", "false");
+	});
+
+	it("選択ノードへ自動スクロールする", () => {
+		useFileTreeStore.getState().setTree(sampleTree);
+		render(<FileTree />);
+
+		fireEvent.click(screen.getByText("readme.txt"));
+
+		expect(scrollIntoViewMock).toHaveBeenCalledWith({ behavior: "smooth", block: "center" });
 	});
 });

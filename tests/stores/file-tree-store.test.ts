@@ -1,3 +1,4 @@
+import { useCatalogStore } from "@/stores/catalog-store";
 import { useFileContentStore } from "@/stores/file-content-store";
 import { useFileTreeStore } from "@/stores/file-tree-store";
 import type { FileTreeNode } from "@/types";
@@ -6,6 +7,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 describe("fileTreeStore", () => {
 	beforeEach(() => {
 		useFileTreeStore.getState().reset();
+		useCatalogStore.getState().reset();
 	});
 
 	it("初期状態が正しい", () => {
@@ -155,5 +157,51 @@ describe("fileTreeStore", () => {
 		useFileTreeStore.getState().selectNode("ghost/master/dic.dic");
 
 		expect(useFileTreeStore.getState().selectedNodeId).toBe("ghost/master/dic.dic");
+	});
+
+	it("selectNode で会話カタログの選択状態は解除されない", () => {
+		useCatalogStore.getState().selectFunction("OnBoot");
+		useFileTreeStore.getState().selectNode("ghost/master/dic.dic");
+
+		expect(useCatalogStore.getState().selectedFunctionName).toBe("OnBoot");
+	});
+
+	it("selectNode で対象までの親ディレクトリを自動展開する", () => {
+		useFileTreeStore.getState().setTree([
+			{
+				id: "ghost",
+				name: "ghost",
+				path: "ghost",
+				kind: "directory",
+				children: [
+					{
+						id: "ghost/master",
+						name: "master",
+						path: "ghost/master",
+						kind: "directory",
+						children: [
+							{
+								id: "ghost/master/boot.dic",
+								name: "boot.dic",
+								path: "ghost/master/boot.dic",
+								kind: "file",
+								fileKind: "dictionary",
+								size: 100,
+							},
+						],
+					},
+				],
+			},
+		]);
+
+		useFileTreeStore.getState().toggleNodeExpansion("ghost");
+		expect(useFileTreeStore.getState().expandedNodeIds.has("ghost")).toBe(false);
+		expect(useFileTreeStore.getState().expandedNodeIds.has("ghost/master")).toBe(false);
+
+		useFileTreeStore.getState().selectNode("ghost/master/boot.dic");
+
+		const { expandedNodeIds } = useFileTreeStore.getState();
+		expect(expandedNodeIds.has("ghost")).toBe(true);
+		expect(expandedNodeIds.has("ghost/master")).toBe(true);
 	});
 });

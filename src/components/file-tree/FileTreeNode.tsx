@@ -1,17 +1,21 @@
 import { FileTreeIcon } from "@/components/file-tree/FileTreeIcon";
 import { useFileTreeStore } from "@/stores/file-tree-store";
+import { useViewStore } from "@/stores/view-store";
 import type { FileTreeNode as FileTreeNodeType } from "@/types";
 
 interface Props {
 	node: FileTreeNodeType;
 	depth: number;
+	registerNodeRef: (nodeId: string, element: HTMLButtonElement | null) => void;
 }
 
-export function FileTreeNode({ node, depth }: Props) {
+export function FileTreeNode({ node, depth, registerNodeRef }: Props) {
 	const selectedNodeId = useFileTreeStore((s) => s.selectedNodeId);
 	const expandedNodeIds = useFileTreeStore((s) => s.expandedNodeIds);
 	const toggleNodeExpansion = useFileTreeStore((s) => s.toggleNodeExpansion);
 	const selectNode = useFileTreeStore((s) => s.selectNode);
+	const showCode = useViewStore((s) => s.showCode);
+	const setJumpContext = useViewStore((s) => s.setJumpContext);
 
 	const isDirectory = node.kind === "directory";
 	const isExpanded = isDirectory && expandedNodeIds.has(node.id);
@@ -22,6 +26,8 @@ export function FileTreeNode({ node, depth }: Props) {
 			toggleNodeExpansion(node.id);
 		} else {
 			selectNode(node.id);
+			showCode();
+			setJumpContext(null);
 		}
 	};
 
@@ -38,6 +44,7 @@ export function FileTreeNode({ node, depth }: Props) {
 				}`}
 				style={{ paddingLeft: `${depth * 1.25}rem` }}
 				onClick={handleClick}
+				ref={(element) => registerNodeRef(node.id, element)}
 			>
 				<FileTreeIcon
 					{...(isDirectory
@@ -49,7 +56,12 @@ export function FileTreeNode({ node, depth }: Props) {
 			{isDirectory && isExpanded && node.children.length > 0 && (
 				<ul>
 					{node.children.map((child) => (
-						<FileTreeNode key={child.id} node={child} depth={depth + 1} />
+						<FileTreeNode
+							key={child.id}
+							node={child}
+							depth={depth + 1}
+							registerNodeRef={registerNodeRef}
+						/>
 					))}
 				</ul>
 			)}
