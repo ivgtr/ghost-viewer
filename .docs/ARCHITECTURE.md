@@ -92,8 +92,8 @@ NARファイルを              DropZone                    nar/validator       
                            が File を受け取る          nar/extractor                (仮想ファイルツリー)
                                                        (JSZipで展開)
 
-NAR展開完了後              ghostStore                  全 .dic ファイルを検出       parseStore
-全 .dic を一括パース →     acceptFile() 内        →    逐次 Worker パース     →    (統合 ParseResult)
+NAR展開完了後              ghostStore                  辞書ファイルを検出            parseStore
+辞書を一括パース      →     acceptFile() 内        →    逐次 Worker パース     →    (統合 ParseResult)
                                                        同名関数のダイアログ結合
 
 parseResult 更新時         ConversationCatalog         buildCatalogEntries         catalogStore
@@ -110,7 +110,7 @@ flowchart LR
     C -->|NG| E[エラー表示]
     D --> F[仮想ファイルツリー構築]
     F --> G[FileTree表示]
-    D --> H[全 .dic 検出]
+    D --> H[辞書ファイル検出（.dic + Satori時 dic*.txt）]
     H --> I[逐次 Worker パース]
     I --> J[統合 DicFunction 構築]
     J --> K[buildCatalogEntries]
@@ -133,7 +133,7 @@ flowchart LR
 ├─────────────────────────────────────────────────────────┤
 │ ストア層（src/stores/）                                   │
 │  - fileTreeStore: 展開済みファイルツリー、選択状態           │
-│  - parseStore: 全 .dic 統合パース結果（DicFunction[]）       │
+│  - parseStore: 辞書統合パース結果（DicFunction[]）            │
 │  - ghostStore: ゴーストメタ情報、SHIORI種別、統計           │
 ├─────────────────────────────────────────────────────────┤
 │ ロジック層（src/lib/）                                    │

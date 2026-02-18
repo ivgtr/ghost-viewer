@@ -1,4 +1,5 @@
 import { decodeWithAutoDetection } from "@/lib/encoding/detect";
+import { isShioriDetectTargetPath } from "@/lib/parsers/dictionary-path";
 import type { ShioriType } from "@/types";
 
 const DLL_MAP: Record<string, ShioriType> = {
@@ -61,13 +62,14 @@ export function detectShioriType(
 
 	const dicTexts: string[] = [];
 	for (const [path, buffer] of fileContents) {
-		if (path.startsWith("ghost/master/") && path.endsWith(".dic")) {
-			try {
-				const { text } = decodeWithAutoDetection(buffer);
-				dicTexts.push(text);
-			} catch {
-				// バイナリファイルはスキップ
-			}
+		if (!isShioriDetectTargetPath(path)) {
+			continue;
+		}
+		try {
+			const { text } = decodeWithAutoDetection(buffer);
+			dicTexts.push(text);
+		} catch {
+			// バイナリファイルはスキップ
 		}
 	}
 

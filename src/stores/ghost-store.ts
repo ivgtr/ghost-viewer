@@ -1,7 +1,7 @@
-import { classifyFileKind } from "@/lib/nar/extract";
 import { processNarFile } from "@/lib/nar/extract";
 import { validateNarFile } from "@/lib/nar/validate";
 import { parseDescriptFromBuffer } from "@/lib/parsers/descript";
+import { isBatchParseTargetPath } from "@/lib/parsers/dictionary-path";
 import { detectShioriType } from "@/lib/parsers/shiori-detect";
 import {
 	requestParseKawariBatch,
@@ -92,7 +92,7 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 
 				const dicPaths: string[] = [];
 				for (const path of extractionResult.fileContents.keys()) {
-					if (classifyFileKind(path) === "dictionary") {
+					if (isBatchParseTargetPath(path, shioriType)) {
 						dicPaths.push(path);
 					}
 				}

@@ -1,9 +1,20 @@
 import JSZip from "jszip";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import {
+	requestParseKawariBatch,
+	requestParseSatoriBatch,
+	requestParseYayaBatch,
+} from "@/lib/workers/worker-client";
 import { useFileTreeStore } from "@/stores/file-tree-store";
 import { useGhostStore } from "@/stores/ghost-store";
 import { useParseStore } from "@/stores/parse-store";
+
+vi.mock("@/lib/workers/worker-client", () => ({
+	requestParseYayaBatch: vi.fn(),
+	requestParseSatoriBatch: vi.fn(),
+	requestParseKawariBatch: vi.fn(),
+}));
 
 function createMockFile(name: string, size: number): File {
 	const blob = new Blob(["x".repeat(Math.min(size, 100))], {
@@ -32,6 +43,26 @@ describe("ghostStore", () => {
 		useGhostStore.getState().reset();
 		useParseStore.getState().reset();
 		useFileTreeStore.getState().reset();
+		vi.clearAllMocks();
+
+		vi.mocked(requestParseYayaBatch).mockResolvedValue({
+			shioriType: "yaya",
+			functions: [],
+			meta: null,
+			diagnostics: [],
+		});
+		vi.mocked(requestParseSatoriBatch).mockResolvedValue({
+			shioriType: "satori",
+			functions: [],
+			meta: null,
+			diagnostics: [],
+		});
+		vi.mocked(requestParseKawariBatch).mockResolvedValue({
+			shioriType: "kawari",
+			functions: [],
+			meta: null,
+			diagnostics: [],
+		});
 	});
 
 	it("初期状態が正しい", () => {
@@ -241,5 +272,38 @@ describe("ghostStore", () => {
 
 		const state = useGhostStore.getState();
 		expect(state.error).toBeTruthy();
+	});
+
+	it("yaya + dic*.txt のみでは YAYA バッチ解析を実行しない", async () => {
+		const file = await createNarFile({
+			"ghost/master/descript.txt": "shiori,yaya.dll",
+			"ghost/master/dic01.txt": "＊OnBoot\n：\\0hello\\e",
+		});
+
+		useGhostStore.getState().acceptFile(file);
+
+		await vi.waitFor(() => {
+			expect(useGhostStore.getState().isExtracting).toBe(false);
+		});
+		await flushPromises();
+
+		expect(requestParseYayaBatch).not.toHaveBeenCalled();
+	});
+
+	it("yaya + .dic + dic*.txt では .dic のみを YAYA バッチ解析に渡す", async () => {
+		const file = await createNarFile({
+			"ghost/master/descript.txt": "shiori,yaya.dll",
+			"ghost/master/main.dic": 'OnBoot\n{\nreturn "hello"\n}',
+			"ghost/master/dic01.txt": "＊OnBoot\n：\\0hello\\e",
+		});
+
+		useGhostStore.getState().acceptFile(file);
+
+		await vi.waitFor(() => {
+			expect(requestParseYayaBatch).toHaveBeenCalledTimes(1);
+		});
+
+		const call = vi.mocked(requestParseYayaBatch).mock.calls[0]?.[0];
+		expect(call?.files.map((f) => f.filePath)).toEqual(["ghost/master/main.dic"]);
 	});
 });

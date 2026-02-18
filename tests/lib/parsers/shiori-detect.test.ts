@@ -98,6 +98,14 @@ describe("detectShioriType", () => {
 		expect(detectShioriType(fileContents, {})).toBe("yaya");
 	});
 
+	it("DLL 名が不明な場合 ghost/master/dic*.txt の内容でフォールバックする", () => {
+		const satoriContent = "\uFF0AOnBoot\n\uFF1Aこんにちは\n";
+		const fileContents = new Map<string, ArrayBuffer>([
+			["ghost/master/dic01.txt", toBuffer(satoriContent)],
+		]);
+		expect(detectShioriType(fileContents, {})).toBe("satori");
+	});
+
 	it("判別不能時は unknown を返す", () => {
 		const fileContents = new Map<string, ArrayBuffer>();
 		expect(detectShioriType(fileContents, {})).toBe("unknown");
