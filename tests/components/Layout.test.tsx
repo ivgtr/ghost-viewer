@@ -7,10 +7,10 @@ describe("Layout", () => {
 		const { container } = render(<Layout />);
 
 		expect(
-			screen.getByRole("button", { name: "NARファイルをドロップまたはクリックして選択" }),
+			screen.getByRole("button", { name: "NAR/ZIPファイルをドロップまたはクリックして選択" }),
 		).toBeInTheDocument();
 		expect(screen.getByText("ファイルを選択してください")).toBeInTheDocument();
-		expect(screen.getByText("NAR ファイルを読み込んでください")).toBeInTheDocument();
+		expect(screen.getByText("NAR/ZIP ファイルを読み込んでください")).toBeInTheDocument();
 
 		const separators = container.querySelectorAll("[data-separator]");
 		expect(separators).toHaveLength(2);

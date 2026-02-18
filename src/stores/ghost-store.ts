@@ -102,7 +102,7 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 				batchParse(dicPaths, extractionResult.fileContents, shioriType);
 			})
 			.catch((err: unknown) => {
-				const message = err instanceof Error ? err.message : "NAR ファイルの展開に失敗しました";
+				const message = err instanceof Error ? err.message : "アーカイブの展開に失敗しました";
 				set({ error: message, isExtracting: false });
 			});
 	},

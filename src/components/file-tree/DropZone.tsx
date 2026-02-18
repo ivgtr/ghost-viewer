@@ -1,3 +1,4 @@
+import { NAR_FILE_INPUT_ACCEPT } from "@/lib/nar/constants";
 import { useGhostStore } from "@/stores/ghost-store";
 import { useRef, useState } from "react";
 
@@ -42,7 +43,7 @@ export function DropZone() {
 		<div className="flex h-full flex-col items-center justify-center p-4">
 			<button
 				type="button"
-				aria-label="NARファイルをドロップまたはクリックして選択"
+				aria-label="NAR/ZIPファイルをドロップまたはクリックして選択"
 				aria-describedby={error ? "dropzone-error" : undefined}
 				className={`flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors ${
 					isDragOver ? "border-blue-400 bg-blue-400/10" : "border-zinc-600 hover:border-zinc-400"
@@ -53,12 +54,12 @@ export function DropZone() {
 				onDragLeave={handleDragLeave}
 			>
 				<p className="text-sm text-zinc-400">
-					{fileName ? fileName : "NARファイルをドロップまたはクリックして選択"}
+					{fileName ? fileName : "NAR/ZIPファイルをドロップまたはクリックして選択"}
 				</p>
 				<input
 					ref={inputRef}
 					type="file"
-					accept=".nar"
+					accept={NAR_FILE_INPUT_ACCEPT}
 					className="hidden"
 					onChange={handleChange}
 				/>

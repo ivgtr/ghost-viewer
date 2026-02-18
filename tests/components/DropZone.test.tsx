@@ -15,14 +15,14 @@ describe("DropZone", () => {
 	it("DropZone が描画される", () => {
 		render(<DropZone />);
 		expect(
-			screen.getByRole("button", { name: "NARファイルをドロップまたはクリックして選択" }),
+			screen.getByRole("button", { name: "NAR/ZIPファイルをドロップまたはクリックして選択" }),
 		).toBeInTheDocument();
 	});
 
 	it("有効なファイルドロップで fileName が更新される", () => {
 		render(<DropZone />);
 		const dropZone = screen.getByRole("button", {
-			name: "NARファイルをドロップまたはクリックして選択",
+			name: "NAR/ZIPファイルをドロップまたはクリックして選択",
 		});
 
 		const file = new File(["content"], "ghost.nar", {
@@ -37,11 +37,11 @@ describe("DropZone", () => {
 	it("無効なファイルでエラーが表示される", () => {
 		render(<DropZone />);
 		const dropZone = screen.getByRole("button", {
-			name: "NARファイルをドロップまたはクリックして選択",
+			name: "NAR/ZIPファイルをドロップまたはクリックして選択",
 		});
 
-		const file = new File(["content"], "ghost.zip", {
-			type: "application/zip",
+		const file = new File(["content"], "ghost.txt", {
+			type: "text/plain",
 		});
 
 		fireEvent.drop(dropZone, { dataTransfer: { files: [file] } });
@@ -55,7 +55,7 @@ describe("DropZone", () => {
 		render(<DropZone />);
 
 		const dropZone = screen.getByRole("button", {
-			name: "NARファイルをドロップまたはクリックして選択",
+			name: "NAR/ZIPファイルをドロップまたはクリックして選択",
 		});
 		expect(dropZone).toHaveAttribute("aria-describedby", "dropzone-error");
 		expect(screen.getByRole("alert")).toHaveTextContent("テストエラー");
@@ -67,10 +67,10 @@ describe("DropZone", () => {
 		expect(screen.getByText("test.nar")).toBeInTheDocument();
 	});
 
-	it("ファイル入力が .nar のみ受け付ける", () => {
+	it("ファイル入力が .nar/.zip を受け付ける", () => {
 		render(<DropZone />);
 		const input = document.querySelector("input[type='file']");
 		expect(input).toBeInTheDocument();
-		expect(input).toHaveAttribute("accept", ".nar");
+		expect(input).toHaveAttribute("accept", ".nar,.zip");
 	});
 });

@@ -57,12 +57,24 @@ describe("ghostStore", () => {
 	});
 
 	it("acceptFile で無効な拡張子を拒否しエラーを設定する", () => {
-		const file = createMockFile("ghost.zip", 1024);
+		const file = createMockFile("ghost.txt", 1024);
 		useGhostStore.getState().acceptFile(file);
 
 		const state = useGhostStore.getState();
 		expect(state.fileName).toBeNull();
 		expect(state.error).toBeTruthy();
+	});
+
+	it("acceptFile で .zip 拡張子を受け入れる", async () => {
+		const file = await createNarFile({ "test.txt": "hello" }, "ghost.zip");
+		useGhostStore.getState().acceptFile(file);
+
+		const state = useGhostStore.getState();
+		expect(state.fileName).toBe("ghost.zip");
+		expect(state.error).toBeNull();
+		expect(state.isExtracting).toBe(true);
+
+		await flushPromises();
 	});
 
 	it("acceptFile 成功時に他ストアをリセットする", async () => {

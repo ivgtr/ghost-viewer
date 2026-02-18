@@ -4,3 +4,6 @@ export const NAR_LIMITS = {
 	MAX_ENTRY_COUNT: 5_000,
 	PARSE_TIMEOUT_MS: 30_000,
 } as const;
+
+export const NAR_SUPPORTED_EXTENSIONS = [".nar", ".zip"] as const;
+export const NAR_FILE_INPUT_ACCEPT = NAR_SUPPORTED_EXTENSIONS.join(",");

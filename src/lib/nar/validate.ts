@@ -1,5 +1,5 @@
 import type { NarEntryMeta, NarValidationResult } from "@/types";
-import { NAR_LIMITS } from "./constants";
+import { NAR_LIMITS, NAR_SUPPORTED_EXTENSIONS } from "./constants";
 
 interface FileInfo {
 	readonly name: string;
@@ -8,8 +8,11 @@ interface FileInfo {
 
 export function validateNarFile(file: FileInfo): NarValidationResult {
 	const name = file.name.toLowerCase();
-	if (!name.endsWith(".nar")) {
-		return { valid: false, reason: "NARファイル（.nar）のみ対応しています" };
+	const hasSupportedExtension = NAR_SUPPORTED_EXTENSIONS.some((extension) =>
+		name.endsWith(extension),
+	);
+	if (!hasSupportedExtension) {
+		return { valid: false, reason: "NAR/ZIPファイル（.nar, .zip）のみ対応しています" };
 	}
 
 	if (file.size > NAR_LIMITS.MAX_FILE_SIZE) {

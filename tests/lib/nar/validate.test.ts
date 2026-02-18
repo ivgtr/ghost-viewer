@@ -18,9 +18,14 @@ describe("validateNarFile", () => {
 		expect(result).toEqual({ valid: true });
 	});
 
-	it(".zip 拡張子を拒否する", () => {
+	it(".zip 拡張子を受け入れる", () => {
 		const result = validateNarFile({ name: "ghost.zip", size: 1024 });
-		expect(result.valid).toBe(false);
+		expect(result).toEqual({ valid: true });
+	});
+
+	it("大文字拡張子 .ZIP を受け入れる", () => {
+		const result = validateNarFile({ name: "ghost.ZIP", size: 1024 });
+		expect(result).toEqual({ valid: true });
 	});
 
 	it("拡張子なしを拒否する", () => {
@@ -28,9 +33,9 @@ describe("validateNarFile", () => {
 		expect(result.valid).toBe(false);
 	});
 
-	it(".nar.zip を拒否する", () => {
+	it(".nar.zip を受け入れる", () => {
 		const result = validateNarFile({ name: "ghost.nar.zip", size: 1024 });
-		expect(result.valid).toBe(false);
+		expect(result).toEqual({ valid: true });
 	});
 
 	it("ちょうど MAX_FILE_SIZE のファイルを受け入れる", () => {

@@ -62,7 +62,7 @@ export function ConversationCatalog() {
 	if (!parseResult || entries.length === 0) {
 		return (
 			<div className="flex h-full items-center justify-center text-zinc-500">
-				NAR ファイルを読み込んでください
+				NAR/ZIP ファイルを読み込んでください
 			</div>
 		);
 	}
