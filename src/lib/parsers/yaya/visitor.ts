@@ -10,6 +10,7 @@ import type {
 	ConditionalExpression,
 	ContinueStatement,
 	DoStatement,
+	Expression,
 	ExpressionStatement,
 	ForStatement,
 	ForeachStatement,
@@ -24,6 +25,7 @@ import type {
 	Parameter,
 	ReturnStatement,
 	Separator,
+	Statement,
 	StringLiteral,
 	SwitchStatement,
 	TupleExpression,
@@ -74,255 +76,237 @@ interface Visitor {
 	visitParenthesizedExpression?(node: TupleExpression): void;
 }
 
-function traverse(node: BaseNode, visitor: Visitor): void {
+type TraversableNode =
+	| YayaProgram
+	| Statement
+	| Expression
+	| Parameter
+	| TypeAnnotation
+	| CaseClause;
+
+function traverse(node: TraversableNode, visitor: Visitor): void {
 	visitor.enter?.(node);
 
 	switch (node.type) {
 		case "Program":
-			visitor.visitProgram?.(node as YayaProgram);
-			traverseAll((node as YayaProgram).body, visitor);
+			visitor.visitProgram?.(node);
+			traverseAll(node.body, visitor);
 			break;
 
-		case "FunctionDecl": {
-			const fn = node as FunctionDecl;
-			visitor.visitFunctionDecl?.(fn);
-			traverse(fn.name, visitor);
-			traverseAll(fn.params, visitor);
-			traverse(fn.body, visitor);
-			if (fn.returnType) traverse(fn.returnType, visitor);
+		case "FunctionDecl":
+			visitor.visitFunctionDecl?.(node);
+			traverse(node.name, visitor);
+			traverseAll(node.params, visitor);
+			traverse(node.body, visitor);
+			if (node.returnType) {
+				traverse(node.returnType, visitor);
+			}
 			break;
-		}
 
-		case "VariableDecl": {
-			const decl = node as VariableDecl;
-			visitor.visitVariableDecl?.(decl);
-			traverse(decl.name, visitor);
-			if (decl.init) traverse(decl.init, visitor);
-			if (decl.typeAnnotation) traverse(decl.typeAnnotation, visitor);
+		case "VariableDecl":
+			visitor.visitVariableDecl?.(node);
+			traverse(node.name, visitor);
+			if (node.init) {
+				traverse(node.init, visitor);
+			}
+			if (node.typeAnnotation) {
+				traverse(node.typeAnnotation, visitor);
+			}
 			break;
-		}
 
-		case "BlockStatement": {
-			const block = node as BlockStatement;
-			visitor.visitBlockStatement?.(block);
-			traverseAll(block.body, visitor);
+		case "BlockStatement":
+			visitor.visitBlockStatement?.(node);
+			traverseAll(node.body, visitor);
 			break;
-		}
 
-		case "Parameter": {
-			const param = node as Parameter;
-			visitor.visitParameter?.(param);
-			traverse(param.name, visitor);
-			if (param.typeAnnotation) traverse(param.typeAnnotation, visitor);
-			if (param.defaultValue) traverse(param.defaultValue, visitor);
+		case "Parameter":
+			visitor.visitParameter?.(node);
+			traverse(node.name, visitor);
+			if (node.typeAnnotation) {
+				traverse(node.typeAnnotation, visitor);
+			}
+			if (node.defaultValue) {
+				traverse(node.defaultValue, visitor);
+			}
 			break;
-		}
 
-		case "TypeAnnotation": {
-			const type = node as TypeAnnotation;
-			visitor.visitTypeAnnotation?.(type);
-			if (type.params) traverseAll(type.params, visitor);
+		case "TypeAnnotation":
+			visitor.visitTypeAnnotation?.(node);
+			if (node.params) {
+				traverseAll(node.params, visitor);
+			}
 			break;
-		}
 
 		case "Identifier":
-			visitor.visitIdentifier?.(node as Identifier);
+			visitor.visitIdentifier?.(node);
 			break;
 
 		case "StringLiteral":
-			visitor.visitStringLiteral?.(node as StringLiteral);
+			visitor.visitStringLiteral?.(node);
 			break;
 
 		case "NumberLiteral":
-			visitor.visitNumberLiteral?.(node as NumberLiteral);
+			visitor.visitNumberLiteral?.(node);
 			break;
 
 		case "BooleanLiteral":
-			visitor.visitBooleanLiteral?.(node as BooleanLiteral);
+			visitor.visitBooleanLiteral?.(node);
 			break;
 
 		case "NullLiteral":
-			visitor.visitNullLiteral?.(node as NullLiteral);
+			visitor.visitNullLiteral?.(node);
 			break;
 
-		case "ArrayLiteral": {
-			const arr = node as ArrayLiteral;
-			visitor.visitArrayLiteral?.(arr);
-			traverseAll(arr.elements, visitor);
+		case "ArrayLiteral":
+			visitor.visitArrayLiteral?.(node);
+			traverseAll(node.elements, visitor);
 			break;
-		}
 
-		case "ExpressionStatement": {
-			const stmt = node as ExpressionStatement;
-			visitor.visitExpressionStatement?.(stmt);
-			traverse(stmt.expression, visitor);
+		case "ExpressionStatement":
+			visitor.visitExpressionStatement?.(node);
+			traverse(node.expression, visitor);
 			break;
-		}
 
-		case "IfStatement": {
-			const ifStmt = node as IfStatement;
-			visitor.visitIfStatement?.(ifStmt);
-			traverse(ifStmt.test, visitor);
-			traverse(ifStmt.consequent, visitor);
-			if (ifStmt.alternate) traverse(ifStmt.alternate, visitor);
+		case "IfStatement":
+			visitor.visitIfStatement?.(node);
+			traverse(node.test, visitor);
+			traverse(node.consequent, visitor);
+			if (node.alternate) {
+				traverse(node.alternate, visitor);
+			}
 			break;
-		}
 
-		case "WhileStatement": {
-			const whileStmt = node as WhileStatement;
-			visitor.visitWhileStatement?.(whileStmt);
-			traverse(whileStmt.test, visitor);
-			traverse(whileStmt.body, visitor);
+		case "WhileStatement":
+			visitor.visitWhileStatement?.(node);
+			traverse(node.test, visitor);
+			traverse(node.body, visitor);
 			break;
-		}
 
-		case "ForStatement": {
-			const forStmt = node as ForStatement;
-			visitor.visitForStatement?.(forStmt);
-			if (forStmt.init) traverse(forStmt.init, visitor);
-			if (forStmt.test) traverse(forStmt.test, visitor);
-			if (forStmt.update) traverse(forStmt.update, visitor);
-			traverse(forStmt.body, visitor);
+		case "ForStatement":
+			visitor.visitForStatement?.(node);
+			if (node.init) {
+				traverse(node.init, visitor);
+			}
+			if (node.test) {
+				traverse(node.test, visitor);
+			}
+			if (node.update) {
+				traverse(node.update, visitor);
+			}
+			traverse(node.body, visitor);
 			break;
-		}
 
-		case "ForeachStatement": {
-			const foreachStmt = node as ForeachStatement;
-			visitor.visitForeachStatement?.(foreachStmt);
-			traverse(foreachStmt.variable, visitor);
-			traverse(foreachStmt.iterable, visitor);
-			traverse(foreachStmt.body, visitor);
+		case "ForeachStatement":
+			visitor.visitForeachStatement?.(node);
+			traverse(node.variable, visitor);
+			traverse(node.iterable, visitor);
+			traverse(node.body, visitor);
 			break;
-		}
 
-		case "SwitchStatement": {
-			const switchStmt = node as SwitchStatement;
-			visitor.visitSwitchStatement?.(switchStmt);
-			traverse(switchStmt.discriminant, visitor);
-			traverseAll(switchStmt.cases, visitor);
+		case "SwitchStatement":
+			visitor.visitSwitchStatement?.(node);
+			traverse(node.discriminant, visitor);
+			traverseAll(node.cases, visitor);
 			break;
-		}
 
-		case "CaseClause": {
-			const caseClause = node as CaseClause;
-			visitor.visitCaseClause?.(caseClause);
-			if (caseClause.test) traverse(caseClause.test, visitor);
-			traverseAll(caseClause.consequent, visitor);
+		case "CaseClause":
+			visitor.visitCaseClause?.(node);
+			if (node.test) {
+				traverse(node.test, visitor);
+			}
+			traverseAll(node.consequent, visitor);
 			break;
-		}
 
-		case "DoStatement": {
-			const doStmt = node as DoStatement;
-			visitor.visitDoStatement?.(doStmt);
-			traverse(doStmt.body, visitor);
-			traverse(doStmt.test, visitor);
+		case "DoStatement":
+			visitor.visitDoStatement?.(node);
+			traverse(node.body, visitor);
+			traverse(node.test, visitor);
 			break;
-		}
 
-		case "ReturnStatement": {
-			const ret = node as ReturnStatement;
-			visitor.visitReturnStatement?.(ret);
-			if (ret.value) traverse(ret.value, visitor);
+		case "ReturnStatement":
+			visitor.visitReturnStatement?.(node);
+			if (node.value) {
+				traverse(node.value, visitor);
+			}
 			break;
-		}
 
 		case "BreakStatement":
-			visitor.visitBreakStatement?.(node as BreakStatement);
+			visitor.visitBreakStatement?.(node);
 			break;
 
 		case "ContinueStatement":
-			visitor.visitContinueStatement?.(node as ContinueStatement);
+			visitor.visitContinueStatement?.(node);
 			break;
 
-		case "ParallelStatement": {
-			const parallelStmt = node as ParallelStatement;
-			visitor.visitParallelStatement?.(parallelStmt);
-			traverse(parallelStmt.expression, visitor);
+		case "ParallelStatement":
+			visitor.visitParallelStatement?.(node);
+			traverse(node.expression, visitor);
 			break;
-		}
 
-		case "VoidStatement": {
-			const voidStmt = node as VoidStatement;
-			visitor.visitVoidStatement?.(voidStmt);
-			traverse(voidStmt.expression, visitor);
+		case "VoidStatement":
+			visitor.visitVoidStatement?.(node);
+			traverse(node.expression, visitor);
 			break;
-		}
 
 		case "Separator":
-			visitor.visitSeparator?.(node as Separator);
+			visitor.visitSeparator?.(node);
 			break;
 
-		case "CallExpression": {
-			const call = node as CallExpression;
-			visitor.visitCallExpression?.(call);
-			traverse(call.callee, visitor);
-			traverseAll(call.arguments, visitor);
+		case "CallExpression":
+			visitor.visitCallExpression?.(node);
+			traverse(node.callee, visitor);
+			traverseAll(node.arguments, visitor);
 			break;
-		}
 
-		case "MemberExpression": {
-			const member = node as MemberExpression;
-			visitor.visitMemberExpression?.(member);
-			traverse(member.object, visitor);
-			traverse(member.property, visitor);
+		case "MemberExpression":
+			visitor.visitMemberExpression?.(node);
+			traverse(node.object, visitor);
+			traverse(node.property, visitor);
 			break;
-		}
 
-		case "IndexExpression": {
-			const index = node as IndexExpression;
-			visitor.visitIndexExpression?.(index);
-			traverse(index.object, visitor);
-			traverse(index.index, visitor);
+		case "IndexExpression":
+			visitor.visitIndexExpression?.(node);
+			traverse(node.object, visitor);
+			traverse(node.index, visitor);
 			break;
-		}
 
-		case "BinaryExpression": {
-			const binary = node as import("./ast").BinaryExpression;
-			visitor.visitBinaryExpression?.(binary);
-			traverse(binary.left, visitor);
-			traverse(binary.right, visitor);
+		case "BinaryExpression":
+			visitor.visitBinaryExpression?.(node);
+			traverse(node.left, visitor);
+			traverse(node.right, visitor);
 			break;
-		}
 
-		case "UnaryExpression": {
-			const unary = node as import("./ast").UnaryExpression;
-			visitor.visitUnaryExpression?.(unary);
-			traverse(unary.operand, visitor);
+		case "UnaryExpression":
+			visitor.visitUnaryExpression?.(node);
+			traverse(node.operand, visitor);
 			break;
-		}
 
-		case "ConditionalExpression": {
-			const cond = node as ConditionalExpression;
-			visitor.visitConditionalExpression?.(cond);
-			traverse(cond.test, visitor);
-			traverse(cond.consequent, visitor);
-			traverse(cond.alternate, visitor);
+		case "ConditionalExpression":
+			visitor.visitConditionalExpression?.(node);
+			traverse(node.test, visitor);
+			traverse(node.consequent, visitor);
+			traverse(node.alternate, visitor);
 			break;
-		}
 
-		case "AssignmentExpression": {
-			const assign = node as AssignmentExpression;
-			visitor.visitAssignmentExpression?.(assign);
-			traverse(assign.left, visitor);
-			traverse(assign.right, visitor);
+		case "AssignmentExpression":
+			visitor.visitAssignmentExpression?.(node);
+			traverse(node.left, visitor);
+			traverse(node.right, visitor);
 			break;
-		}
 
-		case "TupleExpression": {
-			const tuple = node as TupleExpression;
-			visitor.visitTupleExpression?.(tuple);
-			if (tuple.elements.length === 1) {
-				visitor.visitParenthesizedExpression?.(tuple);
+		case "TupleExpression":
+			visitor.visitTupleExpression?.(node);
+			if (node.elements.length === 1) {
+				visitor.visitParenthesizedExpression?.(node);
 			}
-			traverseAll(tuple.elements, visitor);
+			traverseAll(node.elements, visitor);
 			break;
-		}
 	}
 
 	visitor.exit?.(node);
 }
 
-function traverseAll(nodes: BaseNode[], visitor: Visitor): void {
+function traverseAll(nodes: TraversableNode[], visitor: Visitor): void {
 	for (const node of nodes) {
 		traverse(node, visitor);
 	}

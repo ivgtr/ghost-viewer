@@ -1,26 +1,12 @@
-import type { BaseNode, SourceLocation } from "../core/ast";
+import type { SourceLocation } from "../core/ast";
 import { SymbolTable, resetScopeIdCounter } from "../core/symbol-table";
 import type {
-	ArrayLiteral,
-	AssignmentExpression,
 	BlockStatement,
-	CallExpression,
-	ConditionalExpression,
 	Expression,
-	ForStatement,
-	ForeachStatement,
 	FunctionDecl,
-	Identifier,
-	IfStatement,
-	IndexExpression,
-	MemberExpression,
-	ParallelStatement,
 	Parameter,
-	ReturnStatement,
-	SwitchStatement,
+	Statement,
 	VariableDecl,
-	VoidStatement,
-	WhileStatement,
 	YayaProgram,
 } from "./ast";
 
@@ -49,7 +35,7 @@ class SemanticAnalyzer {
 
 		for (const node of program.body) {
 			if (node.type === "FunctionDecl") {
-				this.analyzeFunction(node as FunctionDecl);
+				this.analyzeFunction(node);
 			}
 		}
 
@@ -61,24 +47,26 @@ class SemanticAnalyzer {
 
 	private declareFunctions(program: YayaProgram): void {
 		for (const node of program.body) {
-			if (node.type === "FunctionDecl") {
-				const fn = node as FunctionDecl;
-				const existing = this.symbolTable.resolveLocal(fn.name.name);
-				if (existing) {
-					this.errors.push({
-						message: `Duplicate function declaration: ${fn.name.name}`,
-						loc: fn.loc,
-					});
-				} else {
-					this.symbolTable.declare({
-						name: fn.name.name,
-						kind: "function",
-						scope: this.symbolTable.current,
-						defLoc: fn.loc,
-						refLocs: [],
-					});
-				}
+			if (node.type !== "FunctionDecl") {
+				continue;
 			}
+
+			const existing = this.symbolTable.resolveLocal(node.name.name);
+			if (existing) {
+				this.errors.push({
+					message: `Duplicate function declaration: ${node.name.name}`,
+					loc: node.loc,
+				});
+				continue;
+			}
+
+			this.symbolTable.declare({
+				name: node.name.name,
+				kind: "function",
+				scope: this.symbolTable.current,
+				defLoc: node.loc,
+				refLocs: [],
+			});
 		}
 	}
 
@@ -90,7 +78,6 @@ class SemanticAnalyzer {
 		}
 
 		this.analyzeBlock(fn.body);
-
 		this.symbolTable.exitScope();
 	}
 
@@ -122,94 +109,68 @@ class SemanticAnalyzer {
 		}
 	}
 
-	private analyzeStatement(node: BaseNode): void {
+	private analyzeStatement(node: Statement): void {
 		switch (node.type) {
 			case "VariableDecl":
-				this.analyzeVariableDecl(node as VariableDecl);
+				this.analyzeVariableDecl(node);
 				break;
 
 			case "ExpressionStatement":
-				this.analyzeExpression((node as import("./ast").ExpressionStatement).expression);
+				this.analyzeExpression(node.expression);
 				break;
 
-			case "ReturnStatement": {
-				const ret = node as ReturnStatement;
-				if (ret.value) {
-					this.analyzeExpression(ret.value);
+			case "ReturnStatement":
+				if (node.value) {
+					this.analyzeExpression(node.value);
 				}
 				break;
-			}
 
 			case "ParallelStatement":
-				this.analyzeExpression((node as ParallelStatement).expression);
+				this.analyzeExpression(node.expression);
 				break;
 
 			case "VoidStatement":
-				this.analyzeExpression((node as VoidStatement).expression);
+				this.analyzeExpression(node.expression);
 				break;
 
-			case "IfStatement": {
-				const ifStmt = node as IfStatement;
-				this.analyzeExpression(ifStmt.test);
-				this.analyzeBlock(ifStmt.consequent);
-				if (ifStmt.alternate) {
-					if (ifStmt.alternate.type === "BlockStatement") {
-						this.analyzeBlock(ifStmt.alternate);
+			case "IfStatement":
+				this.analyzeExpression(node.test);
+				this.analyzeBlock(node.consequent);
+				if (node.alternate) {
+					if (node.alternate.type === "BlockStatement") {
+						this.analyzeBlock(node.alternate);
 					} else {
-						this.analyzeStatement(ifStmt.alternate);
+						this.analyzeStatement(node.alternate);
 					}
 				}
 				break;
-			}
 
-			case "WhileStatement": {
-				const whileStmt = node as WhileStatement;
-				this.analyzeExpression(whileStmt.test);
-				this.analyzeBlock(whileStmt.body);
+			case "WhileStatement":
+				this.analyzeExpression(node.test);
+				this.analyzeBlock(node.body);
 				break;
-			}
 
-			case "ForStatement": {
-				const forStmt = node as ForStatement;
-				this.symbolTable.enterScope("block");
-				if (forStmt.init) {
-					if (forStmt.init.type === "VariableDecl") {
-						this.analyzeVariableDecl(forStmt.init);
-					} else {
-						this.analyzeExpression(forStmt.init as Expression);
-					}
-				}
-				if (forStmt.test) {
-					this.analyzeExpression(forStmt.test);
-				}
-				if (forStmt.update) {
-					this.analyzeExpression(forStmt.update);
-				}
-				this.analyzeBlock(forStmt.body);
-				this.symbolTable.exitScope();
+			case "ForStatement":
+				this.analyzeForStatement(node);
 				break;
-			}
 
-			case "ForeachStatement": {
-				const foreachStmt = node as ForeachStatement;
+			case "ForeachStatement":
 				this.symbolTable.enterScope("block");
 				this.symbolTable.declare({
-					name: foreachStmt.variable.name,
+					name: node.variable.name,
 					kind: "variable",
 					scope: this.symbolTable.current,
-					defLoc: foreachStmt.variable.loc,
+					defLoc: node.variable.loc,
 					refLocs: [],
 				});
-				this.analyzeExpression(foreachStmt.iterable);
-				this.analyzeBlock(foreachStmt.body);
+				this.analyzeExpression(node.iterable);
+				this.analyzeBlock(node.body);
 				this.symbolTable.exitScope();
 				break;
-			}
 
-			case "SwitchStatement": {
-				const switchStmt = node as SwitchStatement;
-				this.analyzeExpression(switchStmt.discriminant);
-				for (const caseClause of switchStmt.cases) {
+			case "SwitchStatement":
+				this.analyzeExpression(node.discriminant);
+				for (const caseClause of node.cases) {
 					if (caseClause.test) {
 						this.analyzeExpression(caseClause.test);
 					}
@@ -218,17 +179,39 @@ class SemanticAnalyzer {
 					}
 				}
 				break;
-			}
 
 			case "BlockStatement":
 				this.symbolTable.enterScope("block");
-				this.analyzeBlock(node as BlockStatement);
+				this.analyzeBlock(node);
 				this.symbolTable.exitScope();
 				break;
 
 			case "Separator":
+			case "BreakStatement":
+			case "ContinueStatement":
+			case "DoStatement":
+			case "FunctionDecl":
 				break;
 		}
+	}
+
+	private analyzeForStatement(node: Statement & { type: "ForStatement" }): void {
+		this.symbolTable.enterScope("block");
+		if (node.init) {
+			if (node.init.type === "VariableDecl") {
+				this.analyzeVariableDecl(node.init);
+			} else {
+				this.analyzeExpression(node.init);
+			}
+		}
+		if (node.test) {
+			this.analyzeExpression(node.test);
+		}
+		if (node.update) {
+			this.analyzeExpression(node.update);
+		}
+		this.analyzeBlock(node.body);
+		this.symbolTable.exitScope();
 	}
 
 	private analyzeVariableDecl(decl: VariableDecl): void {
@@ -256,87 +239,63 @@ class SemanticAnalyzer {
 	private analyzeExpression(expr: Expression): void {
 		switch (expr.type) {
 			case "Identifier": {
-				const id = expr as Identifier;
-				const symbol = this.symbolTable.resolve(id.name);
+				const symbol = this.symbolTable.resolve(expr.name);
 				if (symbol) {
 					this.symbolTable.addReference(
 						symbol,
-						id.loc ?? { start: { line: 0, column: 0 }, end: { line: 0, column: 0 } },
+						expr.loc ?? { start: { line: 0, column: 0 }, end: { line: 0, column: 0 } },
 					);
 				} else {
 					this.errors.push({
-						message: `Undefined variable: ${id.name}`,
-						loc: id.loc,
+						message: `Undefined variable: ${expr.name}`,
+						loc: expr.loc,
 					});
 				}
 				break;
 			}
 
-			case "CallExpression": {
-				const call = expr as CallExpression;
-				this.analyzeExpression(call.callee);
-				for (const arg of call.arguments) {
+			case "CallExpression":
+				this.analyzeExpression(expr.callee);
+				for (const arg of expr.arguments) {
 					this.analyzeExpression(arg);
 				}
 				break;
-			}
 
-			case "MemberExpression": {
-				const member = expr as MemberExpression;
-				this.analyzeExpression(member.object);
+			case "MemberExpression":
+				this.analyzeExpression(expr.object);
 				break;
-			}
 
-			case "IndexExpression": {
-				const index = expr as IndexExpression;
-				this.analyzeExpression(index.object);
-				this.analyzeExpression(index.index);
+			case "IndexExpression":
+				this.analyzeExpression(expr.object);
+				this.analyzeExpression(expr.index);
 				break;
-			}
 
-			case "BinaryExpression": {
-				const binary = expr as import("./ast").BinaryExpression;
-				this.analyzeExpression(binary.left);
-				this.analyzeExpression(binary.right);
+			case "BinaryExpression":
+				this.analyzeExpression(expr.left);
+				this.analyzeExpression(expr.right);
 				break;
-			}
 
-			case "UnaryExpression": {
-				const unary = expr as import("./ast").UnaryExpression;
-				this.analyzeExpression(unary.operand);
+			case "UnaryExpression":
+				this.analyzeExpression(expr.operand);
 				break;
-			}
 
-			case "ConditionalExpression": {
-				const cond = expr as ConditionalExpression;
-				this.analyzeExpression(cond.test);
-				this.analyzeExpression(cond.consequent);
-				this.analyzeExpression(cond.alternate);
+			case "ConditionalExpression":
+				this.analyzeExpression(expr.test);
+				this.analyzeExpression(expr.consequent);
+				this.analyzeExpression(expr.alternate);
 				break;
-			}
 
-			case "AssignmentExpression": {
-				const assign = expr as AssignmentExpression;
-				this.analyzeExpression(assign.left);
-				this.analyzeExpression(assign.right);
+			case "AssignmentExpression":
+				this.analyzeExpression(expr.left);
+				this.analyzeExpression(expr.right);
 				break;
-			}
 
-			case "TupleExpression": {
-				const tuple = expr as import("./ast").TupleExpression;
-				for (const elem of tuple.elements) {
+			case "TupleExpression":
+			case "ArrayLiteral":
+				for (const elem of expr.elements) {
 					this.analyzeExpression(elem);
 				}
 				break;
-			}
-
-			case "ArrayLiteral": {
-				const arr = expr as ArrayLiteral;
-				for (const elem of arr.elements) {
-					this.analyzeExpression(elem);
-				}
-				break;
-			}
 
 			case "StringLiteral":
 			case "NumberLiteral":

@@ -1,29 +1,6 @@
 import { tokenize } from "@/lib/sakura-script/tokenize";
 import type { Dialogue } from "@/types/shiori";
-import type { BaseNode } from "../core/ast";
-import type {
-	ArrayLiteral,
-	AssignmentExpression,
-	BlockStatement,
-	CallExpression,
-	ConditionalExpression,
-	Expression,
-	ExpressionStatement,
-	ForStatement,
-	ForeachStatement,
-	FunctionDecl,
-	IfStatement,
-	IndexExpression,
-	MemberExpression,
-	ParallelStatement,
-	ReturnStatement,
-	Separator,
-	StringLiteral,
-	SwitchStatement,
-	VariableDecl,
-	VoidStatement,
-	WhileStatement,
-} from "./ast";
+import type { BlockStatement, Expression, FunctionDecl, Statement } from "./ast";
 import {
 	type ConventionalSplitSegment,
 	splitExtractedStringByConventionalSeparators,
@@ -104,8 +81,7 @@ function extractStringsFromFunction(fn: FunctionDecl): ExtractedString[] {
 
 	function extractFromExpression(expr: Expression, localContext: ExtractionContext): void {
 		switch (expr.type) {
-			case "StringLiteral": {
-				const str = expr as StringLiteral;
+			case "StringLiteral":
 				if (
 					!localContext.inCondition &&
 					!localContext.inCallArgument &&
@@ -114,77 +90,58 @@ function extractStringsFromFunction(fn: FunctionDecl): ExtractedString[] {
 					!localContext.inCaseTest
 				) {
 					strings.push({
-						value: str.value,
-						line: str.loc?.start.line ?? 0,
+						value: expr.value,
+						line: expr.loc?.start.line ?? 0,
 					});
 				}
 				break;
-			}
 
-			case "CallExpression": {
-				const call = expr as CallExpression;
-				extractFromExpression(call.callee, localContext);
-				for (const arg of call.arguments) {
+			case "CallExpression":
+				extractFromExpression(expr.callee, localContext);
+				for (const arg of expr.arguments) {
 					extractFromExpression(arg, { ...localContext, inCallArgument: true });
 				}
 				break;
-			}
 
-			case "MemberExpression": {
-				const member = expr as MemberExpression;
-				extractFromExpression(member.object, localContext);
+			case "MemberExpression":
+				extractFromExpression(expr.object, localContext);
 				break;
-			}
 
-			case "IndexExpression": {
-				const index = expr as IndexExpression;
-				extractFromExpression(index.object, localContext);
-				extractFromExpression(index.index, localContext);
+			case "IndexExpression":
+				extractFromExpression(expr.object, localContext);
+				extractFromExpression(expr.index, localContext);
 				break;
-			}
 
-			case "BinaryExpression": {
-				const binary = expr as import("./ast").BinaryExpression;
-				extractFromExpression(binary.left, localContext);
-				extractFromExpression(binary.right, localContext);
+			case "BinaryExpression":
+				extractFromExpression(expr.left, localContext);
+				extractFromExpression(expr.right, localContext);
 				break;
-			}
 
-			case "UnaryExpression": {
-				const unary = expr as import("./ast").UnaryExpression;
-				extractFromExpression(unary.operand, localContext);
+			case "UnaryExpression":
+				extractFromExpression(expr.operand, localContext);
 				break;
-			}
 
-			case "ConditionalExpression": {
-				const cond = expr as ConditionalExpression;
-				extractFromExpression(cond.test, { ...localContext, inCondition: true });
-				extractFromExpression(cond.consequent, localContext);
-				extractFromExpression(cond.alternate, localContext);
+			case "ConditionalExpression":
+				extractFromExpression(expr.test, { ...localContext, inCondition: true });
+				extractFromExpression(expr.consequent, localContext);
+				extractFromExpression(expr.alternate, localContext);
 				break;
-			}
 
-			case "AssignmentExpression": {
-				const assign = expr as AssignmentExpression;
-				extractFromExpression(assign.right, { ...localContext, inAssignment: true });
+			case "AssignmentExpression":
+				extractFromExpression(expr.right, { ...localContext, inAssignment: true });
 				break;
-			}
 
-			case "TupleExpression": {
-				const tuple = expr as import("./ast").TupleExpression;
-				for (const elem of tuple.elements) {
+			case "TupleExpression":
+				for (const elem of expr.elements) {
 					extractFromExpression(elem, localContext);
 				}
 				break;
-			}
 
-			case "ArrayLiteral": {
-				const arr = expr as ArrayLiteral;
-				for (const elem of arr.elements) {
+			case "ArrayLiteral":
+				for (const elem of expr.elements) {
 					extractFromExpression(elem, localContext);
 				}
 				break;
-			}
 
 			case "Identifier":
 			case "NumberLiteral":
@@ -194,91 +151,72 @@ function extractStringsFromFunction(fn: FunctionDecl): ExtractedString[] {
 		}
 	}
 
-	function extractFromStatement(stmt: BaseNode): void {
+	function extractFromStatement(stmt: Statement): void {
 		switch (stmt.type) {
-			case "ExpressionStatement": {
-				const exprStmt = stmt as ExpressionStatement;
-				extractFromExpression(exprStmt.expression, context);
+			case "ExpressionStatement":
+				extractFromExpression(stmt.expression, context);
 				break;
-			}
 
-			case "ReturnStatement": {
-				const ret = stmt as ReturnStatement;
-				if (ret.value) {
-					extractFromExpression(ret.value, context);
+			case "ReturnStatement":
+				if (stmt.value) {
+					extractFromExpression(stmt.value, context);
 				}
 				break;
-			}
 
-			case "ParallelStatement": {
-				const parallelStmt = stmt as ParallelStatement;
-				extractFromExpression(parallelStmt.expression, context);
+			case "ParallelStatement":
+				extractFromExpression(stmt.expression, context);
 				break;
-			}
 
-			case "VoidStatement": {
-				const voidStmt = stmt as VoidStatement;
-				extractFromExpression(voidStmt.expression, context);
+			case "VoidStatement":
+				extractFromExpression(stmt.expression, context);
 				break;
-			}
 
-			case "VariableDecl": {
-				const decl = stmt as VariableDecl;
-				if (decl.init) {
-					extractFromExpression(decl.init, { ...context, inAssignment: true });
+			case "VariableDecl":
+				if (stmt.init) {
+					extractFromExpression(stmt.init, { ...context, inAssignment: true });
 				}
 				break;
-			}
 
-			case "IfStatement": {
-				const ifStmt = stmt as IfStatement;
-				extractFromExpression(ifStmt.test, { ...context, inCondition: true });
-				extractFromBlock(ifStmt.consequent);
-				if (ifStmt.alternate) {
-					if (ifStmt.alternate.type === "BlockStatement") {
-						extractFromBlock(ifStmt.alternate);
+			case "IfStatement":
+				extractFromExpression(stmt.test, { ...context, inCondition: true });
+				extractFromBlock(stmt.consequent);
+				if (stmt.alternate) {
+					if (stmt.alternate.type === "BlockStatement") {
+						extractFromBlock(stmt.alternate);
 					} else {
-						extractFromStatement(ifStmt.alternate);
+						extractFromStatement(stmt.alternate);
 					}
 				}
 				break;
-			}
 
-			case "WhileStatement": {
-				const whileStmt = stmt as WhileStatement;
-				extractFromExpression(whileStmt.test, { ...context, inCondition: true });
-				extractFromBlock(whileStmt.body);
+			case "WhileStatement":
+				extractFromExpression(stmt.test, { ...context, inCondition: true });
+				extractFromBlock(stmt.body);
 				break;
-			}
 
-			case "ForStatement": {
-				const forStmt = stmt as ForStatement;
-				if (forStmt.init && forStmt.init.type !== "VariableDecl") {
-					extractFromExpression(forStmt.init as Expression, context);
-				} else if (forStmt.init && forStmt.init.type === "VariableDecl") {
-					extractFromStatement(forStmt.init);
+			case "ForStatement":
+				if (stmt.init && stmt.init.type !== "VariableDecl") {
+					extractFromExpression(stmt.init, context);
+				} else if (stmt.init && stmt.init.type === "VariableDecl") {
+					extractFromStatement(stmt.init);
 				}
-				if (forStmt.test) {
-					extractFromExpression(forStmt.test, { ...context, inCondition: true });
+				if (stmt.test) {
+					extractFromExpression(stmt.test, { ...context, inCondition: true });
 				}
-				if (forStmt.update) {
-					extractFromExpression(forStmt.update, context);
+				if (stmt.update) {
+					extractFromExpression(stmt.update, context);
 				}
-				extractFromBlock(forStmt.body);
+				extractFromBlock(stmt.body);
 				break;
-			}
 
-			case "ForeachStatement": {
-				const foreachStmt = stmt as ForeachStatement;
-				extractFromExpression(foreachStmt.iterable, context);
-				extractFromBlock(foreachStmt.body);
+			case "ForeachStatement":
+				extractFromExpression(stmt.iterable, context);
+				extractFromBlock(stmt.body);
 				break;
-			}
 
-			case "SwitchStatement": {
-				const switchStmt = stmt as SwitchStatement;
-				extractFromExpression(switchStmt.discriminant, { ...context, inSwitchDiscriminant: true });
-				for (const caseClause of switchStmt.cases) {
+			case "SwitchStatement":
+				extractFromExpression(stmt.discriminant, { ...context, inSwitchDiscriminant: true });
+				for (const caseClause of stmt.cases) {
 					if (caseClause.test) {
 						extractFromExpression(caseClause.test, { ...context, inCaseTest: true });
 					}
@@ -287,19 +225,20 @@ function extractStringsFromFunction(fn: FunctionDecl): ExtractedString[] {
 					}
 				}
 				break;
-			}
 
-			case "BlockStatement": {
-				const block = stmt as BlockStatement;
-				extractFromBlock(block);
+			case "BlockStatement":
+				extractFromBlock(stmt);
 				break;
-			}
 
-			case "Separator": {
-				const separator = stmt as Separator;
-				strings.push(createHardSeparator(separator.loc?.start.line ?? 0));
+			case "Separator":
+				strings.push(createHardSeparator(stmt.loc?.start.line ?? 0));
 				break;
-			}
+
+			case "DoStatement":
+			case "BreakStatement":
+			case "ContinueStatement":
+			case "FunctionDecl":
+				break;
 		}
 	}
 

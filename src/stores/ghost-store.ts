@@ -37,9 +37,14 @@ interface GhostState {
 	reset: () => void;
 }
 
-const initialState = {
+type GhostDataState = Omit<
+	GhostState,
+	"acceptFile" | "setMeta" | "setShioriType" | "setStats" | "reset"
+>;
+
+const initialState: GhostDataState = {
 	meta: null,
-	shioriType: "unknown" as ShioriType,
+	shioriType: "unknown",
 	stats: null,
 	fileName: null,
 	error: null,

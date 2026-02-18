@@ -6,7 +6,8 @@ import {
 import { describe, expect, it, vi } from "vitest";
 
 function toArrayBuffer(text: string): ArrayBuffer {
-	return new TextEncoder().encode(text).buffer as ArrayBuffer;
+	const bytes = new TextEncoder().encode(text);
+	return bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength);
 }
 
 describe("dispatchParseYayaBatch", () => {

@@ -3,21 +3,25 @@ import {
 	requestParseSatoriBatch,
 	requestParseYayaBatch,
 } from "@/lib/workers/worker-client";
-import type { ParseResult, WorkerResponse } from "@/types";
+import type { ParseResult } from "@/types";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+interface WorkerErrorLike {
+	message: string;
+}
 
 class MockWorker {
 	onmessage: ((event: MessageEvent) => void) | null = null;
-	onerror: ((event: ErrorEvent) => void) | null = null;
+	onerror: ((event: WorkerErrorLike) => void) | null = null;
 	postMessage = vi.fn();
 	terminate = vi.fn();
 
-	simulateMessage(data: WorkerResponse) {
+	simulateMessage(data: unknown) {
 		this.onmessage?.(new MessageEvent("message", { data }));
 	}
 
 	simulateError(message: string) {
-		this.onerror?.({ message } as ErrorEvent);
+		this.onerror?.({ message });
 	}
 }
 
@@ -62,7 +66,7 @@ vi.stubGlobal(
 	"Worker",
 	class {
 		onmessage: ((event: MessageEvent) => void) | null = null;
-		onerror: ((event: ErrorEvent) => void) | null = null;
+		onerror: ((event: WorkerErrorLike) => void) | null = null;
 		postMessage: ReturnType<typeof vi.fn>;
 		terminate: ReturnType<typeof vi.fn>;
 
@@ -164,6 +168,19 @@ describe("worker-client batch requests", () => {
 			await promise;
 
 			expect(onProgress).toHaveBeenCalledWith(25);
+		});
+
+		it("不正なレスポンスを reject する", async () => {
+			const promise = testCase.request({
+				files: [{ filePath: "test.dic", fileContent: new ArrayBuffer(8) }],
+			});
+
+			mockWorkerInstance.simulateMessage({
+				type: "progress",
+				percent: 999,
+			});
+
+			await expect(promise).rejects.toThrow("Worker から不正なレスポンスを受信しました");
 		});
 
 		it("postMessage が request type と transfer リストを送る", () => {

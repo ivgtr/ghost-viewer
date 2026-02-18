@@ -33,7 +33,10 @@ function isBinary(bytes: Uint8Array): string | null {
 
 	let controlCount = 0;
 	for (let i = 0; i < scanLength; i++) {
-		const b = bytes[i] as number;
+		const b = bytes[i];
+		if (b === undefined) {
+			continue;
+		}
 		if (b < 0x20 && b !== 0x09 && b !== 0x0a && b !== 0x0d) {
 			controlCount++;
 		}
@@ -48,7 +51,10 @@ function isBinary(bytes: Uint8Array): string | null {
 function countJapaneseChars(text: string): number {
 	let count = 0;
 	for (const ch of text) {
-		const code = ch.codePointAt(0) as number;
+		const code = ch.codePointAt(0);
+		if (code === undefined) {
+			continue;
+		}
 		if (
 			(code >= 0x3040 && code <= 0x309f) ||
 			(code >= 0x30a0 && code <= 0x30ff) ||

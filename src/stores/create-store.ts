@@ -16,11 +16,15 @@ export function createStore<T extends { reset: () => void }>(
 	) => Omit<ActionProps<T>, "reset">,
 ) {
 	return create<T>()((set, get) => {
-		const actions = createActions(set as (partial: Partial<DataProps<T>>) => void, get);
-		return {
+		const setData = (partial: Partial<DataProps<T>> | DataProps<T>) => {
+			set((state) => ({ ...state, ...partial }));
+		};
+		const actions = createActions((partial) => setData(partial), get);
+		const state = {
 			...initialState,
 			...actions,
-			reset: () => set(initialState as unknown as Partial<T>),
-		} as T;
+			reset: () => setData(initialState),
+		};
+		return state as T;
 	});
 }

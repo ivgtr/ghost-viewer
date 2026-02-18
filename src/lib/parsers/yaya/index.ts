@@ -74,13 +74,12 @@ function parseYayaDicWithDiagnostics(
 
 		for (const node of parsed.program.body) {
 			if (node.type === "FunctionDecl") {
-				const fn = node as import("./ast").FunctionDecl;
 				functions.push({
-					name: fn.name.name,
+					name: node.name.name,
 					filePath,
-					startLine: fn.loc?.start.line ?? 0,
-					endLine: fn.loc?.end.line ?? 0,
-					dialogues: extractDialogues(fn),
+					startLine: node.loc?.start.line ?? 0,
+					endLine: node.loc?.end.line ?? 0,
+					dialogues: extractDialogues(node),
 				});
 			}
 		}

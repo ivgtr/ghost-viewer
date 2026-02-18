@@ -1,3 +1,4 @@
+import { parseWorkerResponse } from "@/lib/validation/worker-message";
 import type { BatchParseWorkerFile, ParseResult, WorkerRequest, WorkerResponse } from "@/types";
 
 const PARSE_TIMEOUT_MS = 30_000;
@@ -63,8 +64,16 @@ function requestBatchWithWorker(
 			reject(new Error("解析がタイムアウトしました"));
 		}, PARSE_TIMEOUT_MS);
 
-		worker.onmessage = (event: MessageEvent<WorkerResponse>) => {
-			const data = event.data;
+		worker.onmessage = (event: MessageEvent<unknown>) => {
+			let data: WorkerResponse;
+			try {
+				data = parseWorkerResponse(event.data);
+			} catch {
+				cleanup();
+				reject(new Error("Worker から不正なレスポンスを受信しました"));
+				return;
+			}
+
 			switch (data.type) {
 				case "parsed":
 					cleanup();

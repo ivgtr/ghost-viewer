@@ -33,13 +33,19 @@ export function buildFileTree(entries: NarEntryMeta[]): FileTreeNode[] {
 		if (normalized.endsWith("/")) continue;
 
 		const segments = normalized.split("/");
-		const fileName = segments[segments.length - 1] as string;
+		const fileName = segments[segments.length - 1];
+		if (!fileName) {
+			continue;
+		}
 
 		let currentPath = "";
 		let currentChildren = root;
 
 		for (let i = 0; i < segments.length - 1; i++) {
-			const dirName = segments[i] as string;
+			const dirName = segments[i];
+			if (!dirName) {
+				continue;
+			}
 			const dirPath = currentPath === "" ? dirName : `${currentPath}/${dirName}`;
 
 			let dirChildren = dirMap.get(dirPath);

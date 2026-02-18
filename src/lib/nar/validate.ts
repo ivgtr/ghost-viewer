@@ -1,3 +1,5 @@
+import { array, finite, integer, minValue, number, object, parse, pipe, string } from "valibot";
+
 import type { NarEntryMeta, NarValidationResult } from "@/types";
 import { NAR_LIMITS, NAR_SUPPORTED_EXTENSIONS } from "./constants";
 
@@ -6,8 +8,27 @@ interface FileInfo {
 	readonly size: number;
 }
 
+const NAR_FILE_SCHEMA = object({
+	name: string(),
+	size: pipe(number(), finite(), integer(), minValue(0)),
+});
+
+const NAR_ENTRY_SCHEMA = object({
+	path: string(),
+	size: pipe(number(), finite(), integer(), minValue(0)),
+});
+
+const NAR_ENTRIES_SCHEMA = array(NAR_ENTRY_SCHEMA);
+
 export function validateNarFile(file: FileInfo): NarValidationResult {
-	const name = file.name.toLowerCase();
+	let parsedFile: FileInfo;
+	try {
+		parsedFile = parse(NAR_FILE_SCHEMA, file);
+	} catch {
+		return { valid: false, reason: "ファイル情報が不正です" };
+	}
+
+	const name = parsedFile.name.toLowerCase();
 	const hasSupportedExtension = NAR_SUPPORTED_EXTENSIONS.some((extension) =>
 		name.endsWith(extension),
 	);
@@ -15,7 +36,7 @@ export function validateNarFile(file: FileInfo): NarValidationResult {
 		return { valid: false, reason: "NAR/ZIPファイル（.nar, .zip）のみ対応しています" };
 	}
 
-	if (file.size > NAR_LIMITS.MAX_FILE_SIZE) {
+	if (parsedFile.size > NAR_LIMITS.MAX_FILE_SIZE) {
 		const maxMB = NAR_LIMITS.MAX_FILE_SIZE / (1024 * 1024);
 		return {
 			valid: false,
@@ -27,7 +48,14 @@ export function validateNarFile(file: FileInfo): NarValidationResult {
 }
 
 export function validateNarEntries(entries: NarEntryMeta[]): NarValidationResult {
-	if (entries.length > NAR_LIMITS.MAX_ENTRY_COUNT) {
+	let parsedEntries: NarEntryMeta[];
+	try {
+		parsedEntries = parse(NAR_ENTRIES_SCHEMA, entries);
+	} catch {
+		return { valid: false, reason: "エントリ情報が不正です" };
+	}
+
+	if (parsedEntries.length > NAR_LIMITS.MAX_ENTRY_COUNT) {
 		return {
 			valid: false,
 			reason: `エントリ数が上限（${NAR_LIMITS.MAX_ENTRY_COUNT}）を超えています`,
@@ -35,7 +63,7 @@ export function validateNarEntries(entries: NarEntryMeta[]): NarValidationResult
 	}
 
 	let totalSize = 0;
-	for (const entry of entries) {
+	for (const entry of parsedEntries) {
 		if (!isPathSafe(entry.path)) {
 			return {
 				valid: false,

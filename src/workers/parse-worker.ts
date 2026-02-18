@@ -1,31 +1,33 @@
+import { parseWorkerRequest } from "@/lib/validation/worker-message";
 import {
 	dispatchParseKawariBatch,
 	dispatchParseSatoriBatch,
 	dispatchParseYayaBatch,
 } from "@/lib/workers/parse-dispatcher";
-import type { ParseResult, WorkerRequest, WorkerResponse } from "@/types";
+import type { ParseResult, WorkerResponse } from "@/types";
 
-self.addEventListener("message", (event: MessageEvent<WorkerRequest>) => {
+self.addEventListener("message", (event: MessageEvent<unknown>) => {
 	try {
+		const request = parseWorkerRequest(event.data);
 		let result: ParseResult;
-		switch (event.data.type) {
+		switch (request.type) {
 			case "parse-yaya-batch":
-				result = dispatchParseYayaBatch(event.data, (percent) => {
+				result = dispatchParseYayaBatch(request, (percent) => {
 					self.postMessage({ type: "progress", percent } satisfies WorkerResponse);
 				});
 				break;
 			case "parse-satori-batch":
-				result = dispatchParseSatoriBatch(event.data, (percent) => {
+				result = dispatchParseSatoriBatch(request, (percent) => {
 					self.postMessage({ type: "progress", percent } satisfies WorkerResponse);
 				});
 				break;
 			case "parse-kawari-batch":
-				result = dispatchParseKawariBatch(event.data, (percent) => {
+				result = dispatchParseKawariBatch(request, (percent) => {
 					self.postMessage({ type: "progress", percent } satisfies WorkerResponse);
 				});
 				break;
 			default: {
-				const _exhaustive: never = event.data;
+				const _exhaustive: never = request;
 				throw new Error(`未対応の WorkerRequest: ${_exhaustive}`);
 			}
 		}
