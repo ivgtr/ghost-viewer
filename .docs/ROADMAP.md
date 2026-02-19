@@ -145,6 +145,7 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 
 ### Phase 7: Ghost Display & Layout — 7/10
 目標: レイアウト拡張（最大3レーン）を導入しつつ、NAR 内の surface 画像を会話と連動表示できるゴーストビューアーを実装する
+実装メモ: `035` は着手済み（runtime 基盤・root-cause 通知の枠組みは導入済み）だが、表示挙動の安定化と仕様収束が完了条件未達のため未完了として扱う
 
 - [x] **3レーンスロットレイアウト基盤** [M] — 最大3レーンの設定駆動スロット化を導入し、右レーンを上下分割（初期50/50、可変）する。右上は `会話/コード` 切替維持、右下は画像ビューアー常設
   - 依存: 3ペインレイアウト, 会話プレビューパネル, ソースコードジャンプ
@@ -170,7 +171,7 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **サーフェス合成レンダラー** [L] — `element` + 静的 `animation/pattern` を評価したレイヤー合成描画と `png+pna` マスク適用まで対応（実時間アニメーション再生は後続）
   - 依存: surfaces*.txt フル準拠解析, ゴースト表示パネル
   - 詳細: `.docs/tasks/031-surface-composition-renderer.md`
-- [ ] **サーフェス診断詳細表示 + 実時間アニメーション再生** [L] — 通知を root-cause ベース（path/static-eval/alias/pna）で可視化し、`animation.interval/pattern` のタイマー駆動再生（bind/always/runonce/sometimes を優先）を実装する
+- [ ] **サーフェス診断詳細表示 + 実時間アニメーション再生** [L] — 実装着手済み。`surface-animation-runtime` / trace 通知 / オーバーレイ表示の基盤は導入済みで、現在は overlay 合成時の表示欠落、ループ停止ポリシー、`png+pna`/color-key 境界ケースの安定化を継続中
   - 依存: surfaces*.txt フル準拠解析, サーフェス合成レンダラー, 会話連動サーフェス切替
   - 詳細: `.docs/tasks/035-surface-runtime-animation-and-diagnostics.md`
 - [ ] **サーフェス使用頻度ヒートマップ** [M] — どの表情がどの頻度で使われるかをイベント内/全体で可視化する
