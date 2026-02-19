@@ -147,6 +147,7 @@ export function GhostViewerPanel() {
 		canvas.style.width = `${width}px`;
 		canvas.style.height = `${height}px`;
 		context.setTransform(dpr, 0, 0, dpr, 0, 0);
+		context.imageSmoothingEnabled = false;
 		context.clearRect(0, 0, width, height);
 
 		const layerCanvas = createScratchCanvas(1, 1);
@@ -617,27 +618,37 @@ interface DrawCanvasLayerOptions {
 }
 
 function drawCanvasLayer(options: DrawCanvasLayerOptions): void {
-	const width = Math.max(1, Math.floor(options.drawWidth));
-	const height = Math.max(1, Math.floor(options.drawHeight));
-	options.layerCanvas.width = width;
-	options.layerCanvas.height = height;
-	options.layerContext.clearRect(0, 0, width, height);
-	options.layerContext.drawImage(options.source, 0, 0, width, height);
-	const layerImageData = options.layerContext.getImageData(0, 0, width, height);
+	const sourceWidth = Math.max(1, options.source.width);
+	const sourceHeight = Math.max(1, options.source.height);
+	const drawWidth = Math.max(1, Math.floor(options.drawWidth));
+	const drawHeight = Math.max(1, Math.floor(options.drawHeight));
+	options.layerCanvas.width = sourceWidth;
+	options.layerCanvas.height = sourceHeight;
+	options.layerContext.imageSmoothingEnabled = false;
+	options.maskContext.imageSmoothingEnabled = false;
+	options.layerContext.clearRect(0, 0, sourceWidth, sourceHeight);
+	options.layerContext.drawImage(options.source, 0, 0, sourceWidth, sourceHeight);
+	const layerImageData = options.layerContext.getImageData(0, 0, sourceWidth, sourceHeight);
 
 	if (options.mask) {
-		options.maskCanvas.width = width;
-		options.maskCanvas.height = height;
-		options.maskContext.clearRect(0, 0, width, height);
-		options.maskContext.drawImage(options.mask, 0, 0, width, height);
-		const maskImageData = options.maskContext.getImageData(0, 0, width, height);
+		options.maskCanvas.width = sourceWidth;
+		options.maskCanvas.height = sourceHeight;
+		options.maskContext.clearRect(0, 0, sourceWidth, sourceHeight);
+		options.maskContext.drawImage(options.mask, 0, 0, sourceWidth, sourceHeight);
+		const maskImageData = options.maskContext.getImageData(0, 0, sourceWidth, sourceHeight);
 		applyAlphaMask(layerImageData, maskImageData);
 	} else {
-		applyColorKeyTransparency(layerImageData);
+		applyColorKeyTransparency(layerImageData, sourceWidth, sourceHeight);
 	}
 	options.layerContext.putImageData(layerImageData, 0, 0);
 
-	options.context.drawImage(options.layerCanvas, options.drawX, options.drawY, width, height);
+	options.context.drawImage(
+		options.layerCanvas,
+		options.drawX,
+		options.drawY,
+		drawWidth,
+		drawHeight,
+	);
 }
 
 function createScratchCanvas(width: number, height: number): OffscreenCanvas | HTMLCanvasElement {
