@@ -153,7 +153,7 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **会話連動サーフェス切替** [M] — イベント/バリアント選択時の自動同期と、会話内 `\\s[N]` クリック同期を実装する。未解決時は直前維持 + 通知
   - 依存: ゴースト表示パネル, 会話プレビューパネル
   - 詳細: `.docs/tasks/028-conversation-surface-sync.md`
-- [ ] **サーフェスサムネイルブラウザ** [M] — 上段に会話関連 surface、下段に全 surface を表示し、クリックで表示 surface を切り替える
+- [x] **サーフェスサムネイルブラウザ** [M] — scope ごとの select ドロップダウンで surface を切り替える
   - 依存: 会話連動サーフェス切替
   - 詳細: `.docs/tasks/029-surface-thumbnail-browser.md`
 - [x] **surfaces*.txt フル準拠解析** [L] — `animation` / `interval` / `pattern` / `collision` / `point` 系を解析し、`surface.append` 安定マージと alias 文字列キー保持まで対応
