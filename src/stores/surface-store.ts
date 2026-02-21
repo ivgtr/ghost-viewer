@@ -57,9 +57,9 @@ interface SurfaceState {
 		requestedSurfaceId: number,
 		reason: SurfaceSyncReason,
 	) => void;
-	syncFromConversation: (
+	initializeFromConversation: (
+		secondaryScopeId: number,
 		entries: Array<{ scopeId: number; requestedSurfaceId: number }>,
-		reason: SurfaceSyncReason,
 	) => void;
 	restartRuntimeForScopes: (scopeIds: number[]) => void;
 	setFocusedScope: (scopeId: number) => void;
@@ -279,7 +279,7 @@ export const useSurfaceStore = createStore<SurfaceState>(
 			});
 			replaceScopeRuntime(scopeId, result.runtimePlan);
 		},
-		syncFromConversation: (entries, reason) => {
+		initializeFromConversation: (secondaryScopeId, entries) => {
 			const state = get();
 			const shellName = state.selectedShellName;
 			const fileContents = useFileContentStore.getState().fileContents;
@@ -287,11 +287,24 @@ export const useSurfaceStore = createStore<SurfaceState>(
 				return;
 			}
 
+			const effectiveSecondaryScopeId =
+				Number.isInteger(secondaryScopeId) &&
+				secondaryScopeId >= 1 &&
+				state.availableSecondaryScopeIds.includes(secondaryScopeId)
+					? secondaryScopeId
+					: state.secondaryScopeId;
+
+			const displayScopes = [0, effectiveSecondaryScopeId];
+			const filteredEntries = entries.filter((e) => displayScopes.includes(e.scopeId));
+
 			const nextCurrentSurfaceByScope = new Map(state.currentSurfaceByScope);
 			const nextVisualByScope = new Map(state.visualByScope);
 			const runtimePlansByScope = new Map<number, SurfaceAnimationRuntimePlan | null>();
 			const syncNotifications: SurfaceNotification[] = [];
-			for (const entry of entries) {
+
+			const resolvedScopes = new Set(filteredEntries.map((e) => e.scopeId));
+
+			for (const entry of filteredEntries) {
 				if (!Number.isInteger(entry.scopeId) || !Number.isInteger(entry.requestedSurfaceId)) {
 					continue;
 				}
@@ -313,15 +326,56 @@ export const useSurfaceStore = createStore<SurfaceState>(
 				syncNotifications.push(...result.notifications);
 			}
 
+			const allSurfaceIds = resolveAvailableSurfaceIdsImpl(
+				shellName,
+				state.catalog,
+				state.definitions,
+			);
+			for (const scopeId of displayScopes) {
+				if (resolvedScopes.has(scopeId)) {
+					continue;
+				}
+				const defaultSurfaceId =
+					resolveRequestedSurfaceId(
+						scopeId,
+						allSurfaceIds,
+						mergeDescriptProperties(
+							state.ghostDescriptProperties,
+							state.shellDescriptCacheByName[shellName] ?? {},
+						),
+					) ?? 0;
+				const result = resolveRequestedSurface({
+					scopeId,
+					requestedSurfaceId: defaultSurfaceId,
+					shellName,
+					catalog: state.catalog,
+					definitionsByShell: state.definitions,
+					aliasMapByShell: state.aliasMap,
+					fileContents,
+					previousSurfaceByScope: nextCurrentSurfaceByScope,
+					previousVisualByScope: nextVisualByScope,
+					rng: resolverRng,
+				});
+				nextCurrentSurfaceByScope.set(scopeId, result.surfaceId);
+				nextVisualByScope.set(scopeId, result.model);
+				runtimePlansByScope.set(scopeId, result.runtimePlan);
+				syncNotifications.push(...result.notifications);
+			}
+
 			set({
+				secondaryScopeId: effectiveSecondaryScopeId,
 				currentSurfaceByScope: nextCurrentSurfaceByScope,
 				visualByScope: nextVisualByScope,
 				notifications: appendSyncNotifications({
 					baseNotifications: state.notifications,
 					nextNotifications: syncNotifications,
-					reason,
+					reason: "auto",
 				}),
 			});
+			const previousSecondaryScopeId = state.secondaryScopeId;
+			if (previousSecondaryScopeId !== effectiveSecondaryScopeId) {
+				stopScopeRuntime(previousSecondaryScopeId);
+			}
 			for (const [scopeId, runtimePlan] of runtimePlansByScope.entries()) {
 				replaceScopeRuntime(scopeId, runtimePlan);
 			}

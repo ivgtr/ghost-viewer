@@ -320,7 +320,7 @@ describe("surfaceStore", () => {
 		);
 		useSurfaceStore.setState({ availableSecondaryScopeIds: [1, 2] });
 
-		// syncFromConversation で解決失敗を再現: has=true, value=null
+		// initializeFromConversation で解決失敗を再現: has=true, value=null
 		const currentMap = new Map(useSurfaceStore.getState().currentSurfaceByScope);
 		currentMap.set(2, null);
 		const visualMap = new Map(useSurfaceStore.getState().visualByScope);
@@ -337,24 +337,64 @@ describe("surfaceStore", () => {
 		expect(state.visualByScope.get(2)).not.toBeNull();
 	});
 
-	it("syncFromConversation で scope>1 を currentSurfaceByScope に保持できる", () => {
+	it("initializeFromConversation で entries にあるスコープは会話サーフェスが適用される", () => {
 		useSurfaceStore.getState().initialize(
 			createInitializeInput({
 				catalog: [createShell("master", [0, 10, 30])],
 				definitionsByShell: createDefinitionsByShell("master", [0, 10, 30]),
 			}),
 		);
+		useSurfaceStore.setState({ availableSecondaryScopeIds: [1] });
 
-		useSurfaceStore.getState().syncFromConversation(
-			[
-				{ scopeId: 0, requestedSurfaceId: 0 },
-				{ scopeId: 2, requestedSurfaceId: 30 },
-			],
-			"auto",
+		useSurfaceStore
+			.getState()
+			.initializeFromConversation(1, [{ scopeId: 0, requestedSurfaceId: 30 }]);
+		expect(useSurfaceStore.getState().currentSurfaceByScope.get(0)).toBe(30);
+	});
+
+	it("initializeFromConversation で entries にないスコープはデフォルト解決される", () => {
+		useSurfaceStore.getState().initialize(
+			createInitializeInput({
+				catalog: [createShell("master", [0, 10, 30])],
+				definitionsByShell: createDefinitionsByShell("master", [0, 10, 30]),
+			}),
 		);
-		const state = useSurfaceStore.getState();
-		expect(state.currentSurfaceByScope.get(0)).toBe(0);
-		expect(state.currentSurfaceByScope.get(2)).toBe(30);
+		useSurfaceStore.setState({ availableSecondaryScopeIds: [1] });
+
+		useSurfaceStore
+			.getState()
+			.initializeFromConversation(1, [{ scopeId: 0, requestedSurfaceId: 30 }]);
+		expect(useSurfaceStore.getState().currentSurfaceByScope.get(1)).toBe(10);
+	});
+
+	it("initializeFromConversation で secondaryScopeId が更新される", () => {
+		useSurfaceStore.getState().initialize(
+			createInitializeInput({
+				catalog: [createShell("master", [0, 10, 30])],
+				definitionsByShell: createDefinitionsByShell("master", [0, 10, 30]),
+			}),
+		);
+		useSurfaceStore.setState({ availableSecondaryScopeIds: [1, 2] });
+
+		useSurfaceStore
+			.getState()
+			.initializeFromConversation(2, [{ scopeId: 0, requestedSurfaceId: 0 }]);
+		expect(useSurfaceStore.getState().secondaryScopeId).toBe(2);
+	});
+
+	it("initializeFromConversation で無効な secondaryScopeId の場合は現状維持", () => {
+		useSurfaceStore.getState().initialize(
+			createInitializeInput({
+				catalog: [createShell("master", [0, 10, 30])],
+				definitionsByShell: createDefinitionsByShell("master", [0, 10, 30]),
+			}),
+		);
+		useSurfaceStore.setState({ availableSecondaryScopeIds: [1], secondaryScopeId: 1 });
+
+		useSurfaceStore
+			.getState()
+			.initializeFromConversation(99, [{ scopeId: 0, requestedSurfaceId: 0 }]);
+		expect(useSurfaceStore.getState().secondaryScopeId).toBe(1);
 	});
 });
 

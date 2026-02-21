@@ -1,5 +1,6 @@
 import { analyzeConversationSurfaces } from "@/lib/analyzers/analyze-conversation-surfaces";
 import { isEventSelected, toEventDisplayName } from "@/lib/analyzers/event-name";
+import { findFirstNonZeroSpeaker } from "@/lib/analyzers/find-first-speaker";
 import {
 	lookupDialogueCondition,
 	lookupDialoguesByFunctionName,
@@ -23,7 +24,7 @@ export function ConversationPreview() {
 	const parseResult = useParseStore((s) => s.parseResult);
 	const meta = useGhostStore((s) => s.meta);
 	const setSurfaceForScope = useSurfaceStore((s) => s.setSurfaceForScope);
-	const syncFromConversation = useSurfaceStore((s) => s.syncFromConversation);
+	const initializeFromConversation = useSurfaceStore((s) => s.initializeFromConversation);
 	const restartRuntimeForScopes = useSurfaceStore((s) => s.restartRuntimeForScopes);
 	const secondaryScopeId = useSurfaceStore((s) => s.secondaryScopeId);
 	const setSecondaryScopeId = useSurfaceStore((s) => s.setSecondaryScopeId);
@@ -101,17 +102,23 @@ export function ConversationPreview() {
 			return;
 		}
 		if (surfaceAnalysis.firstByScope.length === 0) {
-			restartRuntimeForScopes([0, secondaryScopeId]);
+			restartRuntimeForScopes([0, useSurfaceStore.getState().secondaryScopeId]);
 			return;
 		}
-		syncFromConversation(surfaceAnalysis.firstByScope, "auto");
+		const firstSpeaker = findFirstNonZeroSpeaker(messages);
+		const speakerScopeId = firstSpeaker ?? 0;
+		const firstSpeakerEntry = surfaceAnalysis.firstByScope.find(
+			(e) => e.scopeId === (messages[0]?.characterId ?? 0),
+		);
+		const entries = firstSpeakerEntry ? [firstSpeakerEntry] : [];
+		initializeFromConversation(speakerScopeId, entries);
 	}, [
-		dialogues.length,
-		secondaryScopeId,
-		surfaceAnalysis,
-		restartRuntimeForScopes,
 		selectedEventName,
-		syncFromConversation,
+		messages,
+		surfaceAnalysis,
+		initializeFromConversation,
+		restartRuntimeForScopes,
+		dialogues.length,
 	]);
 
 	if (!isEventSelected(selectedEventName)) {

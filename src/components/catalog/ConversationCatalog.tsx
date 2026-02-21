@@ -6,6 +6,7 @@ import { useGhostStore } from "@/stores/ghost-store";
 import { useParseStore } from "@/stores/parse-store";
 import { useViewStore } from "@/stores/view-store";
 import { useCallback, useMemo, useState } from "react";
+
 import { CatalogFilter } from "./CatalogFilter";
 import { CatalogItem } from "./CatalogItem";
 
@@ -30,6 +31,7 @@ export function ConversationCatalog() {
 	const selectedFunctionName = useCatalogStore((s) => s.selectedFunctionName);
 	const selectFunction = useCatalogStore((s) => s.selectFunction);
 	const showConversation = useViewStore((s) => s.showConversation);
+	const setVariantIndex = useViewStore((s) => s.setVariantIndex);
 
 	const [searchQuery, setSearchQuery] = useState("");
 	const [matchMode, setMatchMode] = useState<MatchMode>("partial");
@@ -68,9 +70,10 @@ export function ConversationCatalog() {
 	const handleItemSelect = useCallback(
 		(name: string) => {
 			selectFunction(name);
+			setVariantIndex(name, 0);
 			showConversation();
 		},
-		[selectFunction, showConversation],
+		[selectFunction, setVariantIndex, showConversation],
 	);
 
 	if (isParsing) {

@@ -243,7 +243,7 @@ describe("ConversationPreview", () => {
 		expect(useViewStore.getState().variantIndexByFunction.get("OnBoot")).toBe(1);
 	});
 
-	it("イベント選択時に各scopeの最初の s[N] で自動同期する", async () => {
+	it("先頭発話者のサーフェスを同期し非発話者はデフォルトに設定する", async () => {
 		const parseResult: ParseResult = {
 			shioriType: "satori",
 			functions: [
@@ -272,6 +272,7 @@ describe("ConversationPreview", () => {
 			meta: null,
 			diagnostics: [],
 		};
+		useSurfaceStore.setState({ availableSecondaryScopeIds: [1] });
 		useParseStore.getState().succeedParse(parseResult);
 		useCatalogStore.getState().selectFunction("OnBoot");
 
@@ -280,6 +281,47 @@ describe("ConversationPreview", () => {
 		await waitFor(() => {
 			expect(useSurfaceStore.getState().currentSurfaceByScope.get(0)).toBe(0);
 			expect(useSurfaceStore.getState().currentSurfaceByScope.get(1)).toBe(10);
+		});
+	});
+
+	it("先頭発話者が非0スコープの場合、そのサーフェスを同期しscope 0はデフォルトに設定する", async () => {
+		const parseResult: ParseResult = {
+			shioriType: "satori",
+			functions: [
+				{
+					name: "OnBoot",
+					condition: null,
+					filePath: "ghost/master/dic01_Base.txt",
+					startLine: 1,
+					endLine: 4,
+					dialogues: [
+						{
+							tokens: [
+								makeToken("charSwitch", "\\1", "1"),
+								makeToken("surface", "\\s[10]", "10"),
+								makeToken("charSwitch", "\\0", "0"),
+								makeToken("surface", "\\s[5]", "5"),
+							],
+							startLine: 2,
+							endLine: 3,
+							rawText: "\\1\\s[10]\\0\\s[5]",
+						},
+					],
+				},
+			],
+			meta: null,
+			diagnostics: [],
+		};
+		useSurfaceStore.setState({ availableSecondaryScopeIds: [1] });
+		useParseStore.getState().succeedParse(parseResult);
+		useCatalogStore.getState().selectFunction("OnBoot");
+
+		render(<ConversationPreview />);
+
+		await waitFor(() => {
+			expect(useSurfaceStore.getState().secondaryScopeId).toBe(1);
+			expect(useSurfaceStore.getState().currentSurfaceByScope.get(1)).toBe(10);
+			expect(useSurfaceStore.getState().currentSurfaceByScope.get(0)).toBe(0);
 		});
 	});
 
