@@ -105,6 +105,59 @@ describe("buildCatalogEntries", () => {
 		expect(entries[0].preview).toBe("今日は%(weather)です");
 	});
 
+	it("searchText が全ダイアログの可視トークンを連結して生成される", () => {
+		const fn = makeFn("OnBoot", [token("text", "Hello")]);
+		fn.dialogues.push({
+			tokens: [token("text", "World"), token("choice", "\\q[選択,OnChoice]")],
+			startLine: 2,
+			endLine: 3,
+			rawText: "",
+		});
+		const entries = buildCatalogEntries([fn]);
+		expect(entries[0].searchText).toBe("HelloWorld\\q[選択,OnChoice]");
+	});
+
+	it("searchText に text/variable/choice/surface の4種が含まれる", () => {
+		const varToken: SakuraScriptToken = {
+			tokenType: "variable",
+			raw: "%(name)",
+			value: "name",
+			offset: 0,
+		};
+		const surfaceToken: SakuraScriptToken = {
+			tokenType: "surface",
+			raw: "\\s[10]",
+			value: "10",
+			offset: 0,
+		};
+		const choiceToken: SakuraScriptToken = {
+			tokenType: "choice",
+			raw: "\\q[はい,OnYes]",
+			value: "はい",
+			offset: 0,
+		};
+		const tokens = [token("text", "こんにちは"), varToken, surfaceToken, choiceToken];
+		const entries = buildCatalogEntries([makeFn("aitalk", tokens)]);
+		expect(entries[0].searchText).toContain("こんにちは");
+		expect(entries[0].searchText).toContain("%(name)");
+		expect(entries[0].searchText).toContain("\\s[10]");
+		expect(entries[0].searchText).toContain("\\q[はい,OnYes]");
+	});
+
+	it("searchText に不可視トークン（unknown等）は含まれない", () => {
+		const tokens = [token("text", "visible"), token("unknown", "\\![raise,OnTest]")];
+		const entries = buildCatalogEntries([makeFn("OnBoot", tokens)]);
+		expect(entries[0].searchText).toBe("visible");
+	});
+
+	it("同名関数マージ後も全ソースの searchText が含まれる", () => {
+		const fn1 = makeFn("OnBoot", [token("text", "First")], "file1.dic");
+		const fn2 = makeFn("OnBoot", [token("text", "Second")], "file2.dic");
+		const entries = buildCatalogEntries([fn1, fn2]);
+		expect(entries[0].searchText).toContain("First");
+		expect(entries[0].searchText).toContain("Second");
+	});
+
 	it("category フィールドが設定される", () => {
 		const entries = buildCatalogEntries([
 			makeFn("aitalk", [token("text", "a")]),

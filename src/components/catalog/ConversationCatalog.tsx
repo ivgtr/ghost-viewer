@@ -1,13 +1,24 @@
 import { buildCatalogEntries } from "@/lib/analyzers/build-catalog";
 import { getCategoryOrder } from "@/lib/analyzers/categorize-event";
-import { toEventDisplayName } from "@/lib/analyzers/event-name";
+import { filterCatalogEntries } from "@/lib/analyzers/search-catalog";
 import { useCatalogStore } from "@/stores/catalog-store";
 import { useGhostStore } from "@/stores/ghost-store";
 import { useParseStore } from "@/stores/parse-store";
 import { useViewStore } from "@/stores/view-store";
-import type { CatalogEntry } from "@/types/catalog";
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
+import { CatalogFilter } from "./CatalogFilter";
 import { CatalogItem } from "./CatalogItem";
+
+import type { CatalogEntry } from "@/types/catalog";
+import type { MatchMode } from "@/lib/analyzers/search-catalog";
+
+function buildInitialCategories(): Record<string, boolean> {
+	const categories: Record<string, boolean> = {};
+	for (const cat of getCategoryOrder()) {
+		categories[cat] = true;
+	}
+	return categories;
+}
 
 export function ConversationCatalog() {
 	const parseResult = useParseStore((s) => s.parseResult);
@@ -21,23 +32,26 @@ export function ConversationCatalog() {
 	const showConversation = useViewStore((s) => s.showConversation);
 
 	const [searchQuery, setSearchQuery] = useState("");
+	const [matchMode, setMatchMode] = useState<MatchMode>("partial");
+	const [includeBody, setIncludeBody] = useState(false);
+	const [enabledCategories, setEnabledCategories] = useState(buildInitialCategories);
 
 	const entries = useMemo(() => buildCatalogEntries(parseResult?.functions ?? []), [parseResult]);
 
-	const filtered = useMemo(() => {
-		if (!searchQuery) return entries;
-		const lower = searchQuery.toLowerCase();
-		return entries.filter((e) => {
-			if (e.name.toLowerCase().includes(lower)) {
-				return true;
-			}
-			return toEventDisplayName(e.name).toLowerCase().includes(lower);
-		});
-	}, [entries, searchQuery]);
+	const filtered = useMemo(
+		() =>
+			filterCatalogEntries(entries, {
+				query: searchQuery,
+				matchMode,
+				includeBody,
+				enabledCategories,
+			}),
+		[entries, searchQuery, matchMode, includeBody, enabledCategories],
+	);
 
 	const grouped = useMemo(() => {
 		const categoryOrder = getCategoryOrder();
-		const groups = new Map<string, typeof filtered>();
+		const groups = new Map<string, CatalogEntry[]>();
 		for (const entry of filtered) {
 			const list = groups.get(entry.category);
 			if (list) {
@@ -51,10 +65,13 @@ export function ConversationCatalog() {
 			.filter((g): g is { category: string; entries: CatalogEntry[] } => g.entries !== undefined);
 	}, [filtered]);
 
-	const handleItemClick = (name: string) => {
-		selectFunction(name);
-		showConversation();
-	};
+	const handleItemSelect = useCallback(
+		(name: string) => {
+			selectFunction(name);
+			showConversation();
+		},
+		[selectFunction, showConversation],
+	);
 
 	if (isParsing) {
 		return (
@@ -86,15 +103,16 @@ export function ConversationCatalog() {
 
 	return (
 		<div className="flex h-full flex-col overflow-hidden">
-			<div className="border-b border-zinc-700 px-4 py-2">
-				<input
-					type="text"
-					placeholder="イベント名で検索..."
-					className="w-full rounded border border-zinc-600 bg-zinc-800 px-3 py-1.5 text-sm text-zinc-200 placeholder-zinc-500 focus:border-zinc-500 focus:outline-none"
-					value={searchQuery}
-					onChange={(e) => setSearchQuery(e.target.value)}
-				/>
-			</div>
+			<CatalogFilter
+				query={searchQuery}
+				onQueryChange={setSearchQuery}
+				matchMode={matchMode}
+				onMatchModeChange={setMatchMode}
+				includeBody={includeBody}
+				onIncludeBodyChange={setIncludeBody}
+				enabledCategories={enabledCategories}
+				onEnabledCategoriesChange={setEnabledCategories}
+			/>
 			<div className="flex-1 overflow-auto">
 				{grouped.map((group) => (
 					<div key={group.category}>
@@ -104,9 +122,10 @@ export function ConversationCatalog() {
 						{group.entries.map((entry) => (
 							<CatalogItem
 								key={entry.name}
+								name={entry.name}
 								entry={entry}
 								selected={entry.name === selectedFunctionName}
-								onClick={() => handleItemClick(entry.name)}
+								onSelect={handleItemSelect}
 							/>
 						))}
 					</div>

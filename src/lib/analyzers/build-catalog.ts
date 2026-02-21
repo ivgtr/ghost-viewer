@@ -26,12 +26,31 @@ export function buildCatalogEntries(functions: DicFunction[]): CatalogEntry[] {
 			dialogueCount: fn.dialogues.length,
 			preview: buildPreview(fn),
 			category: categorizeEvent(fn.name),
+			searchText: buildSearchText(fn),
 		});
 	}
 
 	return entries
 		.filter((e) => e.dialogueCount > 0)
 		.sort((a, b) => b.dialogueCount - a.dialogueCount || a.name.localeCompare(b.name));
+}
+
+function buildSearchText(fn: DicFunction): string {
+	const texts: string[] = [];
+	for (const dialogue of fn.dialogues) {
+		for (const token of dialogue.tokens) {
+			if (token.tokenType === "text") {
+				texts.push(token.value);
+			} else if (
+				token.tokenType === "variable" ||
+				token.tokenType === "choice" ||
+				token.tokenType === "surface"
+			) {
+				texts.push(token.raw);
+			}
+		}
+	}
+	return texts.join("");
 }
 
 function buildPreview(fn: DicFunction): string {

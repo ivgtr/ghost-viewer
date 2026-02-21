@@ -3,4 +3,5 @@ export interface CatalogEntry {
 	dialogueCount: number;
 	preview: string;
 	category: string;
+	searchText: string;
 }
