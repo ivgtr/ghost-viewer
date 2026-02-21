@@ -119,7 +119,7 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [x] **Kawari AST パーサー** [M] — `kawari/parser.ts` でエントリーベース構文の AST 生成（履歴項目。現行は非対応、将来は Phase 8 で再対応）
   - 依存: 共通 AST 型定義
 
-### Phase 6: Extension — 4/8
+### Phase 6: Extension ✅ Complete
 目標: 対応 SHIORI の拡張と、分析・比較・可視化機能の強化
 
 - [x] **Satori Lexer/Parser 分離** [S] — YAYA と同様の Lexer/Parser 2層構造にリファクタリング、ブロックコメント対応
@@ -128,18 +128,9 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
   - 依存: Web Worker 解析基盤, 全 .dic 一括パース, Satori 辞書パーサー
 - [x] **Kawari 意味解析** [M] — `kawari/semantic.ts` でエントリ名、${変数} 参照のシンボル解決（履歴項目。現行は非対応、将来は Phase 8 で再対応）
   - 依存: Kawari AST パーサー, シンボルテーブル + スコープ管理
-- [ ] **CodeMirror 6 統合** [M] — 右ペイン補助機能としてのコードビュー、行番号表示、基本的なテキスト検索
-  - 依存: ソースコードジャンプ
-  - 詳細: `.docs/tasks/020-codemirror-6-integration.md`
-- [ ] **SakuraScript シンタックスハイライト定義** [M] — CodeMirror 用カスタム言語定義、キャラ切替 / サーフェス / 選択肢 / イベントの色分け
-  - 依存: CodeMirror 6 統合
-  - 詳細: `.docs/tasks/021-sakura-script-syntax-highlight.md`
-- [ ] **検索・フィルター** [M] — テキスト全文検索、高度なフィルタリング
+- [x] **検索・フィルター** [M] — テキスト全文検索、高度なフィルタリング
   - 依存: 会話カタログ UI
   - 詳細: `.docs/tasks/022-search-and-filter.md`
-- [ ] **統計ダッシュボード** [M] — SHIORI 種別、ファイル統計、会話パターン統計の表示
-  - 依存: 全 .dic 一括パース
-  - 詳細: `.docs/tasks/023-statistics-dashboard.md`
 - [x] **Legacy Kawari検出時の案内表示** [S] — kawari.ini 等で旧Kawariを検出した場合、会話カタログ中央に「Kawari は対応予定です」を表示
   - 依存: SHIORI言語自動判別, 会話カタログ UI
 
@@ -187,6 +178,19 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 - [ ] **Stage 2: Legacy Kawari パーサー本体復帰** [L] — Kawari AST/意味解析を再導入し、厳格運用（重複名・未解決参照は error）で診断を出しつつ解析継続、Worker/Store/型（`ShioriType`, `parse-kawari-batch`）を復帰
   - 依存: Stage 1: Legacy Kawari 互換基盤, Web Worker 解析基盤, シンボルテーブル + スコープ管理
   - 詳細: `.docs/tasks/034-legacy-kawari-stage2.md`
+
+### Phase 9: Editor & Analytics — 0/3
+目標: コードエディタ統合と統計分析機能を提供する
+
+- [ ] **CodeMirror 6 統合** [M] — 右ペイン補助機能としてのコードビュー、行番号表示、基本的なテキスト検索
+  - 依存: ソースコードジャンプ
+  - 詳細: `.docs/tasks/020-codemirror-6-integration.md`
+- [ ] **SakuraScript シンタックスハイライト定義** [M] — CodeMirror 用カスタム言語定義、キャラ切替 / サーフェス / 選択肢 / イベントの色分け
+  - 依存: CodeMirror 6 統合
+  - 詳細: `.docs/tasks/021-sakura-script-syntax-highlight.md`
+- [ ] **統計ダッシュボード** [M] — SHIORI 種別、ファイル統計、会話パターン統計の表示
+  - 依存: 全 .dic 一括パース
+  - 詳細: `.docs/tasks/023-statistics-dashboard.md`
 
 ---
 
