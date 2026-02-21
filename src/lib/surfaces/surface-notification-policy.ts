@@ -1,4 +1,9 @@
-import type { SurfaceDiagnostic, SurfaceNotification, SurfaceNotificationStage } from "@/types";
+import type {
+	SurfaceDiagnostic,
+	SurfaceNotification,
+	SurfaceNotificationStage,
+	SurfaceSyncReason,
+} from "@/types";
 
 interface CreateNotificationOptions {
 	level: SurfaceNotification["level"];
@@ -54,6 +59,10 @@ export function diagnosticsToSurfaceNotifications(
 	);
 }
 
+/**
+ * 全属性を結合したキーで完全一致の重複を排除する。
+ * UI 層でのマージ（ストア通知 + ビットマップ通知）と、ストア内の appendSyncNotifications で使用。
+ */
 export function deduplicateSurfaceNotifications(
 	notifications: SurfaceNotification[],
 ): SurfaceNotification[] {
@@ -139,4 +148,43 @@ export function buildUnresolvedNotifications(
 			fatal: true,
 		}),
 	];
+}
+
+interface AppendSyncNotificationsOptions {
+	baseNotifications: SurfaceNotification[];
+	nextNotifications: SurfaceNotification[];
+	reason: SurfaceSyncReason;
+}
+
+/**
+ * サーフェス同期時の通知マージ。manual 時は全結合+完全重複排除、
+ * auto 時は同じ (code, scopeId, surfaceId) の古い通知を新しいもので置換する。
+ */
+export function appendSyncNotifications(
+	options: AppendSyncNotificationsOptions,
+): SurfaceNotification[] {
+	if (options.nextNotifications.length === 0) {
+		return options.baseNotifications;
+	}
+	if (options.reason === "manual") {
+		return deduplicateSurfaceNotifications([
+			...options.baseNotifications,
+			...options.nextNotifications,
+		]);
+	}
+	const syncKeys = new Set(
+		options.nextNotifications.map(
+			(notification) =>
+				`${notification.code}:${notification.scopeId ?? "null"}:${notification.surfaceId ?? "null"}`,
+		),
+	);
+	const preservedNotifications = options.baseNotifications.filter((notification) => {
+		if (notification.scopeId === null) {
+			return true;
+		}
+		return !syncKeys.has(
+			`${notification.code}:${notification.scopeId ?? "null"}:${notification.surfaceId ?? "null"}`,
+		);
+	});
+	return deduplicateSurfaceNotifications([...preservedNotifications, ...options.nextNotifications]);
 }

@@ -84,6 +84,20 @@ export function buildSurfaceScene(options: BuildSurfaceSceneOptions): SurfaceSce
 	};
 }
 
+export function buildScopeOrder(scene: SurfaceScene, secondaryScopeId: number): number[] {
+	const sorted = [...scene.nodes].sort((a, b) => {
+		if (a.worldLeft !== b.worldLeft) return a.worldLeft - b.worldLeft;
+		return b.scopeId - a.scopeId;
+	});
+	const orderedScopes = sorted.map((n) => n.scopeId);
+	for (const scopeId of [secondaryScopeId, 0]) {
+		if (!orderedScopes.includes(scopeId)) {
+			orderedScopes.push(scopeId);
+		}
+	}
+	return orderedScopes;
+}
+
 function normalizeNonNegative(value: number | undefined, fallback: number): number {
 	if (value === undefined || !Number.isFinite(value) || value < 0) {
 		return fallback;

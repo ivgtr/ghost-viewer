@@ -63,8 +63,13 @@ pnpm run lint:fix          # lint + format 自動修正
 
 詳細は `.docs/ARCHITECTURE.md` を参照。
 
-- **UI層 ↔ ロジック層の境界**: `src/components/` は `src/lib/` のロジックを直接呼ばず、`src/stores/` 経由でデータを取得する
+- **UI層 ↔ ロジック層の境界**: 状態変更はストアアクション経由で行う。ビュー変換（副作用のない純粋関数）は `src/lib/` から直接 import して `useMemo` 等で使用可
 - **Worker 境界**: 解析処理（パーサー・トークナイザー）は Worker 内で実行。入力は ArrayBuffer、出力は JSON シリアライズ可能なオブジェクト
+
+## Tool Usage
+
+- Bash ツールで `#` コメントをコマンド内に含めない。説明は `description` パラメータに記載する（改行を含むコマンドはセキュリティプロンプトが発生するため）
+- ファイル読み取りは `Read`、ファイル検索は `Glob`、内容検索は `Grep` を使い、`cat` / `find` / `grep` の Bash 実行は避ける
 
 ## Do NOT
 

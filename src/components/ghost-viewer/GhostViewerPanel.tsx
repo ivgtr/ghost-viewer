@@ -1,16 +1,18 @@
 import { useEffect, useMemo, useRef, useState, type RefObject } from "react";
-import { applyAlphaMask, applyColorKeyTransparency } from "@/lib/surfaces/canvas-alpha";
-import { buildSurfaceScene } from "@/lib/surfaces/surface-scene-builder";
+import { createScratchCanvas, drawCanvasLayer } from "@/lib/surfaces/canvas-drawing";
+import { buildScopeOrder, buildSurfaceScene } from "@/lib/surfaces/surface-scene-builder";
 import { buildSurfaceSetLayout } from "@/lib/surfaces/surface-set-layout";
 import {
 	countAlertNotifications,
-	createSurfaceNotification,
+	deduplicateSurfaceNotifications,
 	splitNotificationLevels,
 } from "@/lib/surfaces/surface-notification-policy";
 import { useFileContentStore } from "@/stores/file-content-store";
 import { useGhostStore } from "@/stores/ghost-store";
 import { useParseStore } from "@/stores/parse-store";
 import { resolveAvailableSurfaceIds, useSurfaceStore } from "@/stores/surface-store";
+import { collectImagePaths, useBitmapMap } from "./hooks/use-bitmap-map";
+import { useElementSize } from "./hooks/use-element-size";
 import type { SurfaceCharacterPlacement, SurfaceNotification, SurfaceVisualModel } from "@/types";
 
 interface UseDismissOverlayOptions {
@@ -19,12 +21,6 @@ interface UseDismissOverlayOptions {
 	panelRef: RefObject<HTMLDivElement | null>;
 	notificationButtonRef: RefObject<HTMLButtonElement | null>;
 	notificationOverlayRef: RefObject<HTMLDivElement | null>;
-}
-
-interface ScopeVisualState {
-	scopeId: number;
-	surfaceId: number | null;
-	model: SurfaceVisualModel | null;
 }
 
 interface SurfaceLayerProps {
@@ -106,7 +102,7 @@ export function GhostViewerPanel() {
 		[scopeVisuals],
 	);
 	const mergedNotifications = useMemo(
-		() => deduplicateNotifications([...notifications, ...bitmapNotifications]),
+		() => deduplicateSurfaceNotifications([...notifications, ...bitmapNotifications]),
 		[bitmapNotifications, notifications],
 	);
 	const notificationGroups = useMemo(
@@ -133,19 +129,10 @@ export function GhostViewerPanel() {
 			}),
 		[ghostDescriptProperties, shellDescriptProperties, visibleScopeVisuals],
 	);
-	const selectScopeOrder = useMemo(() => {
-		const sorted = [...scene.nodes].sort((a, b) => {
-			if (a.worldLeft !== b.worldLeft) return a.worldLeft - b.worldLeft;
-			return b.scopeId - a.scopeId;
-		});
-		const orderedScopes = sorted.map((n) => n.scopeId);
-		for (const scopeId of [secondaryScopeId, 0]) {
-			if (!orderedScopes.includes(scopeId)) {
-				orderedScopes.push(scopeId);
-			}
-		}
-		return orderedScopes;
-	}, [scene, secondaryScopeId]);
+	const selectScopeOrder = useMemo(
+		() => buildScopeOrder(scene, secondaryScopeId),
+		[scene, secondaryScopeId],
+	);
 	const placementByScope = useMemo(() => {
 		const layout = buildSurfaceSetLayout({
 			viewportWidth: stageSize.width,
@@ -421,43 +408,6 @@ export function GhostViewerPanel() {
 	);
 }
 
-function collectImagePaths(scopeVisuals: ScopeVisualState[]): string[] {
-	const paths = new Set<string>();
-	for (const scopeVisual of scopeVisuals) {
-		for (const layer of scopeVisual.model?.layers ?? []) {
-			paths.add(layer.path);
-			if (layer.alphaMaskPath) {
-				paths.add(layer.alphaMaskPath);
-			}
-		}
-	}
-	return [...paths].sort((a, b) => a.localeCompare(b));
-}
-
-function deduplicateNotifications(notifications: SurfaceNotification[]): SurfaceNotification[] {
-	const seen = new Set<string>();
-	const deduplicated: SurfaceNotification[] = [];
-	for (const notification of notifications) {
-		const key = [
-			notification.level,
-			notification.code,
-			notification.stage,
-			notification.fatal ? "1" : "0",
-			notification.shellName ?? "",
-			notification.scopeId ?? "",
-			notification.surfaceId ?? "",
-			notification.message,
-			notification.details ? JSON.stringify(notification.details) : "",
-		].join(":");
-		if (seen.has(key)) {
-			continue;
-		}
-		seen.add(key);
-		deduplicated.push(notification);
-	}
-	return deduplicated;
-}
-
 function NotificationList(props: { notifications: SurfaceNotification[] }) {
 	return (
 		<ul className="space-y-2">
@@ -561,227 +511,6 @@ function useDismissOverlay(options: UseDismissOverlayOptions): void {
 			document.removeEventListener("keydown", handleEscape);
 		};
 	}, [isOpen, notificationButtonRef, notificationOverlayRef, onClose, panelRef]);
-}
-
-function useBitmapMap(
-	imagePaths: string[],
-	fileContents: Map<string, ArrayBuffer>,
-): {
-	bitmapByPath: Map<string, ImageBitmap>;
-	notifications: SurfaceNotification[];
-} {
-	const [bitmapByPath, setBitmapByPath] = useState<Map<string, ImageBitmap>>(new Map());
-	const [notifications, setNotifications] = useState<SurfaceNotification[]>([]);
-	const cacheRef = useRef<{
-		fileContents: Map<string, ArrayBuffer> | null;
-		bitmapByPath: Map<string, ImageBitmap>;
-	}>({
-		fileContents: null,
-		bitmapByPath: new Map(),
-	});
-	const imagePathKey = useMemo(() => imagePaths.join("\n"), [imagePaths]);
-
-	useEffect(() => {
-		let cancelled = false;
-		const cache = cacheRef.current;
-		if (cache.fileContents !== fileContents) {
-			for (const bitmap of cache.bitmapByPath.values()) {
-				bitmap.close();
-			}
-			cache.bitmapByPath = new Map();
-			cache.fileContents = fileContents;
-		}
-
-		const targetPaths = imagePathKey === "" ? [] : imagePathKey.split("\n");
-		if (targetPaths.length === 0) {
-			setBitmapByPath(new Map());
-			setNotifications([]);
-			return () => {
-				cancelled = true;
-			};
-		}
-		if (typeof createImageBitmap !== "function") {
-			setBitmapByPath(new Map());
-			setNotifications([]);
-			return () => {
-				cancelled = true;
-			};
-		}
-
-		void (async () => {
-			const nextNotifications: SurfaceNotification[] = [];
-			for (const path of targetPaths) {
-				if (cache.bitmapByPath.has(path)) {
-					continue;
-				}
-				const buffer = fileContents.get(path);
-				if (!buffer) {
-					nextNotifications.push(
-						createSurfaceNotification({
-							level: "warning",
-							code: "SURFACE_IMAGE_BUFFER_MISSING",
-							message: `画像バッファを解決できませんでした: ${path}`,
-							shellName: null,
-							scopeId: null,
-							surfaceId: null,
-							stage: "store",
-							fatal: true,
-							details: {
-								candidate: path,
-							},
-						}),
-					);
-					continue;
-				}
-				try {
-					const bitmap = await createImageBitmap(new Blob([buffer], { type: "image/png" }));
-					cache.bitmapByPath.set(path, bitmap);
-					if (cancelled) {
-						break;
-					}
-				} catch {
-					nextNotifications.push(
-						createSurfaceNotification({
-							level: "warning",
-							code: "SURFACE_IMAGE_DECODE_FAILED",
-							message: `画像デコードに失敗しました: ${path}`,
-							shellName: null,
-							scopeId: null,
-							surfaceId: null,
-							stage: "store",
-							fatal: true,
-							details: {
-								candidate: path,
-							},
-						}),
-					);
-				}
-			}
-			if (cancelled) {
-				return;
-			}
-			const nextBitmapByPath = new Map<string, ImageBitmap>();
-			for (const path of targetPaths) {
-				const bitmap = cache.bitmapByPath.get(path);
-				if (bitmap) {
-					nextBitmapByPath.set(path, bitmap);
-				}
-			}
-			setBitmapByPath(nextBitmapByPath);
-			setNotifications(nextNotifications);
-		})();
-
-		return () => {
-			cancelled = true;
-		};
-	}, [fileContents, imagePathKey]);
-
-	useEffect(() => {
-		return () => {
-			const cache = cacheRef.current;
-			for (const bitmap of cache.bitmapByPath.values()) {
-				bitmap.close();
-			}
-			cache.bitmapByPath.clear();
-			cache.fileContents = null;
-		};
-	}, []);
-
-	return {
-		bitmapByPath,
-		notifications,
-	};
-}
-
-interface DrawCanvasLayerOptions {
-	context: CanvasRenderingContext2D;
-	layerContext: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
-	maskContext: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D;
-	layerCanvas: OffscreenCanvas | HTMLCanvasElement;
-	maskCanvas: OffscreenCanvas | HTMLCanvasElement;
-	source: ImageBitmap;
-	mask: ImageBitmap | null;
-	drawX: number;
-	drawY: number;
-	drawWidth: number;
-	drawHeight: number;
-}
-
-function drawCanvasLayer(options: DrawCanvasLayerOptions): void {
-	const sourceWidth = Math.max(1, options.source.width);
-	const sourceHeight = Math.max(1, options.source.height);
-	const drawWidth = Math.max(1, Math.floor(options.drawWidth));
-	const drawHeight = Math.max(1, Math.floor(options.drawHeight));
-	options.layerCanvas.width = sourceWidth;
-	options.layerCanvas.height = sourceHeight;
-	options.layerContext.imageSmoothingEnabled = false;
-	options.maskContext.imageSmoothingEnabled = false;
-	options.layerContext.clearRect(0, 0, sourceWidth, sourceHeight);
-	options.layerContext.drawImage(options.source, 0, 0, sourceWidth, sourceHeight);
-	const layerImageData = options.layerContext.getImageData(0, 0, sourceWidth, sourceHeight);
-
-	if (options.mask) {
-		options.maskCanvas.width = sourceWidth;
-		options.maskCanvas.height = sourceHeight;
-		options.maskContext.clearRect(0, 0, sourceWidth, sourceHeight);
-		options.maskContext.drawImage(options.mask, 0, 0, sourceWidth, sourceHeight);
-		const maskImageData = options.maskContext.getImageData(0, 0, sourceWidth, sourceHeight);
-		applyAlphaMask(layerImageData, maskImageData);
-	} else {
-		applyColorKeyTransparency(layerImageData, sourceWidth, sourceHeight);
-	}
-	options.layerContext.putImageData(layerImageData, 0, 0);
-
-	options.context.drawImage(
-		options.layerCanvas,
-		options.drawX,
-		options.drawY,
-		drawWidth,
-		drawHeight,
-	);
-}
-
-function createScratchCanvas(width: number, height: number): OffscreenCanvas | HTMLCanvasElement {
-	if (typeof OffscreenCanvas !== "undefined") {
-		return new OffscreenCanvas(width, height);
-	}
-	const canvas = document.createElement("canvas");
-	canvas.width = width;
-	canvas.height = height;
-	return canvas;
-}
-
-function useElementSize(ref: RefObject<HTMLDivElement | null>): {
-	width: number;
-	height: number;
-} {
-	const [size, setSize] = useState({ width: 0, height: 0 });
-
-	useEffect(() => {
-		const element = ref.current;
-		if (!element) {
-			return;
-		}
-
-		const update = () => {
-			const rect = element.getBoundingClientRect();
-			setSize({
-				width: rect.width,
-				height: rect.height,
-			});
-		};
-
-		update();
-		const observer = new ResizeObserver(() => {
-			update();
-		});
-		observer.observe(element);
-		return () => {
-			observer.disconnect();
-		};
-	}, [ref]);
-
-	return size;
 }
 
 function BellIcon() {

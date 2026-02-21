@@ -182,6 +182,38 @@ function resolveDirectAssetModel(
 	sourceIndex: ReturnType<typeof buildSurfaceSourceIndex>,
 	trace: SurfaceResolutionTrace,
 ): ResolveVisualModelResult {
+	const assetLookup = findCatalogAsset(options, trace);
+	if (!assetLookup) {
+		return { model: null, notifications: [] };
+	}
+
+	const pathResult = resolveAssetPath(options, assetLookup.pngPath, sourceIndex, trace);
+	if (!pathResult) {
+		return { model: null, notifications: [] };
+	}
+	if (!pathResult.ok) {
+		return { model: null, notifications: pathResult.notifications };
+	}
+
+	const bufferResult = loadAssetBuffer(options, pathResult.resolvedPath, trace);
+	if (!bufferResult.ok) {
+		return { model: null, notifications: bufferResult.notifications };
+	}
+
+	return buildDirectAssetVisualModel(
+		options,
+		pathResult.resolvedPath,
+		bufferResult.buffer,
+		assetLookup.pnaPath,
+		sourceIndex,
+		trace,
+	);
+}
+
+function findCatalogAsset(
+	options: ResolveSurfaceVisualOptions,
+	trace: SurfaceResolutionTrace,
+): { pngPath: string; pnaPath: string | null } | null {
 	const shellCatalog = options.catalog.find((entry) => entry.shellName === options.shellName);
 	if (!shellCatalog) {
 		trace.steps.push({
@@ -190,10 +222,7 @@ function resolveDirectAssetModel(
 			details: `shell catalogがありません: ${options.shellName}`,
 			fatal: false,
 		});
-		return {
-			model: null,
-			notifications: [],
-		};
+		return null;
 	}
 
 	const asset = shellCatalog.assets.find((entry) => entry.id === options.surfaceId);
@@ -204,14 +233,23 @@ function resolveDirectAssetModel(
 			details: `surface ${options.surfaceId} のdirect assetがありません`,
 			fatal: false,
 		});
-		return {
-			model: null,
-			notifications: [],
-		};
+		return null;
 	}
 
+	return { pngPath: asset.pngPath, pnaPath: asset.pnaPath };
+}
+
+function resolveAssetPath(
+	options: ResolveSurfaceVisualOptions,
+	pngPath: string,
+	sourceIndex: ReturnType<typeof buildSurfaceSourceIndex>,
+	trace: SurfaceResolutionTrace,
+):
+	| { ok: true; resolvedPath: string; notifications: never[] }
+	| { ok: false; notifications: SurfaceNotification[] }
+	| null {
 	const pathResolution = resolveImagePath({
-		requestedPath: asset.pngPath,
+		requestedPath: pngPath,
 		shellName: options.shellName,
 		index: sourceIndex,
 	});
@@ -219,28 +257,25 @@ function resolveDirectAssetModel(
 		const notification = createSurfaceNotification({
 			level: "warning",
 			code: "SURFACE_PATH_CANDIDATE_MISS",
-			message: `画像パスを解決できませんでした: ${asset.pngPath}`,
+			message: `画像パスを解決できませんでした: ${pngPath}`,
 			shellName: options.shellName,
 			scopeId: null,
 			surfaceId: options.surfaceId,
 			stage: "path",
 			fatal: true,
 			details: {
-				requestedPath: asset.pngPath,
+				requestedPath: pngPath,
 				candidates: pathResolution.attemptedCandidates.join(", "),
 			},
 		});
 		trace.steps.push({
 			stage: "path",
 			ok: false,
-			details: `direct assetのパス解決に失敗しました: ${asset.pngPath}`,
+			details: `direct assetのパス解決に失敗しました: ${pngPath}`,
 			fatal: true,
 		});
 		trace.notifications.push(notification);
-		return {
-			model: null,
-			notifications: [notification],
-		};
+		return { ok: false, notifications: [notification] };
 	}
 
 	trace.steps.push({
@@ -250,8 +285,14 @@ function resolveDirectAssetModel(
 		fatal: false,
 	});
 
-	const resolvedPath = pathResolution.resolvedPath;
-	const notifications: SurfaceNotification[] = [];
+	return { ok: true, resolvedPath: pathResolution.resolvedPath, notifications: [] };
+}
+
+function loadAssetBuffer(
+	options: ResolveSurfaceVisualOptions,
+	resolvedPath: string,
+	trace: SurfaceResolutionTrace,
+): { ok: true; buffer: ArrayBuffer } | { ok: false; notifications: SurfaceNotification[] } {
 	const buffer = options.fileContents.get(resolvedPath);
 	if (!buffer) {
 		const notification = createSurfaceNotification({
@@ -271,12 +312,20 @@ function resolveDirectAssetModel(
 			fatal: true,
 		});
 		trace.notifications.push(notification);
-		return {
-			model: null,
-			notifications: [notification],
-		};
+		return { ok: false, notifications: [notification] };
 	}
+	return { ok: true, buffer };
+}
 
+function buildDirectAssetVisualModel(
+	options: ResolveSurfaceVisualOptions,
+	resolvedPath: string,
+	buffer: ArrayBuffer,
+	pnaPath: string | null,
+	sourceIndex: ReturnType<typeof buildSurfaceSourceIndex>,
+	trace: SurfaceResolutionTrace,
+): ResolveVisualModelResult {
+	const notifications: SurfaceNotification[] = [];
 	const metadata = readPngMetadata(buffer);
 	if (metadata === null) {
 		notifications.push(
@@ -297,7 +346,7 @@ function resolveDirectAssetModel(
 		shellName: options.shellName,
 		surfaceId: options.surfaceId,
 		sourcePath: resolvedPath,
-		explicitPnaPath: asset.pnaPath,
+		explicitPnaPath: pnaPath,
 		sourceIndex,
 		fileContents: options.fileContents,
 	});
@@ -425,158 +474,174 @@ function buildRuntimeFrames(
 	const frames: SurfaceAnimationFrame[] = [];
 	const patterns = [...animation.patterns].sort((left, right) => left.index - right.index);
 	for (const pattern of patterns) {
-		const rawMethod = (pattern.rawMethod ?? pattern.method ?? "unknown").trim().toLowerCase();
-		const normalizedMethod = rawMethod === "bind" ? "overlay" : pattern.method;
-		if (rawMethod === "bind") {
-			notifications.push(
-				createSurfaceNotification({
-					level: "info",
-					code: "SURFACE_STATIC_ANIMATION_METHOD_DIALECT",
-					message: "animation pattern method 'bind' を overlay として処理しました",
-					shellName: options.shellName,
-					scopeId: null,
-					surfaceId: options.surfaceId,
-					stage: "runtime-eval",
-					fatal: false,
-					details: {
-						trackId: animation.id,
-						patternIndex: pattern.index,
-					},
-				}),
-			);
-		}
-
-		if (
-			normalizedMethod === "start" ||
-			normalizedMethod === "stop" ||
-			normalizedMethod === "alternativestart" ||
-			normalizedMethod === "alternativestop"
-		) {
+		const classification = classifyPatternMethod(options, animation.id, pattern, notifications);
+		if (classification === "skip") {
 			continue;
 		}
 
-		if (normalizedMethod === "unknown") {
-			notifications.push(
-				createSurfaceNotification({
-					level: "warning",
-					code: "SURFACE_STATIC_ANIMATION_METHOD_UNKNOWN",
-					message: `未対応のanimation pattern methodを検出しました: ${rawMethod || "unknown"}`,
-					shellName: options.shellName,
-					scopeId: null,
-					surfaceId: options.surfaceId,
-					stage: "runtime-eval",
-					fatal: false,
-					details: {
-						trackId: animation.id,
-						patternIndex: pattern.index,
-						rawMethod: rawMethod || "unknown",
-					},
-				}),
-			);
-			continue;
+		const frame = buildPatternFrame(options, animation.id, pattern, classification, notifications);
+		if (frame) {
+			frames.push(frame);
 		}
-
-		if (
-			normalizedMethod === "move" ||
-			normalizedMethod === "reduce" ||
-			normalizedMethod === "insert"
-		) {
-			notifications.push(
-				createSurfaceNotification({
-					level: "info",
-					code: "SURFACE_RUNTIME_METHOD_UNSUPPORTED",
-					message: `animation method=${normalizedMethod} は実時間再生対象外です`,
-					shellName: options.shellName,
-					scopeId: null,
-					surfaceId: options.surfaceId,
-					stage: "runtime-eval",
-					fatal: false,
-					details: {
-						trackId: animation.id,
-						patternIndex: pattern.index,
-					},
-				}),
-			);
-			continue;
-		}
-
-		const waitMs =
-			pattern.wait !== null && Number.isFinite(pattern.wait) ? Math.max(1, pattern.wait) : 50;
-		if (pattern.surfaceRef === -1) {
-			frames.push({
-				trackId: animation.id,
-				patternIndex: pattern.index,
-				operation: "clear",
-				waitMs,
-				layers: [],
-			});
-			continue;
-		}
-		if (pattern.surfaceRef === null) {
-			notifications.push(
-				createSurfaceNotification({
-					level: "warning",
-					code: "SURFACE_STATIC_PATTERN_INVALID",
-					message: "surfaceRef が不正なためpatternを適用できませんでした",
-					shellName: options.shellName,
-					scopeId: null,
-					surfaceId: options.surfaceId,
-					stage: "runtime-eval",
-					fatal: false,
-					details: {
-						trackId: animation.id,
-						patternIndex: pattern.index,
-					},
-				}),
-			);
-			continue;
-		}
-
-		const referenced = evaluateSurfaceStatic({
-			shellName: options.shellName,
-			surfaceId: pattern.surfaceRef,
-			catalog: options.catalog,
-			definitionsByShell: options.definitionsByShell,
-			fileContents: options.fileContents,
-			sourceIndex: options.sourceIndex,
-		});
-		notifications.push(...referenced.diagnostics);
-		if (referenced.layers.length === 0) {
-			notifications.push(
-				createSurfaceNotification({
-					level: "warning",
-					code: "SURFACE_STATIC_PATTERN_SURFACE_UNRESOLVED",
-					message: `patternの参照surfaceを解決できませんでした: ${pattern.surfaceRef}`,
-					shellName: options.shellName,
-					scopeId: null,
-					surfaceId: options.surfaceId,
-					stage: "runtime-eval",
-					fatal: true,
-					details: {
-						trackId: animation.id,
-						patternIndex: pattern.index,
-						referencedSurfaceId: pattern.surfaceRef,
-					},
-				}),
-			);
-			continue;
-		}
-
-		const layers = referenced.layers.map((layer) => ({
-			...layer,
-			x: layer.x + pattern.x,
-			y: layer.y + pattern.y,
-		}));
-		frames.push({
-			trackId: animation.id,
-			patternIndex: pattern.index,
-			operation: normalizedMethod === "base" ? "replace-base" : "overlay",
-			waitMs,
-			layers,
-		});
 	}
 
 	return frames;
+}
+
+function classifyPatternMethod(
+	options: { shellName: string; surfaceId: number },
+	trackId: number,
+	pattern: SurfaceAnimation["patterns"][number],
+	notifications: SurfaceNotification[],
+): string | "skip" {
+	const rawMethod = (pattern.rawMethod ?? pattern.method ?? "unknown").trim().toLowerCase();
+	const normalizedMethod = rawMethod === "bind" ? "overlay" : pattern.method;
+	if (rawMethod === "bind") {
+		notifications.push(
+			createSurfaceNotification({
+				level: "info",
+				code: "SURFACE_STATIC_ANIMATION_METHOD_DIALECT",
+				message: "animation pattern method 'bind' を overlay として処理しました",
+				shellName: options.shellName,
+				scopeId: null,
+				surfaceId: options.surfaceId,
+				stage: "runtime-eval",
+				fatal: false,
+				details: { trackId, patternIndex: pattern.index },
+			}),
+		);
+	}
+
+	if (
+		normalizedMethod === "start" ||
+		normalizedMethod === "stop" ||
+		normalizedMethod === "alternativestart" ||
+		normalizedMethod === "alternativestop"
+	) {
+		return "skip";
+	}
+
+	if (normalizedMethod === "unknown") {
+		notifications.push(
+			createSurfaceNotification({
+				level: "warning",
+				code: "SURFACE_STATIC_ANIMATION_METHOD_UNKNOWN",
+				message: `未対応のanimation pattern methodを検出しました: ${rawMethod || "unknown"}`,
+				shellName: options.shellName,
+				scopeId: null,
+				surfaceId: options.surfaceId,
+				stage: "runtime-eval",
+				fatal: false,
+				details: { trackId, patternIndex: pattern.index, rawMethod: rawMethod || "unknown" },
+			}),
+		);
+		return "skip";
+	}
+
+	if (
+		normalizedMethod === "move" ||
+		normalizedMethod === "reduce" ||
+		normalizedMethod === "insert"
+	) {
+		notifications.push(
+			createSurfaceNotification({
+				level: "info",
+				code: "SURFACE_RUNTIME_METHOD_UNSUPPORTED",
+				message: `animation method=${normalizedMethod} は実時間再生対象外です`,
+				shellName: options.shellName,
+				scopeId: null,
+				surfaceId: options.surfaceId,
+				stage: "runtime-eval",
+				fatal: false,
+				details: { trackId, patternIndex: pattern.index },
+			}),
+		);
+		return "skip";
+	}
+
+	return normalizedMethod;
+}
+
+function buildPatternFrame(
+	options: {
+		shellName: string;
+		surfaceId: number;
+		catalog: ShellSurfaceCatalog[];
+		definitionsByShell: SurfaceDefinitionsByShell;
+		fileContents: Map<string, ArrayBuffer>;
+		sourceIndex: ReturnType<typeof buildSurfaceSourceIndex>;
+	},
+	trackId: number,
+	pattern: SurfaceAnimation["patterns"][number],
+	normalizedMethod: string,
+	notifications: SurfaceNotification[],
+): SurfaceAnimationFrame | null {
+	const waitMs =
+		pattern.wait !== null && Number.isFinite(pattern.wait) ? Math.max(1, pattern.wait) : 50;
+	if (pattern.surfaceRef === -1) {
+		return {
+			trackId,
+			patternIndex: pattern.index,
+			operation: "clear",
+			waitMs,
+			layers: [],
+		};
+	}
+	if (pattern.surfaceRef === null) {
+		notifications.push(
+			createSurfaceNotification({
+				level: "warning",
+				code: "SURFACE_STATIC_PATTERN_INVALID",
+				message: "surfaceRef が不正なためpatternを適用できませんでした",
+				shellName: options.shellName,
+				scopeId: null,
+				surfaceId: options.surfaceId,
+				stage: "runtime-eval",
+				fatal: false,
+				details: { trackId, patternIndex: pattern.index },
+			}),
+		);
+		return null;
+	}
+
+	const referenced = evaluateSurfaceStatic({
+		shellName: options.shellName,
+		surfaceId: pattern.surfaceRef,
+		catalog: options.catalog,
+		definitionsByShell: options.definitionsByShell,
+		fileContents: options.fileContents,
+		sourceIndex: options.sourceIndex,
+	});
+	notifications.push(...referenced.diagnostics);
+	if (referenced.layers.length === 0) {
+		notifications.push(
+			createSurfaceNotification({
+				level: "warning",
+				code: "SURFACE_STATIC_PATTERN_SURFACE_UNRESOLVED",
+				message: `patternの参照surfaceを解決できませんでした: ${pattern.surfaceRef}`,
+				shellName: options.shellName,
+				scopeId: null,
+				surfaceId: options.surfaceId,
+				stage: "runtime-eval",
+				fatal: true,
+				details: { trackId, patternIndex: pattern.index, referencedSurfaceId: pattern.surfaceRef },
+			}),
+		);
+		return null;
+	}
+
+	const layers = referenced.layers.map((layer) => ({
+		...layer,
+		x: layer.x + pattern.x,
+		y: layer.y + pattern.y,
+	}));
+	return {
+		trackId,
+		patternIndex: pattern.index,
+		operation: normalizedMethod === "base" ? "replace-base" : "overlay",
+		waitMs,
+		layers,
+	};
 }
 
 function resolveRuntimeMode(animation: SurfaceAnimation): {
