@@ -284,6 +284,42 @@ describe("GhostViewerPanel", () => {
 		expect(screen.getByText("scope 1")).toBeInTheDocument();
 	});
 
+	it("availableSecondaryScopeIds が2つ以上の場合にキャラクター切替ドロップダウンが表示される", () => {
+		initializePanelState();
+		useSurfaceStore.setState({
+			availableSecondaryScopeIds: [1, 2],
+		});
+		useGhostStore.setState({
+			meta: {
+				name: "テストゴースト",
+				author: "テスト",
+				characterNames: { 0: "桜花", 1: "翡翠", 2: "第三者" },
+				properties: {},
+			},
+		});
+		render(<GhostViewerPanel />);
+
+		const dropdown = screen.getByTestId("secondary-scope-select");
+		expect(dropdown).toBeInTheDocument();
+		const options = within(dropdown)
+			.getAllByRole("option")
+			.map((o) => o.textContent);
+		expect(options).toEqual(["翡翠", "第三者"]);
+	});
+
+	it("secondaryScopeId を 2 に切替えた場合、surface-select-2 が描画される", () => {
+		initializePanelState();
+		useSurfaceStore.setState({
+			availableSecondaryScopeIds: [1, 2],
+			secondaryScopeId: 2,
+		});
+		render(<GhostViewerPanel />);
+
+		expect(screen.getByTestId("surface-select-0")).toBeInTheDocument();
+		expect(screen.getByTestId("surface-select-2")).toBeInTheDocument();
+		expect(screen.queryByTestId("surface-select-1")).not.toBeInTheDocument();
+	});
+
 	it("積集合が空のとき allSurfaceIds にフォールバックする", () => {
 		initializePanelState();
 		useParseStore.setState({

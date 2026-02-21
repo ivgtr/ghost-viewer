@@ -25,6 +25,8 @@ export function ConversationPreview() {
 	const setSurfaceForScope = useSurfaceStore((s) => s.setSurfaceForScope);
 	const syncFromConversation = useSurfaceStore((s) => s.syncFromConversation);
 	const restartRuntimeForScopes = useSurfaceStore((s) => s.restartRuntimeForScopes);
+	const secondaryScopeId = useSurfaceStore((s) => s.secondaryScopeId);
+	const setSecondaryScopeId = useSurfaceStore((s) => s.setSecondaryScopeId);
 	const setVariantIndex = useViewStore((s) => s.setVariantIndex);
 	const showCode = useViewStore((s) => s.showCode);
 	const setJumpContext = useViewStore((s) => s.setJumpContext);
@@ -67,9 +69,12 @@ export function ConversationPreview() {
 	);
 	const handleSurfaceClick = useCallback(
 		(scopeId: number, surfaceId: number) => {
+			if (scopeId >= 1 && scopeId !== secondaryScopeId) {
+				setSecondaryScopeId(scopeId);
+			}
 			setSurfaceForScope(scopeId, surfaceId, "manual");
 		},
-		[setSurfaceForScope],
+		[secondaryScopeId, setSecondaryScopeId, setSurfaceForScope],
 	);
 
 	const handleJumpToSource = useCallback(() => {
@@ -96,12 +101,13 @@ export function ConversationPreview() {
 			return;
 		}
 		if (surfaceAnalysis.firstByScope.length === 0) {
-			restartRuntimeForScopes([0, 1]);
+			restartRuntimeForScopes([0, secondaryScopeId]);
 			return;
 		}
 		syncFromConversation(surfaceAnalysis.firstByScope, "auto");
 	}, [
 		dialogues.length,
+		secondaryScopeId,
 		surfaceAnalysis,
 		restartRuntimeForScopes,
 		selectedEventName,

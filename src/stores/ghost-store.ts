@@ -94,6 +94,12 @@ export const useGhostStore = createStore<GhostState>(initialState, (set, get) =>
 					const meta = parseDescriptFromBuffer(descriptBuffer);
 					properties = meta.properties;
 					set({ meta });
+					const secondaryScopeIds = Object.keys(meta.characterNames)
+						.map(Number)
+						.filter((id) => Number.isInteger(id) && id >= 1);
+					if (secondaryScopeIds.length > 0) {
+						useSurfaceStore.getState().setAvailableSecondaryScopeIds(secondaryScopeIds);
+					}
 				}
 				const surfaceAssets = extractSurfaceAssets(extractionResult.fileContents);
 				const shellNames = surfaceAssets.shells.map((shell) => shell.shellName);

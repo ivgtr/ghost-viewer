@@ -21,7 +21,6 @@ interface BuildSurfaceSceneOptions {
 
 const DEFAULT_GAP = 24;
 const SAKURA_SCOPE_ID = 0;
-const KERO_SCOPE_ID = 1;
 
 export function buildSurfaceScene(options: BuildSurfaceSceneOptions): SurfaceScene {
 	const gap = normalizeNonNegative(options.gap, DEFAULT_GAP);
@@ -35,16 +34,16 @@ export function buildSurfaceScene(options: BuildSurfaceSceneOptions): SurfaceSce
 	}
 
 	const sakura = characterByScope.get(SAKURA_SCOPE_ID);
-	const kero = characterByScope.get(KERO_SCOPE_ID);
+	const secondary = characters.find((c) => c.scopeId !== SAKURA_SCOPE_ID) ?? null;
 
 	const fallbackCenterXByScope = new Map<number, number>();
 	const fallbackBottomYByScope = new Map<number, number>();
-	if (kero) {
-		fallbackCenterXByScope.set(KERO_SCOPE_ID, kero.width / 2);
-		fallbackBottomYByScope.set(KERO_SCOPE_ID, 0);
+	if (secondary) {
+		fallbackCenterXByScope.set(secondary.scopeId, secondary.width / 2);
+		fallbackBottomYByScope.set(secondary.scopeId, 0);
 	}
 	if (sakura) {
-		const baseLeft = kero ? kero.width + gap : 0;
+		const baseLeft = secondary ? secondary.width + gap : 0;
 		fallbackCenterXByScope.set(SAKURA_SCOPE_ID, baseLeft + sakura.width / 2);
 		fallbackBottomYByScope.set(SAKURA_SCOPE_ID, 0);
 	}

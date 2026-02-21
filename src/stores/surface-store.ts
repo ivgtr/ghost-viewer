@@ -38,6 +38,8 @@ interface SurfaceState {
 	currentSurfaceByScope: Map<number, number | null>;
 	visualByScope: Map<number, SurfaceVisualModel | null>;
 	focusedScope: number;
+	secondaryScopeId: number;
+	availableSecondaryScopeIds: number[];
 	initialize: (input: SurfaceInitializeInput) => void;
 	selectShell: (shellName: string | null) => void;
 	ensureShellDescriptLoaded: (shellName: string | null) => void;
@@ -52,6 +54,8 @@ interface SurfaceState {
 	) => void;
 	restartRuntimeForScopes: (scopeIds: number[]) => void;
 	setFocusedScope: (scopeId: number) => void;
+	setSecondaryScopeId: (scopeId: number) => void;
+	setAvailableSecondaryScopeIds: (scopeIds: number[]) => void;
 	reset: () => void;
 }
 
@@ -65,6 +69,7 @@ interface ResolveCurrentSurfaceOptions {
 	shellDescriptProperties: Record<string, string>;
 	previousSurfaceByScope: Map<number, number | null>;
 	previousVisualByScope: Map<number, SurfaceVisualModel | null>;
+	scopeIds: number[];
 	rng: () => number;
 }
 
@@ -117,6 +122,8 @@ export const useSurfaceStore = createStore<SurfaceState>(
 		currentSurfaceByScope: DEFAULT_CURRENT_SURFACE_BY_SCOPE,
 		visualByScope: DEFAULT_VISUAL_BY_SCOPE,
 		focusedScope: 0,
+		secondaryScopeId: 1,
+		availableSecondaryScopeIds: [],
 	},
 	(set, get) => ({
 		initialize: (input) => {
@@ -125,6 +132,7 @@ export const useSurfaceStore = createStore<SurfaceState>(
 			const selectedShellName = resolveSelectedShellName(input.catalog, input.initialShellName);
 			const baseNotifications = diagnosticsToSurfaceNotifications(input.diagnostics);
 			const fileContents = useFileContentStore.getState().fileContents;
+			const state = get();
 			const resolved = resolveCurrentSurfaces({
 				shellName: selectedShellName,
 				catalog: input.catalog,
@@ -135,6 +143,7 @@ export const useSurfaceStore = createStore<SurfaceState>(
 				shellDescriptProperties: {},
 				previousSurfaceByScope: DEFAULT_CURRENT_SURFACE_BY_SCOPE,
 				previousVisualByScope: DEFAULT_VISUAL_BY_SCOPE,
+				scopeIds: [0, state.secondaryScopeId],
 				rng: resolverRng,
 			});
 
@@ -189,6 +198,7 @@ export const useSurfaceStore = createStore<SurfaceState>(
 				shellDescriptProperties: refreshedState.shellDescriptCacheByName[shellName] ?? {},
 				previousSurfaceByScope: refreshedState.currentSurfaceByScope,
 				previousVisualByScope: refreshedState.visualByScope,
+				scopeIds: [0, refreshedState.secondaryScopeId],
 				rng: resolverRng,
 			});
 			set({
@@ -382,6 +392,70 @@ export const useSurfaceStore = createStore<SurfaceState>(
 			}
 			set({ focusedScope: scopeId });
 		},
+		setSecondaryScopeId: (scopeId) => {
+			const state = get();
+			if (
+				!Number.isInteger(scopeId) ||
+				scopeId < 1 ||
+				!state.availableSecondaryScopeIds.includes(scopeId)
+			) {
+				return;
+			}
+			set({ secondaryScopeId: scopeId });
+
+			if (!state.currentSurfaceByScope.has(scopeId)) {
+				const shellName = state.selectedShellName;
+				const fileContents = useFileContentStore.getState().fileContents;
+				if (shellName !== null) {
+					const result = resolveRequestedSurface({
+						scopeId,
+						requestedSurfaceId:
+							resolveRequestedSurfaceId(
+								scopeId,
+								resolveAvailableSurfaceIds(shellName, state.catalog, state.definitions),
+								mergeDescriptProperties(
+									state.ghostDescriptProperties,
+									state.shellDescriptCacheByName[shellName] ?? {},
+								),
+							) ?? 0,
+						shellName,
+						catalog: state.catalog,
+						definitionsByShell: state.definitions,
+						aliasMapByShell: state.aliasMap,
+						fileContents,
+						previousSurfaceByScope: state.currentSurfaceByScope,
+						previousVisualByScope: state.visualByScope,
+						rng: resolverRng,
+					});
+					const nextCurrentSurfaceByScope = new Map(get().currentSurfaceByScope);
+					nextCurrentSurfaceByScope.set(scopeId, result.surfaceId);
+					const nextVisualByScope = new Map(get().visualByScope);
+					nextVisualByScope.set(scopeId, result.model);
+					set({
+						currentSurfaceByScope: nextCurrentSurfaceByScope,
+						visualByScope: nextVisualByScope,
+					});
+					replaceScopeRuntime(scopeId, result.runtimePlan);
+					return;
+				}
+			}
+
+			get().restartRuntimeForScopes([scopeId]);
+		},
+		setAvailableSecondaryScopeIds: (scopeIds) => {
+			const unique = [...new Set(scopeIds)].sort((a, b) => a - b);
+			set({ availableSecondaryScopeIds: unique });
+
+			const state = get();
+			if (!unique.includes(state.secondaryScopeId)) {
+				const first = unique[0];
+				if (first !== undefined) {
+					get().setSecondaryScopeId(first);
+				} else {
+					set({ secondaryScopeId: 1 });
+				}
+			}
+		},
 	}),
 );
 
@@ -391,6 +465,10 @@ useSurfaceStore.setState({
 		stopAllRuntimes();
 		resolverRng = Math.random;
 		surfaceStoreReset();
+		useSurfaceStore.setState({
+			secondaryScopeId: 1,
+			availableSecondaryScopeIds: [],
+		});
 	},
 });
 
@@ -401,13 +479,18 @@ function resolveCurrentSurfaces(options: ResolveCurrentSurfaceOptions): {
 	notifications: SurfaceNotification[];
 } {
 	if (options.shellName === null) {
+		const emptySurfaceByScope = new Map<number, number | null>();
+		const emptyVisualByScope = new Map<number, SurfaceVisualModel | null>();
+		const emptyRuntimePlanByScope = new Map<number, SurfaceAnimationRuntimePlan | null>();
+		for (const scopeId of options.scopeIds) {
+			emptySurfaceByScope.set(scopeId, null);
+			emptyVisualByScope.set(scopeId, null);
+			emptyRuntimePlanByScope.set(scopeId, null);
+		}
 		return {
-			currentSurfaceByScope: new Map(DEFAULT_CURRENT_SURFACE_BY_SCOPE),
-			visualByScope: new Map(DEFAULT_VISUAL_BY_SCOPE),
-			runtimePlanByScope: new Map([
-				[0, null],
-				[1, null],
-			]),
+			currentSurfaceByScope: emptySurfaceByScope,
+			visualByScope: emptyVisualByScope,
+			runtimePlanByScope: emptyRuntimePlanByScope,
 			notifications: [],
 		};
 	}
@@ -416,7 +499,7 @@ function resolveCurrentSurfaces(options: ResolveCurrentSurfaceOptions): {
 	const visualByScope = new Map<number, SurfaceVisualModel | null>();
 	const runtimePlanByScope = new Map<number, SurfaceAnimationRuntimePlan | null>();
 	const notifications: SurfaceNotification[] = [];
-	for (const scopeId of [0, 1]) {
+	for (const scopeId of options.scopeIds) {
 		const availableSurfaceIds = resolveAvailableSurfaceIds(
 			options.shellName,
 			options.catalog,

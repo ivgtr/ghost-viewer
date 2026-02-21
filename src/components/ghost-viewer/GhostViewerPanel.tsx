@@ -50,6 +50,9 @@ export function GhostViewerPanel() {
 	const ensureShellDescriptLoaded = useSurfaceStore((state) => state.ensureShellDescriptLoaded);
 	const setSurfaceForScope = useSurfaceStore((state) => state.setSurfaceForScope);
 	const setFocusedScope = useSurfaceStore((state) => state.setFocusedScope);
+	const secondaryScopeId = useSurfaceStore((state) => state.secondaryScopeId);
+	const availableSecondaryScopeIds = useSurfaceStore((state) => state.availableSecondaryScopeIds);
+	const setSecondaryScopeId = useSurfaceStore((state) => state.setSecondaryScopeId);
 	const characterNames =
 		useGhostStore((state) => state.meta?.characterNames) ?? EMPTY_CHARACTER_NAMES;
 	const fileContents = useFileContentStore((state) => state.fileContents);
@@ -86,12 +89,12 @@ export function GhostViewerPanel() {
 
 	const scopeVisuals = useMemo(
 		() =>
-			[0, 1].map((scopeId) => ({
+			[0, secondaryScopeId].map((scopeId) => ({
 				scopeId,
 				surfaceId: currentSurfaceByScope.get(scopeId) ?? null,
 				model: visualByScope.get(scopeId) ?? null,
 			})),
-		[currentSurfaceByScope, visualByScope],
+		[currentSurfaceByScope, secondaryScopeId, visualByScope],
 	);
 	const imagePaths = useMemo(() => collectImagePaths(scopeVisuals), [scopeVisuals]);
 	const { bitmapByPath, notifications: bitmapNotifications } = useBitmapMap(
@@ -136,13 +139,13 @@ export function GhostViewerPanel() {
 			return b.scopeId - a.scopeId;
 		});
 		const orderedScopes = sorted.map((n) => n.scopeId);
-		for (const scopeId of [1, 0]) {
+		for (const scopeId of [secondaryScopeId, 0]) {
 			if (!orderedScopes.includes(scopeId)) {
 				orderedScopes.push(scopeId);
 			}
 		}
 		return orderedScopes;
-	}, [scene]);
+	}, [scene, secondaryScopeId]);
 	const placementByScope = useMemo(() => {
 		const layout = buildSurfaceSetLayout({
 			viewportWidth: stageSize.width,
@@ -279,6 +282,31 @@ export function GhostViewerPanel() {
 							</option>
 						))}
 					</select>
+				</div>
+			) : null}
+
+			{availableSecondaryScopeIds.length >= 2 ? (
+				<div className="border-b border-zinc-700 px-4 py-1.5">
+					<label className="flex items-center gap-1 text-xs text-zinc-400">
+						<span>キャラクター</span>
+						<select
+							data-testid="secondary-scope-select"
+							value={String(secondaryScopeId)}
+							onChange={(e) => {
+								const id = Number(e.target.value);
+								if (Number.isInteger(id)) {
+									setSecondaryScopeId(id);
+								}
+							}}
+							className="rounded border border-zinc-600 bg-zinc-800 px-2 py-0.5 text-xs text-zinc-200"
+						>
+							{availableSecondaryScopeIds.map((id) => (
+								<option key={id} value={String(id)}>
+									{characterNames[id] ?? `scope ${id}`}
+								</option>
+							))}
+						</select>
+					</label>
 				</div>
 			) : null}
 

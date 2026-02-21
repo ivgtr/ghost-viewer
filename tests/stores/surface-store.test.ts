@@ -264,6 +264,53 @@ describe("surfaceStore", () => {
 		).toBe(true);
 	});
 
+	it("setSecondaryScopeId でスコープ切替時に未解決サーフェスが遅延解決される", () => {
+		useSurfaceStore.getState().initialize(
+			createInitializeInput({
+				catalog: [createShell("master", [0, 10, 30])],
+				definitionsByShell: createDefinitionsByShell("master", [0, 10, 30]),
+			}),
+		);
+		useSurfaceStore.setState({ availableSecondaryScopeIds: [1, 2] });
+
+		useSurfaceStore.getState().setSecondaryScopeId(2);
+		const state = useSurfaceStore.getState();
+		expect(state.secondaryScopeId).toBe(2);
+		expect(state.currentSurfaceByScope.has(2)).toBe(true);
+	});
+
+	it("setSecondaryScopeId で既存 scope へ戻す場合もランタイムが再起動される", () => {
+		useSurfaceStore.getState().initialize(
+			createInitializeInput({
+				catalog: [createShell("master", [0, 10, 30])],
+				definitionsByShell: createDefinitionsByShell("master", [0, 10, 30]),
+			}),
+		);
+		useSurfaceStore.setState({ availableSecondaryScopeIds: [1, 2] });
+
+		useSurfaceStore.getState().setSecondaryScopeId(2);
+		useSurfaceStore.getState().setSecondaryScopeId(1);
+		expect(useSurfaceStore.getState().secondaryScopeId).toBe(1);
+	});
+
+	it("setAvailableSecondaryScopeIds 更新後に secondaryScopeId が候補外なら再選択される", () => {
+		useSurfaceStore.getState().initialize(
+			createInitializeInput({
+				catalog: [createShell("master", [0, 10, 30])],
+				definitionsByShell: createDefinitionsByShell("master", [0, 10, 30]),
+			}),
+		);
+		useSurfaceStore.setState({
+			availableSecondaryScopeIds: [1, 2, 3],
+			secondaryScopeId: 3,
+		});
+
+		useSurfaceStore.getState().setAvailableSecondaryScopeIds([1, 2]);
+		const state = useSurfaceStore.getState();
+		expect(state.availableSecondaryScopeIds).toEqual([1, 2]);
+		expect(state.secondaryScopeId).toBe(1);
+	});
+
 	it("syncFromConversation で scope>1 を currentSurfaceByScope に保持できる", () => {
 		useSurfaceStore.getState().initialize(
 			createInitializeInput({

@@ -54,6 +54,25 @@ describe("buildSurfaceScene", () => {
 		expect(kero?.worldBottom).toBe(20);
 	});
 
+	it("scope 2 のキャラクターが scope 0 の左側にフォールバック配置される", () => {
+		const scene = buildSurfaceScene({
+			characters: [
+				{ scopeId: 0, surfaceId: 0, fileName: "surface0.png", width: 120, height: 200 },
+				{ scopeId: 2, surfaceId: 30, fileName: "surface30.png", width: 80, height: 140 },
+			],
+			shellDescriptProperties: {},
+			ghostDescriptProperties: {},
+			gap: 24,
+		});
+
+		const sakura = scene.nodes.find((node) => node.scopeId === 0);
+		const char2 = scene.nodes.find((node) => node.scopeId === 2);
+		expect(char2?.worldLeft).toBe(0);
+		expect(sakura?.worldLeft).toBe(104);
+		expect(char2?.worldBottom).toBe(0);
+		expect(sakura?.worldBottom).toBe(0);
+	});
+
 	it("描画サイズが不正な scope は scene node を生成しない", () => {
 		const scene = buildSurfaceScene({
 			characters: [

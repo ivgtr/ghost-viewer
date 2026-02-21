@@ -283,6 +283,53 @@ describe("ConversationPreview", () => {
 		});
 	});
 
+	it("\\p[2] 後の \\s[N] クリックで secondaryScopeId が 2 に切り替わりサーフェスが更新される", async () => {
+		useSurfaceStore.setState({
+			availableSecondaryScopeIds: [1, 2],
+		});
+		const parseResult: ParseResult = {
+			shioriType: "satori",
+			functions: [
+				{
+					name: "OnBoot",
+					condition: null,
+					filePath: "ghost/master/dic01_Base.txt",
+					startLine: 1,
+					endLine: 6,
+					dialogues: [
+						{
+							tokens: [
+								makeToken("charSwitch", "\\0", "0"),
+								makeToken("surface", "\\s[0]", "0"),
+								makeToken("text", "こんにちは", "こんにちは"),
+								makeToken("charSwitch", "\\p[2]", "2"),
+								makeToken("surface", "\\s[5]", "5"),
+								makeToken("text", "やあ", "やあ"),
+							],
+							startLine: 2,
+							endLine: 5,
+							rawText: "\\0\\s[0]こんにちは\\p[2]\\s[5]やあ",
+						},
+					],
+				},
+			],
+			meta: null,
+			diagnostics: [],
+		};
+		useParseStore.getState().succeedParse(parseResult);
+		useCatalogStore.getState().selectFunction("OnBoot");
+
+		render(<ConversationPreview />);
+
+		await waitFor(() => {
+			expect(useSurfaceStore.getState().currentSurfaceByScope.get(0)).toBe(0);
+		});
+
+		fireEvent.click(screen.getByRole("button", { name: "s[5]" }));
+		expect(useSurfaceStore.getState().secondaryScopeId).toBe(2);
+		expect(useSurfaceStore.getState().currentSurfaceByScope.get(2)).toBe(5);
+	});
+
 	it("バリアント切替で自動再同期し、手動クリックで即時切替できる", async () => {
 		const parseResult: ParseResult = {
 			shioriType: "satori",
