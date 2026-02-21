@@ -1,4 +1,4 @@
-import type { FunctionDecl, StringLiteral, Visitor } from "@/lib/parsers/yaya";
+import type { Visitor } from "@/lib/parsers/yaya";
 import { parse } from "@/lib/parsers/yaya/parser";
 import { traverse, traverseAll } from "@/lib/parsers/yaya/visitor";
 import { describe, expect, it } from "vitest";

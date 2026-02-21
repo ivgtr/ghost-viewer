@@ -1,5 +1,4 @@
 import { lex } from "@/lib/parsers/yaya/lexer";
-import type { Token } from "@/lib/parsers/yaya/lexer";
 import { describe, expect, it } from "vitest";
 
 describe("YAYA Lexer", () => {

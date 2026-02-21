@@ -1,5 +1,5 @@
 import { SymbolTable, resetScopeIdCounter } from "@/lib/parsers/core/symbol-table";
-import type { ScopeInfo, SymbolInfo } from "@/lib/parsers/core/symbol-table";
+import type { SymbolInfo } from "@/lib/parsers/core/symbol-table";
 import { beforeEach, describe, expect, it } from "vitest";
 
 describe("SymbolTable", () => {

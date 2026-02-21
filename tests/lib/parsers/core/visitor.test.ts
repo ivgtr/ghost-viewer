@@ -10,7 +10,6 @@ import type {
 	VariableDecl,
 } from "@/lib/parsers/core/ast";
 import { traverse, traverseAll } from "@/lib/parsers/core/visitor";
-import type { Visitor } from "@/lib/parsers/core/visitor";
 import { describe, expect, it } from "vitest";
 
 function createIdentifier(name: string): Identifier {
