@@ -243,13 +243,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20
-          cache: npm
+          cache: pnpm
 
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
         env:
           BASE_URL: /${{ github.event.repository.name }}/
 
@@ -310,8 +310,8 @@ GitHub Actions trigger
   │
   ├─ checkout
   ├─ setup node 20
-  ├─ npm ci
-  ├─ npm run build (with BASE_URL)
+  ├─ pnpm install --frozen-lockfile
+  ├─ pnpm run build (with BASE_URL)
   ├─ upload pages artifact (dist/)
   │
   ▼
@@ -522,9 +522,9 @@ SakuraScript内に外部URL（`http://`、`https://`）が記述されている�
 
 | 対策 | 実装方針 |
 |------|---------|
-| lockfileの固定 | `package-lock.json`をGitにコミットし、`npm ci`でインストール |
+| lockfileの固定 | `pnpm-lock.yaml`をGitにコミットし、`pnpm install --frozen-lockfile`でインストール |
 | Dependabot | `.github/dependabot.yml`を配置し、セキュリティアップデートの自動PR生成を有効化 |
-| CI監査 | GitHub Actionsのビルドジョブに`npm audit --audit-level=high`を追加 |
+| CI監査 | GitHub Actionsのビルドジョブに`pnpm run audit`を追加 |
 | 最小依存 | ランタイム依存を最小限に保つ。JSZip、React Flow、CodeMirrorを主要依存とし不要なパッケージを入れない |
 
 ```yaml
@@ -542,7 +542,7 @@ updates:
 
 ```yaml
       - name: Security audit
-        run: npm audit --audit-level=high
+        run: pnpm run audit
 ```
 
 ---

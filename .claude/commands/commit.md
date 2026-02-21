@@ -4,9 +4,9 @@
 
 以下を**並列**で実行し、すべて通ることを確認してください。
 
-1. `npm run typecheck` — 型エラーがないこと
-2. `npm run lint` — lint / format エラーがないこと
-3. `npm run test` — テストがすべてパスすること
+1. `pnpm run typecheck` — 型エラーがないこと
+2. `pnpm run lint` — lint / format エラーがないこと
+3. `pnpm run test` — テストがすべてパスすること
 
 いずれかが失敗した場合はコミットを中止し、解決してから再度チェックを実行してください。
 

@@ -13,7 +13,7 @@ ghost-viewer は、伺か（ukagaka）ゴーストの NAR ファイルをブラ�
 1. **タスク計画** — ROADMAP.md を確認し、次に着手すべきタスクを選ぶ（依存関係とPhase順を尊重）
 2. **ブランチ作成** — `feature/タスク名` でブランチを切る（例: `feature/project-scaffolding`）
 3. **実装** — `tasks/` 配下の計画ファイルに従って実装する
-4. **検証** — ビルド（`npm run build`）・リント（`npx biome check`）・テスト（`npx vitest run`）をすべてパス
+4. **検証** — ビルド（`pnpm run build`）・リント（`pnpm run lint`）・テスト（`pnpm run test`）をすべてパス
 5. **レビュー** — 差分を確認し、コミット・main へマージ
 6. **ステータス更新** — ROADMAP.md の該当タスクのチェックボックスを `[x]` に更新
 

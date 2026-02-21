@@ -13,12 +13,12 @@
 ## Commands
 
 ```bash
-npm run dev          # 開発サーバー起動
-npm run build        # プロダクションビルド
-npx vitest run       # テスト全実行
-npx vitest run path  # 単一テストファイル実行
-npx biome check .    # lint + format チェック
-npx biome check . --write  # lint + format 自動修正
+pnpm run dev               # 開発サーバー起動
+pnpm run build             # プロダクションビルド
+pnpm run test              # テスト全実行
+pnpm run test -- path      # 単一テストファイル実行
+pnpm run lint              # lint + format チェック
+pnpm run lint:fix          # lint + format 自動修正
 ```
 
 ## Code Style
