@@ -558,7 +558,7 @@ function resolveSelectedShellName(
 	return catalog[0]?.shellName ?? null;
 }
 
-function resolveAvailableSurfaceIds(
+export function resolveAvailableSurfaceIds(
 	shellName: string,
 	catalog: ShellSurfaceCatalog[],
 	definitionsByShell: SurfaceDefinitionsByShell,

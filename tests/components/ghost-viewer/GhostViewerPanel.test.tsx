@@ -1,13 +1,17 @@
 import { GhostViewerPanel } from "@/components/ghost-viewer/GhostViewerPanel";
 import { useFileContentStore } from "@/stores/file-content-store";
+import { useGhostStore } from "@/stores/ghost-store";
+import { useParseStore } from "@/stores/parse-store";
 import { useSurfaceStore } from "@/stores/surface-store";
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 describe("GhostViewerPanel", () => {
 	beforeEach(() => {
 		useSurfaceStore.getState().reset();
 		useFileContentStore.getState().reset();
+		useParseStore.getState().reset();
+		useGhostStore.getState().reset();
 		vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockImplementation(() => {
 			return {
 				clearRect: () => undefined,
@@ -30,6 +34,8 @@ describe("GhostViewerPanel", () => {
 		cleanup();
 		useSurfaceStore.getState().reset();
 		useFileContentStore.getState().reset();
+		useParseStore.getState().reset();
+		useGhostStore.getState().reset();
 		vi.restoreAllMocks();
 		vi.unstubAllGlobals();
 	});
@@ -162,6 +168,134 @@ describe("GhostViewerPanel", () => {
 
 		expect(screen.getByTestId("surface-canvas")).toBeInTheDocument();
 		expect(screen.getByTestId("surface-node-0")).toBeInTheDocument();
+	});
+
+	it("scope ごとの surface select が描画される", () => {
+		initializePanelState();
+		render(<GhostViewerPanel />);
+
+		expect(screen.getByTestId("surface-select-0")).toBeInTheDocument();
+		expect(screen.getByTestId("surface-select-1")).toBeInTheDocument();
+	});
+
+	it("scope 0 の select 変更で scope 1 は変わらない", () => {
+		initializePanelState();
+		render(<GhostViewerPanel />);
+
+		const scope1Before = useSurfaceStore.getState().currentSurfaceByScope.get(1);
+
+		fireEvent.change(screen.getByTestId("surface-select-0"), { target: { value: "5" } });
+		expect(useSurfaceStore.getState().currentSurfaceByScope.get(0)).toBe(5);
+		expect(useSurfaceStore.getState().currentSurfaceByScope.get(1)).toBe(scope1Before);
+	});
+
+	it("scope 1 の select 変更で scope 0 は変わらない", () => {
+		initializePanelState();
+		render(<GhostViewerPanel />);
+
+		const scope0Before = useSurfaceStore.getState().currentSurfaceByScope.get(0);
+
+		fireEvent.change(screen.getByTestId("surface-select-1"), { target: { value: "5" } });
+		expect(useSurfaceStore.getState().currentSurfaceByScope.get(1)).toBe(5);
+		expect(useSurfaceStore.getState().currentSurfaceByScope.get(0)).toBe(scope0Before);
+	});
+
+	it("surfaceIdsByScope が設定されている場合、scope 0/1 で option 集合が異なる", () => {
+		initializePanelState();
+		useParseStore.setState({
+			surfaceIdsByScope: new Map([
+				[0, [0, 5]],
+				[1, [10]],
+			]),
+		});
+		render(<GhostViewerPanel />);
+
+		const select0 = screen.getByTestId("surface-select-0");
+		const select1 = screen.getByTestId("surface-select-1");
+		const options0 = within(select0)
+			.getAllByRole("option")
+			.map((o) => o.textContent);
+		const options1 = within(select1)
+			.getAllByRole("option")
+			.map((o) => o.textContent);
+		expect(options0).toEqual(["0", "5"]);
+		expect(options1).toEqual(["10"]);
+	});
+
+	it("shell に存在しない surface ID が option に含まれない（積集合）", () => {
+		initializePanelState();
+		useParseStore.setState({
+			surfaceIdsByScope: new Map([[0, [0, 5, 999]]]),
+		});
+		render(<GhostViewerPanel />);
+
+		const select0 = screen.getByTestId("surface-select-0");
+		const options0 = within(select0)
+			.getAllByRole("option")
+			.map((o) => o.textContent);
+		expect(options0).toEqual(["0", "5"]);
+		expect(options0).not.toContain("999");
+	});
+
+	it("デフォルト配置で select 順が kero(scope1) → sakura(scope0) になる", () => {
+		initializePanelState();
+		render(<GhostViewerPanel />);
+
+		const selects = screen.getAllByRole("combobox");
+		const scopeOrder = selects.map((el) => el.getAttribute("data-testid"));
+		expect(scopeOrder).toEqual(["surface-select-1", "surface-select-0"]);
+	});
+
+	it("明示座標で kero が右に配置された場合に select 順が sakura(scope0) → kero(scope1) になる", () => {
+		initializePanelState({
+			shellDescriptProperties: {
+				"kero.defaultx": "420",
+				"kero.defaulty": "20",
+			},
+		});
+		render(<GhostViewerPanel />);
+
+		const selects = screen.getAllByRole("combobox");
+		const scopeOrder = selects.map((el) => el.getAttribute("data-testid"));
+		expect(scopeOrder).toEqual(["surface-select-0", "surface-select-1"]);
+	});
+
+	it("meta にキャラ名がある場合にラベルに反映される", () => {
+		initializePanelState();
+		useGhostStore.setState({
+			meta: {
+				name: "テストゴースト",
+				author: "テスト",
+				characterNames: { 0: "桜花", 1: "翡翠" },
+				properties: {},
+			},
+		});
+		render(<GhostViewerPanel />);
+
+		expect(screen.getByText("桜花")).toBeInTheDocument();
+		expect(screen.getByText("翡翠")).toBeInTheDocument();
+	});
+
+	it("meta が null の場合にフォールバック scope 0 / scope 1 が表示される", () => {
+		initializePanelState();
+		render(<GhostViewerPanel />);
+
+		expect(screen.getByText("scope 0")).toBeInTheDocument();
+		expect(screen.getByText("scope 1")).toBeInTheDocument();
+	});
+
+	it("積集合が空のとき allSurfaceIds にフォールバックする", () => {
+		initializePanelState();
+		useParseStore.setState({
+			surfaceIdsByScope: new Map([[0, [999, 1000]]]),
+		});
+		render(<GhostViewerPanel />);
+
+		const select0 = screen.getByTestId("surface-select-0");
+		const options0 = within(select0)
+			.getAllByRole("option")
+			.map((o) => o.textContent);
+		expect(options0).toEqual(["0", "5", "10"]);
 	});
 });
 

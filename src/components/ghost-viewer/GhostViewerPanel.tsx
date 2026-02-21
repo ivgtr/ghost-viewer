@@ -8,7 +8,9 @@ import {
 	splitNotificationLevels,
 } from "@/lib/surfaces/surface-notification-policy";
 import { useFileContentStore } from "@/stores/file-content-store";
-import { useSurfaceStore } from "@/stores/surface-store";
+import { useGhostStore } from "@/stores/ghost-store";
+import { useParseStore } from "@/stores/parse-store";
+import { resolveAvailableSurfaceIds, useSurfaceStore } from "@/stores/surface-store";
 import type { SurfaceCharacterPlacement, SurfaceNotification, SurfaceVisualModel } from "@/types";
 
 interface UseDismissOverlayOptions {
@@ -32,6 +34,8 @@ interface SurfaceLayerProps {
 	onFocus: () => void;
 }
 
+const EMPTY_CHARACTER_NAMES: Record<number, string> = {};
+
 export function GhostViewerPanel() {
 	const catalog = useSurfaceStore((state) => state.catalog);
 	const selectedShellName = useSurfaceStore((state) => state.selectedShellName);
@@ -41,10 +45,15 @@ export function GhostViewerPanel() {
 	const notifications = useSurfaceStore((state) => state.notifications);
 	const ghostDescriptProperties = useSurfaceStore((state) => state.ghostDescriptProperties);
 	const shellDescriptCacheByName = useSurfaceStore((state) => state.shellDescriptCacheByName);
+	const definitions = useSurfaceStore((state) => state.definitions);
 	const selectShell = useSurfaceStore((state) => state.selectShell);
 	const ensureShellDescriptLoaded = useSurfaceStore((state) => state.ensureShellDescriptLoaded);
+	const setSurfaceForScope = useSurfaceStore((state) => state.setSurfaceForScope);
 	const setFocusedScope = useSurfaceStore((state) => state.setFocusedScope);
+	const characterNames =
+		useGhostStore((state) => state.meta?.characterNames) ?? EMPTY_CHARACTER_NAMES;
 	const fileContents = useFileContentStore((state) => state.fileContents);
+	const surfaceIdsByScope = useParseStore((state) => state.surfaceIdsByScope);
 
 	const [isNotificationOpen, setNotificationOpen] = useState(false);
 	const [isInfoExpanded, setInfoExpanded] = useState(false);
@@ -62,6 +71,11 @@ export function GhostViewerPanel() {
 	const selectedShell = useMemo(
 		() => catalog.find((entry) => entry.shellName === selectedShellName) ?? null,
 		[catalog, selectedShellName],
+	);
+	const allSurfaceIds = useMemo(
+		() =>
+			selectedShellName ? resolveAvailableSurfaceIds(selectedShellName, catalog, definitions) : [],
+		[selectedShellName, catalog, definitions],
 	);
 	const shellDescriptProperties = useMemo(() => {
 		if (selectedShellName === null) {
@@ -116,6 +130,19 @@ export function GhostViewerPanel() {
 			}),
 		[ghostDescriptProperties, shellDescriptProperties, visibleScopeVisuals],
 	);
+	const selectScopeOrder = useMemo(() => {
+		const sorted = [...scene.nodes].sort((a, b) => {
+			if (a.worldLeft !== b.worldLeft) return a.worldLeft - b.worldLeft;
+			return b.scopeId - a.scopeId;
+		});
+		const orderedScopes = sorted.map((n) => n.scopeId);
+		for (const scopeId of [1, 0]) {
+			if (!orderedScopes.includes(scopeId)) {
+				orderedScopes.push(scopeId);
+			}
+		}
+		return orderedScopes;
+	}, [scene]);
 	const placementByScope = useMemo(() => {
 		const layout = buildSurfaceSetLayout({
 			viewportWidth: stageSize.width,
@@ -254,6 +281,42 @@ export function GhostViewerPanel() {
 					</select>
 				</div>
 			) : null}
+
+			{allSurfaceIds.length > 0 && (
+				<div className="flex items-center gap-3 border-b border-zinc-700 px-4 py-1.5">
+					{selectScopeOrder.map((scopeId) => {
+						const scopeSurfaceIds = surfaceIdsByScope.get(scopeId);
+						const filtered =
+							scopeSurfaceIds && scopeSurfaceIds.length > 0
+								? scopeSurfaceIds.filter((id) => allSurfaceIds.includes(id))
+								: [];
+						const displayIds = filtered.length > 0 ? filtered : allSurfaceIds;
+						const label = characterNames[scopeId] ?? `scope ${scopeId}`;
+						return (
+							<label key={scopeId} className="flex items-center gap-1 text-xs text-zinc-400">
+								<span>{label}</span>
+								<select
+									data-testid={`surface-select-${scopeId}`}
+									value={String(currentSurfaceByScope.get(scopeId) ?? "")}
+									onChange={(e) => {
+										const id = Number(e.target.value);
+										if (Number.isInteger(id)) {
+											setSurfaceForScope(scopeId, id, "manual");
+										}
+									}}
+									className="rounded border border-zinc-600 bg-zinc-800 px-2 py-0.5 text-xs text-zinc-200"
+								>
+									{displayIds.map((id) => (
+										<option key={id} value={String(id)}>
+											{id}
+										</option>
+									))}
+								</select>
+							</label>
+						);
+					})}
+				</div>
+			)}
 
 			<div className="min-h-0 flex-1 p-3">
 				<div

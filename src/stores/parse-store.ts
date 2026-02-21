@@ -1,3 +1,4 @@
+import { collectSurfaceIdsByScope } from "@/lib/analyzers/analyze-conversation-surfaces";
 import type { ParseResult } from "@/types";
 import { createStore } from "./create-store";
 
@@ -7,6 +8,7 @@ interface ParseState {
 	parseError: string | null;
 	parsedFileCount: number;
 	totalFileCount: number;
+	surfaceIdsByScope: Map<number, number[]>;
 	startBatchParse: (totalFileCount: number) => void;
 	incrementParsedCount: () => void;
 	succeedParse: (result: ParseResult) => void;
@@ -21,12 +23,18 @@ export const useParseStore = createStore<ParseState>(
 		parseError: null,
 		parsedFileCount: 0,
 		totalFileCount: 0,
+		surfaceIdsByScope: new Map(),
 	},
 	(set, get) => ({
 		startBatchParse: (totalFileCount: number) =>
 			set({ isParsing: true, parseError: null, parsedFileCount: 0, totalFileCount }),
 		incrementParsedCount: () => set({ parsedFileCount: get().parsedFileCount + 1 }),
-		succeedParse: (result) => set({ parseResult: result, isParsing: false }),
+		succeedParse: (result) =>
+			set({
+				parseResult: result,
+				isParsing: false,
+				surfaceIdsByScope: collectSurfaceIdsByScope(result.functions),
+			}),
 		failParse: (error) => set({ parseError: error, isParsing: false }),
 	}),
 );

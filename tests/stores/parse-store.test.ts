@@ -79,4 +79,74 @@ describe("parseStore", () => {
 		useParseStore.getState().incrementParsedCount();
 		expect(useParseStore.getState().parsedFileCount).toBe(2);
 	});
+
+	it("succeedParse で surfaceIdsByScope が正しく導出される", () => {
+		const result: ParseResult = {
+			shioriType: "yaya",
+			functions: [
+				{
+					name: "OnBoot",
+					filePath: "dic00.dic",
+					startLine: 0,
+					endLine: 0,
+					dialogues: [
+						{
+							tokens: [
+								{ tokenType: "surface", raw: "\\s[0]", value: "0", offset: 0 },
+								{ tokenType: "charSwitch", raw: "\\1", value: "1", offset: 0 },
+								{ tokenType: "surface", raw: "\\s[10]", value: "10", offset: 0 },
+							],
+							startLine: 0,
+							endLine: 0,
+							rawText: "",
+						},
+					],
+				},
+			],
+			meta: null,
+			diagnostics: [],
+		};
+		useParseStore.getState().succeedParse(result);
+		const state = useParseStore.getState();
+		expect(state.surfaceIdsByScope.get(0)).toEqual([0]);
+		expect(state.surfaceIdsByScope.get(1)).toEqual([10]);
+	});
+
+	it("reset 後に surfaceIdsByScope が空 Map になる", () => {
+		const result: ParseResult = {
+			shioriType: "yaya",
+			functions: [
+				{
+					name: "OnBoot",
+					filePath: "dic00.dic",
+					startLine: 0,
+					endLine: 0,
+					dialogues: [
+						{
+							tokens: [{ tokenType: "surface", raw: "\\s[5]", value: "5", offset: 0 }],
+							startLine: 0,
+							endLine: 0,
+							rawText: "",
+						},
+					],
+				},
+			],
+			meta: null,
+			diagnostics: [],
+		};
+		useParseStore.getState().succeedParse(result);
+		useParseStore.getState().reset();
+		expect(useParseStore.getState().surfaceIdsByScope.size).toBe(0);
+	});
+
+	it("空の functions 配列で surfaceIdsByScope が空 Map になる", () => {
+		const result: ParseResult = {
+			shioriType: "yaya",
+			functions: [],
+			meta: null,
+			diagnostics: [],
+		};
+		useParseStore.getState().succeedParse(result);
+		expect(useParseStore.getState().surfaceIdsByScope.size).toBe(0);
+	});
 });
