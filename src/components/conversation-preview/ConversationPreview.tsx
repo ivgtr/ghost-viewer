@@ -1,3 +1,4 @@
+import { analyzeConversationSurfaces } from "@/lib/analyzers/analyze-conversation-surfaces";
 import { isEventSelected, toEventDisplayName } from "@/lib/analyzers/event-name";
 import {
 	lookupDialogueCondition,
@@ -49,7 +50,7 @@ export function ConversationPreview() {
 		if (!dialogue) return [];
 		return buildChatMessages(dialogue.tokens);
 	}, [dialogues, clampedIndex]);
-	const firstSurfaceEntries = useMemo(() => collectFirstSurfaceByScope(messages), [messages]);
+	const surfaceAnalysis = useMemo(() => analyzeConversationSurfaces(messages), [messages]);
 	const selectedCondition = useMemo(() => {
 		if (!isEventSelected(selectedEventName)) return null;
 		return lookupDialogueCondition(selectedEventName, clampedIndex, functions);
@@ -94,14 +95,14 @@ export function ConversationPreview() {
 		if (!isEventSelected(selectedEventName) || dialogues.length === 0) {
 			return;
 		}
-		if (firstSurfaceEntries.length === 0) {
+		if (surfaceAnalysis.firstByScope.length === 0) {
 			restartRuntimeForScopes([0, 1]);
 			return;
 		}
-		syncFromConversation(firstSurfaceEntries, "auto");
+		syncFromConversation(surfaceAnalysis.firstByScope, "auto");
 	}, [
 		dialogues.length,
-		firstSurfaceEntries,
+		surfaceAnalysis,
 		restartRuntimeForScopes,
 		selectedEventName,
 		syncFromConversation,
@@ -187,26 +188,4 @@ export function ConversationPreview() {
 			</div>
 		</div>
 	);
-}
-
-function collectFirstSurfaceByScope(messages: ReturnType<typeof buildChatMessages>): Array<{
-	scopeId: number;
-	requestedSurfaceId: number;
-}> {
-	const firstSurfaceByScope = new Map<number, number>();
-	for (const message of messages) {
-		for (const segment of message.segments) {
-			if (segment.type !== "surface" || segment.surfaceId === null) {
-				continue;
-			}
-			if (firstSurfaceByScope.has(segment.scopeId)) {
-				continue;
-			}
-			firstSurfaceByScope.set(segment.scopeId, segment.surfaceId);
-		}
-	}
-	return [...firstSurfaceByScope.entries()].map(([scopeId, requestedSurfaceId]) => ({
-		scopeId,
-		requestedSurfaceId,
-	}));
 }
