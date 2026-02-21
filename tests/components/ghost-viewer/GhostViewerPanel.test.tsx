@@ -320,6 +320,29 @@ describe("GhostViewerPanel", () => {
 		expect(screen.queryByTestId("surface-select-1")).not.toBeInTheDocument();
 	});
 
+	it("syncFromConversation で null 設定された scope への切替でも surface-node が描画される", () => {
+		initializePanelState();
+		useSurfaceStore.setState({ availableSecondaryScopeIds: [1, 2] });
+
+		const currentMap = new Map(useSurfaceStore.getState().currentSurfaceByScope);
+		currentMap.set(2, null);
+		const visualMap = new Map(useSurfaceStore.getState().visualByScope);
+		visualMap.set(2, null);
+		useSurfaceStore.setState({
+			currentSurfaceByScope: currentMap,
+			visualByScope: visualMap,
+		});
+
+		render(<GhostViewerPanel />);
+
+		expect(screen.getByTestId("surface-node-1")).toBeInTheDocument();
+
+		fireEvent.change(screen.getByTestId("secondary-scope-select"), { target: { value: "2" } });
+
+		expect(screen.getByTestId("surface-node-2")).toBeInTheDocument();
+		expect(screen.queryByTestId("surface-node-1")).not.toBeInTheDocument();
+	});
+
 	it("積集合が空のとき allSurfaceIds にフォールバックする", () => {
 		initializePanelState();
 		useParseStore.setState({

@@ -54,7 +54,7 @@ interface SurfaceState {
 	) => void;
 	restartRuntimeForScopes: (scopeIds: number[]) => void;
 	setFocusedScope: (scopeId: number) => void;
-	setSecondaryScopeId: (scopeId: number) => void;
+	setSecondaryScopeId: (scopeId: number, scopeSurfaceIds?: number[]) => void;
 	setAvailableSecondaryScopeIds: (scopeIds: number[]) => void;
 	reset: () => void;
 }
@@ -392,7 +392,7 @@ export const useSurfaceStore = createStore<SurfaceState>(
 			}
 			set({ focusedScope: scopeId });
 		},
-		setSecondaryScopeId: (scopeId) => {
+		setSecondaryScopeId: (scopeId, scopeSurfaceIds) => {
 			const state = get();
 			if (
 				!Number.isInteger(scopeId) ||
@@ -401,46 +401,60 @@ export const useSurfaceStore = createStore<SurfaceState>(
 			) {
 				return;
 			}
-			set({ secondaryScopeId: scopeId });
 
-			if (!state.currentSurfaceByScope.has(scopeId)) {
-				const shellName = state.selectedShellName;
-				const fileContents = useFileContentStore.getState().fileContents;
-				if (shellName !== null) {
-					const result = resolveRequestedSurface({
-						scopeId,
-						requestedSurfaceId:
-							resolveRequestedSurfaceId(
-								scopeId,
-								resolveAvailableSurfaceIds(shellName, state.catalog, state.definitions),
-								mergeDescriptProperties(
-									state.ghostDescriptProperties,
-									state.shellDescriptCacheByName[shellName] ?? {},
-								),
-							) ?? 0,
-						shellName,
-						catalog: state.catalog,
-						definitionsByShell: state.definitions,
-						aliasMapByShell: state.aliasMap,
-						fileContents,
-						previousSurfaceByScope: state.currentSurfaceByScope,
-						previousVisualByScope: state.visualByScope,
-						rng: resolverRng,
-					});
-					const nextCurrentSurfaceByScope = new Map(get().currentSurfaceByScope);
-					nextCurrentSurfaceByScope.set(scopeId, result.surfaceId);
-					const nextVisualByScope = new Map(get().visualByScope);
-					nextVisualByScope.set(scopeId, result.model);
-					set({
-						currentSurfaceByScope: nextCurrentSurfaceByScope,
-						visualByScope: nextVisualByScope,
-					});
-					replaceScopeRuntime(scopeId, result.runtimePlan);
-					return;
-				}
+			const shellName = state.selectedShellName;
+			if (shellName === null) {
+				set({ secondaryScopeId: scopeId });
+				return;
 			}
 
-			get().restartRuntimeForScopes([scopeId]);
+			const fileContents = useFileContentStore.getState().fileContents;
+			const allSurfaceIds = resolveAvailableSurfaceIds(shellName, state.catalog, state.definitions);
+			const effectiveSurfaceIds =
+				scopeSurfaceIds && scopeSurfaceIds.length > 0
+					? scopeSurfaceIds.filter((id) => id >= 0 && allSurfaceIds.includes(id))
+					: allSurfaceIds;
+			const requestedSurfaceId =
+				state.currentSurfaceByScope.get(scopeId) ??
+				resolveRequestedSurfaceId(
+					scopeId,
+					effectiveSurfaceIds.length > 0 ? effectiveSurfaceIds : allSurfaceIds,
+					mergeDescriptProperties(
+						state.ghostDescriptProperties,
+						state.shellDescriptCacheByName[shellName] ?? {},
+					),
+				) ??
+				0;
+			const result = resolveRequestedSurface({
+				scopeId,
+				requestedSurfaceId,
+				shellName,
+				catalog: state.catalog,
+				definitionsByShell: state.definitions,
+				aliasMapByShell: state.aliasMap,
+				fileContents,
+				previousSurfaceByScope: state.currentSurfaceByScope,
+				previousVisualByScope: state.visualByScope,
+				rng: resolverRng,
+			});
+			const nextCurrentSurfaceByScope = new Map(state.currentSurfaceByScope);
+			nextCurrentSurfaceByScope.set(scopeId, result.surfaceId);
+			const nextVisualByScope = new Map(state.visualByScope);
+			nextVisualByScope.set(scopeId, result.model);
+			set({
+				secondaryScopeId: scopeId,
+				currentSurfaceByScope: nextCurrentSurfaceByScope,
+				visualByScope: nextVisualByScope,
+				notifications: deduplicateSurfaceNotifications([
+					...state.notifications,
+					...result.notifications,
+				]),
+			});
+			const previousSecondaryScopeId = state.secondaryScopeId;
+			if (previousSecondaryScopeId !== scopeId) {
+				stopScopeRuntime(previousSecondaryScopeId);
+			}
+			replaceScopeRuntime(scopeId, result.runtimePlan);
 		},
 		setAvailableSecondaryScopeIds: (scopeIds) => {
 			const unique = [...new Set(scopeIds)].sort((a, b) => a - b);
@@ -667,8 +681,8 @@ function resolveRequestedSurfaceId(
 		return preferredDefaultId;
 	}
 
-	const fallbackId = scopeId === 0 ? 0 : 10;
-	if (availableSurfaceIds.includes(fallbackId)) {
+	const fallbackId = scopeId === 0 ? 0 : scopeId === 1 ? 10 : null;
+	if (fallbackId !== null && availableSurfaceIds.includes(fallbackId)) {
 		return fallbackId;
 	}
 

@@ -295,7 +295,7 @@ export function GhostViewerPanel() {
 							onChange={(e) => {
 								const id = Number(e.target.value);
 								if (Number.isInteger(id)) {
-									setSecondaryScopeId(id);
+									setSecondaryScopeId(id, surfaceIdsByScope.get(id));
 								}
 							}}
 							className="rounded border border-zinc-600 bg-zinc-800 px-2 py-0.5 text-xs text-zinc-200"
@@ -635,11 +635,10 @@ function useBitmapMap(
 				}
 				try {
 					const bitmap = await createImageBitmap(new Blob([buffer], { type: "image/png" }));
-					if (cancelled) {
-						bitmap.close();
-						continue;
-					}
 					cache.bitmapByPath.set(path, bitmap);
+					if (cancelled) {
+						break;
+					}
 				} catch {
 					nextNotifications.push(
 						createSurfaceNotification({

@@ -311,6 +311,32 @@ describe("surfaceStore", () => {
 		expect(state.secondaryScopeId).toBe(1);
 	});
 
+	it("setSecondaryScopeId で surfaceId=null の scope へ切替時に再解決される", () => {
+		useSurfaceStore.getState().initialize(
+			createInitializeInput({
+				catalog: [createShell("master", [0, 10, 30])],
+				definitionsByShell: createDefinitionsByShell("master", [0, 10, 30]),
+			}),
+		);
+		useSurfaceStore.setState({ availableSecondaryScopeIds: [1, 2] });
+
+		// syncFromConversation で解決失敗を再現: has=true, value=null
+		const currentMap = new Map(useSurfaceStore.getState().currentSurfaceByScope);
+		currentMap.set(2, null);
+		const visualMap = new Map(useSurfaceStore.getState().visualByScope);
+		visualMap.set(2, null);
+		useSurfaceStore.setState({
+			currentSurfaceByScope: currentMap,
+			visualByScope: visualMap,
+		});
+
+		useSurfaceStore.getState().setSecondaryScopeId(2);
+		const state = useSurfaceStore.getState();
+		expect(state.secondaryScopeId).toBe(2);
+		expect(state.currentSurfaceByScope.get(2)).not.toBeNull();
+		expect(state.visualByScope.get(2)).not.toBeNull();
+	});
+
 	it("syncFromConversation で scope>1 を currentSurfaceByScope に保持できる", () => {
 		useSurfaceStore.getState().initialize(
 			createInitializeInput({
