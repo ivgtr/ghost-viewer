@@ -1,8 +1,6 @@
 import type { SourceLocation } from "../../core/ast";
 import type {
-	ArrayLiteral,
 	BlockStatement,
-	BooleanLiteral,
 	BreakStatement,
 	CaseClause,
 	ContinueStatement,
@@ -14,14 +12,11 @@ import type {
 	FunctionDecl,
 	Identifier,
 	IfStatement,
-	NullLiteral,
-	NumberLiteral,
 	ParallelStatement,
 	Parameter,
 	ReturnStatement,
 	Separator,
 	Statement,
-	StringLiteral,
 	SwitchStatement,
 	TupleExpression,
 	TypeAnnotation,
@@ -30,7 +25,16 @@ import type {
 	WhileStatement,
 	YayaProgram,
 } from "../ast";
-import { createLoc, mergeLoc } from "../ast";
+import {
+	createArrayLiteral,
+	createBooleanLiteral,
+	createIdentifier,
+	createLoc,
+	createNullLiteral,
+	createNumberLiteral,
+	createStringLiteral,
+	mergeLoc,
+} from "../ast";
 import type { Token } from "../lexer";
 import { lex } from "../lexer";
 
@@ -343,8 +347,9 @@ class Parser {
 				case "function":
 					return this.parseFunctionDecl();
 				case "var":
+					return this.parseVariableDecl("var");
 				case "const":
-					return this.parseVariableDecl(token.value as "var" | "const");
+					return this.parseVariableDecl("const");
 			}
 		}
 
@@ -599,8 +604,10 @@ class Parser {
 
 		let init: Expression | VariableDecl | null = null;
 		if (!isDelimiter()) {
-			if (this.isKeyword("var") || this.isKeyword("const")) {
-				init = this.parseVariableDecl(this.current().value as "var" | "const");
+			if (this.isKeyword("var")) {
+				init = this.parseVariableDecl("var");
+			} else if (this.isKeyword("const")) {
+				init = this.parseVariableDecl("const");
 			} else {
 				init = this.parseExpression(() => isDelimiter());
 			}
@@ -712,10 +719,7 @@ class Parser {
 			discriminant = this.parseExpression(() => this.check("rparen"));
 			this.expect("rparen");
 		} else if (this.check("lbrace")) {
-			discriminant = {
-				type: "NullLiteral",
-				loc: createLoc(this.current().line, this.current().column),
-			} as NullLiteral;
+			discriminant = createNullLiteral(createLoc(this.current().line, this.current().column));
 		} else {
 			discriminant = this.parseExpression(() => this.check("lbrace"));
 		}
@@ -1237,7 +1241,7 @@ class Parser {
 			}
 		}
 		if (indexes.length <= 1) {
-			return indexes[0] ?? ({ type: "NullLiteral", loc: this.currentLoc() } as NullLiteral);
+			return indexes[0] ?? createNullLiteral(this.currentLoc());
 		}
 		return this.createTupleFromExpressions(indexes);
 	}
@@ -1252,27 +1256,22 @@ class Parser {
 		const token = this.current();
 
 		if (this.match("string")) {
-			return { type: "StringLiteral", value: token.value, loc: start } as StringLiteral;
+			return createStringLiteral(token.value, start);
 		}
 		if (this.match("number")) {
-			return {
-				type: "NumberLiteral",
-				value: Number.parseFloat(token.value),
-				raw: token.value,
-				loc: start,
-			} as NumberLiteral;
+			return createNumberLiteral(Number.parseFloat(token.value), token.value, start);
 		}
 		if (this.match("keyword", "true")) {
-			return { type: "BooleanLiteral", value: true, loc: start } as BooleanLiteral;
+			return createBooleanLiteral(true, start);
 		}
 		if (this.match("keyword", "false")) {
-			return { type: "BooleanLiteral", value: false, loc: start } as BooleanLiteral;
+			return createBooleanLiteral(false, start);
 		}
 		if (this.match("keyword", "null")) {
-			return { type: "NullLiteral", loc: start } as NullLiteral;
+			return createNullLiteral(start);
 		}
 		if (this.match("identifier")) {
-			return { type: "Identifier", name: token.value, loc: start } as Identifier;
+			return createIdentifier(token.value, start);
 		}
 		if (this.match("lparen")) {
 			return this.parseTuple(start);
@@ -1285,11 +1284,7 @@ class Parser {
 				} while (this.match("comma"));
 			}
 			this.expect("rbracket");
-			return {
-				type: "ArrayLiteral",
-				elements,
-				loc: mergeLoc(start, this.prevLoc()),
-			} as ArrayLiteral;
+			return createArrayLiteral(elements, mergeLoc(start, this.prevLoc()));
 		}
 
 		throw new Error(`Unexpected token ${token.type} "${token.value}" at line ${token.line}`);

@@ -20,6 +20,10 @@ const MATCH_MODE_LABELS: Record<MatchMode, string> = {
 	exact: "完全一致",
 };
 
+function isMatchMode(value: string): value is MatchMode {
+	return value in MATCH_MODE_LABELS;
+}
+
 export function CatalogFilter({
 	query,
 	onQueryChange,
@@ -64,11 +68,13 @@ export function CatalogFilter({
 				<select
 					className="rounded border border-zinc-600 bg-zinc-800 px-2 py-1.5 text-sm text-zinc-200 focus:border-zinc-500 focus:outline-none"
 					value={matchMode}
-					onChange={(e) => onMatchModeChange(e.target.value as MatchMode)}
+					onChange={(e) => {
+						if (isMatchMode(e.target.value)) onMatchModeChange(e.target.value);
+					}}
 				>
-					{(Object.entries(MATCH_MODE_LABELS) as [MatchMode, string][]).map(([value, label]) => (
+					{(["partial", "prefix", "exact"] as const).map((value) => (
 						<option key={value} value={value}>
-							{label}
+							{MATCH_MODE_LABELS[value]}
 						</option>
 					))}
 				</select>

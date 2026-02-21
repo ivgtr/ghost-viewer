@@ -292,4 +292,37 @@ export type {
 	YayaProgram,
 };
 
-export { createLoc, mergeLoc };
+function createNullLiteral(loc: SourceLocation): NullLiteral {
+	return { type: "NullLiteral", loc };
+}
+
+function createStringLiteral(value: string, loc: SourceLocation): StringLiteral {
+	return { type: "StringLiteral", value, loc };
+}
+
+function createNumberLiteral(value: number, raw: string, loc: SourceLocation): NumberLiteral {
+	return { type: "NumberLiteral", value, raw, loc };
+}
+
+function createBooleanLiteral(value: boolean, loc: SourceLocation): BooleanLiteral {
+	return { type: "BooleanLiteral", value, loc };
+}
+
+function createIdentifier(name: string, loc: SourceLocation): Identifier {
+	return { type: "Identifier", name, loc };
+}
+
+function createArrayLiteral(elements: Expression[], loc: SourceLocation): ArrayLiteral {
+	return { type: "ArrayLiteral", elements, loc };
+}
+
+export {
+	createLoc,
+	mergeLoc,
+	createNullLiteral,
+	createStringLiteral,
+	createNumberLiteral,
+	createBooleanLiteral,
+	createIdentifier,
+	createArrayLiteral,
+};
