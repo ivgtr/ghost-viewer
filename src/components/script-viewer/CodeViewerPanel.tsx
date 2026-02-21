@@ -1,6 +1,8 @@
 import { toEventDisplayName } from "@/lib/analyzers/event-name";
+import { classifyFileKind } from "@/lib/nar/extract";
 import { useFileTreeStore } from "@/stores/file-tree-store";
 import { useViewStore } from "@/stores/view-store";
+import { ImageViewer } from "./ImageViewer";
 import { TextViewer } from "./TextViewer";
 
 function formatLineRange(startLine: number, endLine: number): string {
@@ -16,6 +18,8 @@ export function CodeViewerPanel() {
 	const selectedNodeId = useFileTreeStore((s) => s.selectedNodeId);
 	const jumpContext = useViewStore((s) => s.jumpContext);
 
+	const fileKind = selectedNodeId ? classifyFileKind(selectedNodeId) : null;
+
 	return (
 		<div className="flex h-full min-h-0 flex-col overflow-hidden">
 			<div className="border-b border-zinc-700 px-4 py-2">
@@ -30,13 +34,17 @@ export function CodeViewerPanel() {
 					</div>
 				) : (
 					<div className="min-w-0">
-						<p className="truncate text-sm font-medium text-zinc-200">コードビュー</p>
+						<p className="truncate text-sm font-medium text-zinc-200">File Viewer</p>
 						<p className="truncate text-xs text-zinc-400">{selectedNodeId ?? "ファイル未選択"}</p>
 					</div>
 				)}
 			</div>
 			<div className="min-h-0 flex-1">
-				<TextViewer />
+				{fileKind === "image" && selectedNodeId ? (
+					<ImageViewer filePath={selectedNodeId} />
+				) : (
+					<TextViewer />
+				)}
 			</div>
 		</div>
 	);

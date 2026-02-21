@@ -227,7 +227,7 @@ export function GhostViewerPanel() {
 		<div ref={panelRef} className="relative flex h-full min-h-0 flex-col overflow-hidden">
 			<div className="flex items-start justify-between border-b border-zinc-700 px-4 py-2">
 				<div>
-					<p className="text-sm font-medium text-zinc-200">ゴーストビューアー</p>
+					<p className="text-sm font-medium text-zinc-200">Ghost Viewer</p>
 					<p className="text-xs text-zinc-400">
 						{selectedShell
 							? `shell: ${selectedShell.shellName} / surface: ${selectedShell.assets.length}`
