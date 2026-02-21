@@ -1,23 +1,20 @@
-import { NAR_FILE_INPUT_ACCEPT } from "@/lib/nar/constants";
+import { useNarFileInput } from "@/hooks/use-nar-file-input";
 import { useGhostStore } from "@/stores/ghost-store";
-import { useRef, useState } from "react";
+import { useState } from "react";
 
 export function DropZone() {
 	const [isDragOver, setIsDragOver] = useState(false);
-	const inputRef = useRef<HTMLInputElement>(null);
 	const error = useGhostStore((s) => s.error);
 	const fileName = useGhostStore((s) => s.fileName);
-
-	const handleFile = (file: File | undefined) => {
-		if (file) {
-			useGhostStore.getState().acceptFile(file);
-		}
-	};
+	const { inputRef, accept, handleChange, triggerFileSelect } = useNarFileInput();
 
 	const handleDrop = (e: React.DragEvent) => {
 		e.preventDefault();
 		setIsDragOver(false);
-		handleFile(e.dataTransfer.files[0]);
+		const file = e.dataTransfer.files[0];
+		if (file) {
+			useGhostStore.getState().acceptFile(file);
+		}
 	};
 
 	const handleDragOver = (e: React.DragEvent) => {
@@ -30,15 +27,6 @@ export function DropZone() {
 		setIsDragOver(false);
 	};
 
-	const handleClick = () => {
-		inputRef.current?.click();
-	};
-
-	const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-		handleFile(e.target.files?.[0]);
-		e.target.value = "";
-	};
-
 	return (
 		<div className="flex h-full flex-col items-center justify-center p-4">
 			<button
@@ -48,7 +36,7 @@ export function DropZone() {
 				className={`flex w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed p-8 transition-colors ${
 					isDragOver ? "border-blue-400 bg-blue-400/10" : "border-zinc-600 hover:border-zinc-400"
 				}`}
-				onClick={handleClick}
+				onClick={triggerFileSelect}
 				onDrop={handleDrop}
 				onDragOver={handleDragOver}
 				onDragLeave={handleDragLeave}
@@ -59,7 +47,7 @@ export function DropZone() {
 				<input
 					ref={inputRef}
 					type="file"
-					accept={NAR_FILE_INPUT_ACCEPT}
+					accept={accept}
 					className="hidden"
 					onChange={handleChange}
 				/>
