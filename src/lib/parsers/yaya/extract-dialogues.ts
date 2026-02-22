@@ -21,6 +21,23 @@ interface ExtractionContext {
 	inCaseTest: boolean;
 }
 
+function shouldExtractDialogue(context: ExtractionContext): boolean {
+	return (
+		!context.inCondition &&
+		!context.inCallArgument &&
+		!context.inAssignment &&
+		!context.inSwitchDiscriminant &&
+		!context.inCaseTest
+	);
+}
+
+function collectPlusChainLeaves(expr: Expression): Expression[] {
+	if (expr.type === "BinaryExpression" && expr.operator === "+") {
+		return [...collectPlusChainLeaves(expr.left), ...collectPlusChainLeaves(expr.right)];
+	}
+	return [expr];
+}
+
 function isTextDialogue(text: string): boolean {
 	const tokens = tokenize(text);
 	return tokens.some((t) => t.tokenType === "text");
@@ -74,16 +91,34 @@ function extractStringsFromFunction(fn: FunctionDecl): ExtractedEntry[] {
 		inCaseTest: false,
 	};
 
+	function extractPlusConcatenation(leaves: Expression[], localContext: ExtractionContext): void {
+		let concatenatedValue = "";
+		let firstLine: number | null = null;
+
+		for (const leaf of leaves) {
+			if (leaf.type === "StringLiteral" && shouldExtractDialogue(localContext)) {
+				concatenatedValue += leaf.value;
+				if (firstLine === null) {
+					firstLine = leaf.loc?.start.line ?? 0;
+				}
+			} else {
+				extractFromExpression(leaf, localContext);
+			}
+		}
+
+		if (concatenatedValue.length > 0) {
+			strings.push({
+				kind: "text",
+				value: concatenatedValue,
+				line: firstLine ?? 0,
+			});
+		}
+	}
+
 	function extractFromExpression(expr: Expression, localContext: ExtractionContext): void {
 		switch (expr.type) {
 			case "StringLiteral":
-				if (
-					!localContext.inCondition &&
-					!localContext.inCallArgument &&
-					!localContext.inAssignment &&
-					!localContext.inSwitchDiscriminant &&
-					!localContext.inCaseTest
-				) {
+				if (shouldExtractDialogue(localContext)) {
 					strings.push({
 						kind: "text",
 						value: expr.value,
@@ -109,8 +144,13 @@ function extractStringsFromFunction(fn: FunctionDecl): ExtractedEntry[] {
 				break;
 
 			case "BinaryExpression":
-				extractFromExpression(expr.left, localContext);
-				extractFromExpression(expr.right, localContext);
+				if (expr.operator === "+") {
+					const leaves = collectPlusChainLeaves(expr);
+					extractPlusConcatenation(leaves, localContext);
+				} else {
+					extractFromExpression(expr.left, localContext);
+					extractFromExpression(expr.right, localContext);
+				}
 				break;
 
 			case "UnaryExpression":

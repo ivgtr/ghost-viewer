@@ -73,6 +73,46 @@ describe("extractDialogues", () => {
 		expect(texts).toContain("B");
 	});
 
+	describe("+ 演算子による文字列連結", () => {
+		it("+ で連結された StringLiteral が1つのダイアログになる", () => {
+			const fn = parseFunction('OnTest {\n\t"A" + "B" + "C"\n}');
+			const dialogues = extractDialogues(fn);
+			expect(dialogues.map((d) => d.rawText)).toEqual(["ABC"]);
+		});
+
+		it("CallExpression を挟んでも前後の StringLiteral が結合される", () => {
+			const fn = parseFunction(
+				'OnTest {\n\t"＊" + TranslateSystemChar(reference[0]) + "大根コミュニケート"\n}',
+			);
+			const dialogues = extractDialogues(fn);
+			expect(dialogues.map((d) => d.rawText)).toEqual(["＊大根コミュニケート"]);
+		});
+
+		it("ConditionalExpression を挟む + チェーンでは再帰抽出が前出し、リテラルが後出しになる", () => {
+			const fn = parseFunction('OnTest {\n\t"A" + (x ? "B" : "C") + "D"\n}');
+			const dialogues = extractDialogues(fn);
+			expect(dialogues.map((d) => d.rawText)).toEqual(["B", "C", "AD"]);
+		});
+
+		it("条件式内の + 連結は抽出されない", () => {
+			const fn = parseFunction('OnTest {\n\tif "a" + "b" == "ab" {\n\t\t"dialogue"\n\t}\n}');
+			const dialogues = extractDialogues(fn);
+			expect(dialogues.map((d) => d.rawText)).toEqual(["dialogue"]);
+		});
+
+		it("代入右辺の + 連結は抽出されない", () => {
+			const fn = parseFunction('OnTest {\n\t_x = "A" + "B"\n\t"dialogue"\n}');
+			const dialogues = extractDialogues(fn);
+			expect(dialogues.map((d) => d.rawText)).toEqual(["dialogue"]);
+		});
+
+		it("+ 連結と別の ExpressionStatement が別ダイアログになる", () => {
+			const fn = parseFunction('OnTest {\n\t"A" + "B"\n\t"C"\n}');
+			const dialogues = extractDialogues(fn);
+			expect(dialogues.map((d) => d.rawText)).toEqual(["AB", "C"]);
+		});
+	});
+
 	describe("YAYA -- (Output Determinant)", () => {
 		it("-- で区切られた文字列が1つのダイアログに連結される", () => {
 			const fn = parseFunction('OnTest { "A" -- "B" -- "C" }');
