@@ -467,13 +467,12 @@ describe("parseYayaDic", () => {
 
 	// --- 新規テスト: -- セパレータ ---
 
-	it("-- セパレータ前後のダイアログを抽出する", () => {
+	it("-- セパレータ前後のダイアログを連結する", () => {
 		const text = 'OnBoot {\n\t"hello"\n\t--\n\t"world"\n}';
 		const result = parseYayaDic(text, "test.dic");
 
-		expect(result[0].dialogues).toHaveLength(2);
-		expect(result[0].dialogues[0].rawText).toBe("hello");
-		expect(result[0].dialogues[1].rawText).toBe("world");
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("helloworld");
 	});
 
 	it("文字列内の ======== でもダイアログを分割する", () => {
@@ -578,16 +577,15 @@ describe("parseYayaDic", () => {
 		);
 	});
 
-	it("テキスト + テキストのダイアログはマージされない", () => {
+	it("-- で連結されたテキスト同士が1つのダイアログになる", () => {
 		const text = ["OnTest {", '\t"hello"', "\t--", '\t"world"', "}"].join("\n");
 		const result = parseYayaDic(text, "test.dic");
 
-		expect(result[0].dialogues).toHaveLength(2);
-		expect(result[0].dialogues[0].rawText).toBe("hello");
-		expect(result[0].dialogues[1].rawText).toBe("world");
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("helloworld");
 	});
 
-	it("末尾の制御タグのみダイアログは独立して保持される", () => {
+	it("末尾の制御タグのみダイアログが -- で連結される", () => {
 		const text = [
 			"OnTest {",
 			'\t"\\h\\s[0]hello"',
@@ -597,9 +595,8 @@ describe("parseYayaDic", () => {
 		].join("\n");
 		const result = parseYayaDic(text, "test.dic");
 
-		expect(result[0].dialogues).toHaveLength(2);
-		expect(result[0].dialogues[0].rawText).toBe("\\h\\s[0]hello");
-		expect(result[0].dialogues[1].rawText).toBe("\\t\\![set,choicetimeout,0]");
+		expect(result[0].dialogues).toHaveLength(1);
+		expect(result[0].dialogues[0].rawText).toBe("\\h\\s[0]hello\\t\\![set,choicetimeout,0]");
 	});
 
 	it("ghost/master パスのパイプラインでも元ファイル行番号を保持する", () => {

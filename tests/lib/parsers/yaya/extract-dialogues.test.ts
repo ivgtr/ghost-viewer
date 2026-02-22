@@ -72,4 +72,58 @@ describe("extractDialogues", () => {
 		expect(texts).toContain("A");
 		expect(texts).toContain("B");
 	});
+
+	describe("YAYA -- (Output Determinant)", () => {
+		it("-- で区切られた文字列が1つのダイアログに連結される", () => {
+			const fn = parseFunction('OnTest { "A" -- "B" -- "C" }');
+			const dialogues = extractDialogues(fn);
+			expect(dialogues).toHaveLength(1);
+			expect(dialogues[0].rawText).toBe("ABC");
+		});
+
+		it("-- セクション内に複数候補がある場合、セクションごとに別ダイアログになる", () => {
+			const fn = parseFunction('OnTest { "A" "B" -- "C" }');
+			const dialogues = extractDialogues(fn);
+			expect(dialogues).toHaveLength(2);
+			const texts = dialogues.map((d) => d.rawText);
+			expect(texts).toContain("AC");
+			expect(texts).toContain("BC");
+		});
+
+		it("-- の間にコードブロック（非文字列）がある場合も連結", () => {
+			const fn = parseFunction('OnTest { "A" -- _x = 1 "B" }');
+			const dialogues = extractDialogues(fn);
+			expect(dialogues).toHaveLength(1);
+			expect(dialogues[0].rawText).toBe("AB");
+		});
+
+		it("-- なしの複数文字列は別ダイアログ（既存動作確認）", () => {
+			const fn = parseFunction('OnTest { "A" "B" }');
+			const dialogues = extractDialogues(fn);
+			expect(dialogues.length).toBeGreaterThanOrEqual(2);
+		});
+
+		it("-- 連結内に ======== を含む文字列がある場合は分割優先", () => {
+			const fn = parseFunction('OnTest { "X\\n========\\nY" -- "Z" }');
+			const dialogues = extractDialogues(fn);
+			expect(dialogues).toHaveLength(2);
+			const texts = dialogues.map((d) => d.rawText);
+			expect(texts).toContain("X");
+			expect(texts).toContain("YZ");
+		});
+
+		it("先頭 -- は無視される", () => {
+			const fn = parseFunction('OnTest { -- "A" }');
+			const dialogues = extractDialogues(fn);
+			expect(dialogues).toHaveLength(1);
+			expect(dialogues[0].rawText).toBe("A");
+		});
+
+		it("末尾 -- は無視される", () => {
+			const fn = parseFunction('OnTest { "A" -- }');
+			const dialogues = extractDialogues(fn);
+			expect(dialogues).toHaveLength(1);
+			expect(dialogues[0].rawText).toBe("A");
+		});
+	});
 });

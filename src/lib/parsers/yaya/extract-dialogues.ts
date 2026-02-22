@@ -6,11 +6,12 @@ import {
 	splitExtractedStringByConventionalSeparators,
 } from "./internal/dialogue-separator";
 
-interface ExtractedString {
-	value: string;
-	line: number;
-	isHardSeparator?: true;
-}
+type ExtractedEntry =
+	| { kind: "text"; value: string; line: number }
+	| { kind: "hard-separator"; line: number }
+	| { kind: "concat"; line: number };
+
+type TextEntry = Extract<ExtractedEntry, { kind: "text" }>;
 
 interface ExtractionContext {
 	inCondition: boolean;
@@ -25,16 +26,17 @@ function isTextDialogue(text: string): boolean {
 	return tokens.some((t) => t.tokenType === "text");
 }
 
-function mergeControlOnlyDialogues(rawDialogues: ExtractedString[]): ExtractedString[] {
+function mergeControlOnlyDialogues(rawDialogues: TextEntry[]): TextEntry[] {
 	if (rawDialogues.length === 0) return [];
 
-	const result: ExtractedString[] = [];
-	let pending: ExtractedString | null = null;
+	const result: TextEntry[] = [];
+	let pending: TextEntry | null = null;
 
 	for (const d of rawDialogues) {
 		if (!isTextDialogue(d.value)) {
 			if (pending) {
 				pending = {
+					kind: "text",
 					value: pending.value + d.value,
 					line: pending.line,
 				};
@@ -44,6 +46,7 @@ function mergeControlOnlyDialogues(rawDialogues: ExtractedString[]): ExtractedSt
 		} else {
 			if (pending) {
 				result.push({
+					kind: "text",
 					value: pending.value + d.value,
 					line: pending.line,
 				});
@@ -61,16 +64,8 @@ function mergeControlOnlyDialogues(rawDialogues: ExtractedString[]): ExtractedSt
 	return result;
 }
 
-function createHardSeparator(line: number): ExtractedString {
-	return {
-		value: "",
-		line,
-		isHardSeparator: true,
-	};
-}
-
-function extractStringsFromFunction(fn: FunctionDecl): ExtractedString[] {
-	const strings: ExtractedString[] = [];
+function extractStringsFromFunction(fn: FunctionDecl): ExtractedEntry[] {
+	const strings: ExtractedEntry[] = [];
 	const context: ExtractionContext = {
 		inCondition: false,
 		inCallArgument: false,
@@ -90,6 +85,7 @@ function extractStringsFromFunction(fn: FunctionDecl): ExtractedString[] {
 					!localContext.inCaseTest
 				) {
 					strings.push({
+						kind: "text",
 						value: expr.value,
 						line: expr.loc?.start.line ?? 0,
 					});
@@ -231,7 +227,7 @@ function extractStringsFromFunction(fn: FunctionDecl): ExtractedString[] {
 				break;
 
 			case "Separator":
-				strings.push(createHardSeparator(stmt.loc?.start.line ?? 0));
+				strings.push({ kind: "concat", line: stmt.loc?.start.line ?? 0 });
 				break;
 
 			case "DoStatement":
@@ -253,11 +249,11 @@ function extractStringsFromFunction(fn: FunctionDecl): ExtractedString[] {
 	return strings;
 }
 
-function expandExtractedStrings(strings: ExtractedString[]): ExtractedString[] {
-	const expanded: ExtractedString[] = [];
+function expandExtractedStrings(strings: ExtractedEntry[]): ExtractedEntry[] {
+	const expanded: ExtractedEntry[] = [];
 
 	for (const entry of strings) {
-		if (entry.isHardSeparator) {
+		if (entry.kind !== "text") {
 			expanded.push(entry);
 			continue;
 		}
@@ -270,32 +266,101 @@ function expandExtractedStrings(strings: ExtractedString[]): ExtractedString[] {
 }
 
 function appendExpandedParts(
-	target: ExtractedString[],
+	target: ExtractedEntry[],
 	parts: ConventionalSplitSegment[],
 	line: number,
 ): void {
 	for (const [index, part] of parts.entries()) {
 		target.push({
+			kind: "text",
 			value: part.value,
 			line: part.line,
 		});
 		if (index < parts.length - 1) {
-			target.push(createHardSeparator(line));
+			target.push({ kind: "hard-separator", line });
 		}
 	}
 }
 
-function groupByHardSeparator(strings: ExtractedString[]): ExtractedString[][] {
-	const groups: ExtractedString[][] = [];
-	let current: ExtractedString[] = [];
+function mergeConcatenatedEntries(entries: ExtractedEntry[]): ExtractedEntry[] {
+	const result: ExtractedEntry[] = [];
+	let sections: TextEntry[][] = [[]];
 
-	for (const s of strings) {
-		if (s.isHardSeparator) {
+	function flushSections(): void {
+		const nonEmpty = sections.filter((s) => s.length > 0);
+		sections = [[]];
+
+		if (nonEmpty.length === 0) return;
+
+		const first = nonEmpty[0];
+		if (!first) return;
+
+		if (nonEmpty.length === 1) {
+			for (const entry of first) {
+				result.push(entry);
+			}
+			return;
+		}
+
+		let combinations: TextEntry[] = first.map((e) => ({ ...e }));
+		for (let i = 1; i < nonEmpty.length; i++) {
+			const section = nonEmpty[i];
+			if (!section) continue;
+			const next: TextEntry[] = [];
+			for (const prev of combinations) {
+				for (const curr of section) {
+					next.push({
+						kind: "text",
+						value: prev.value + curr.value,
+						line: prev.line,
+					});
+				}
+			}
+			combinations = next;
+		}
+
+		for (const entry of combinations) {
+			if (entry.value.length > 0) {
+				result.push(entry);
+			}
+		}
+	}
+
+	for (const entry of entries) {
+		switch (entry.kind) {
+			case "text": {
+				const lastSection = sections[sections.length - 1];
+				if (lastSection) lastSection.push(entry);
+				break;
+			}
+
+			case "concat":
+				sections.push([]);
+				break;
+
+			case "hard-separator":
+				flushSections();
+				result.push(entry);
+				break;
+		}
+	}
+
+	flushSections();
+
+	return result;
+}
+
+function groupByHardSeparator(entries: ExtractedEntry[]): TextEntry[][] {
+	const groups: TextEntry[][] = [];
+	let current: TextEntry[] = [];
+
+	for (const s of entries) {
+		if (s.kind === "hard-separator") {
 			if (current.length > 0) {
 				groups.push(current);
 				current = [];
 			}
-		} else {
+		} else if (s.kind === "text") {
 			current.push(s);
 		}
 	}
@@ -307,11 +372,12 @@ function groupByHardSeparator(strings: ExtractedString[]): ExtractedString[][] {
 	return groups;
 }
 
-function stringsToDialogues(strings: ExtractedString[]): Dialogue[] {
+function stringsToDialogues(strings: ExtractedEntry[]): Dialogue[] {
 	if (strings.length === 0) return [];
 
 	const expanded = expandExtractedStrings(strings);
-	const groups = groupByHardSeparator(expanded);
+	const concatenated = mergeConcatenatedEntries(expanded);
+	const groups = groupByHardSeparator(concatenated);
 	const merged = mergeControlOnlyAcrossGroups(groups);
 	const result: Dialogue[] = [];
 
@@ -329,9 +395,9 @@ function stringsToDialogues(strings: ExtractedString[]): Dialogue[] {
 	return result;
 }
 
-function mergeControlOnlyAcrossGroups(groups: ExtractedString[][]): ExtractedString[] {
-	const result: ExtractedString[] = [];
-	let pendingControl: ExtractedString | null = null;
+function mergeControlOnlyAcrossGroups(groups: TextEntry[][]): TextEntry[] {
+	const result: TextEntry[] = [];
+	let pendingControl: TextEntry | null = null;
 
 	for (const group of groups) {
 		if (group.length === 0) {
@@ -351,6 +417,7 @@ function mergeControlOnlyAcrossGroups(groups: ExtractedString[][]): ExtractedStr
 				}
 
 				result.push({
+					kind: "text",
 					value: pendingControl.value + entry.value,
 					line: pendingControl.line,
 				});
@@ -364,6 +431,7 @@ function mergeControlOnlyAcrossGroups(groups: ExtractedString[][]): ExtractedStr
 			}
 
 			pendingControl = {
+				kind: "text",
 				value: pendingControl.value + entry.value,
 				line: pendingControl.line,
 			};
